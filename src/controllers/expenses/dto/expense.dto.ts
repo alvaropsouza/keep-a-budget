@@ -24,10 +24,6 @@ export class CreateExpenseDto {
   @IsOptional()
   description?: string;
 
-  @IsString()
-  @IsOptional()
-  receiptUrl?: string;
-
   @IsNumber()
   @IsOptional()
   @Min(1)
@@ -55,10 +51,6 @@ export class UpdateExpenseDto {
   @IsString()
   @IsOptional()
   description?: string;
-
-  @IsString()
-  @IsOptional()
-  receiptUrl?: string;
 
   @IsMongoId()
   @IsOptional()

@@ -73,7 +73,6 @@ export const expenseSchemas = {
         category: { type: "string" },
         amount: { type: "number", minimum: 0 },
         description: { type: "string" },
-        receiptUrl: { type: "string" },
         installmentTotal: { type: "number", minimum: 1 },
         installmentStartDate: { type: "string", format: "date-time" },
       },
@@ -113,7 +112,6 @@ export const expenseSchemas = {
         category: { type: "string" },
         amount: { type: "number", minimum: 0 },
         description: { type: "string" },
-        receiptUrl: { type: "string" },
         cardInvoiceId: { type: "string" },
         installmentTotal: { type: "number", minimum: 1 },
         installmentStartDate: { type: "string", format: "date-time" },
@@ -153,20 +151,32 @@ export const expenseSchemas = {
 
   uploadReceipt: {
     tags: ["Expenses"],
-    description: "Upload a receipt for an expense",
+    description: "Upload a receipt file (image or PDF) for an expense",
     params: {
       type: "object",
       properties: {
-        id: { type: "string" },
+        id: { type: "string", description: "The expense ID" },
       },
       required: ["id"],
     },
+    consumes: ["multipart/form-data"],
     response: {
       200: {
         type: "object",
         properties: {
-          message: { type: "string" },
-          receiptUrl: { type: "string" },
+          _id: { type: "string" },
+          bank: { type: "string" },
+          category: { type: "string" },
+          amount: { type: "number" },
+          description: { type: "string" },
+          receipt: {
+            type: "string",
+            description: "S3 URL of the uploaded receipt file",
+          },
+          installment: { type: "object" },
+          cardInvoiceId: { type: "string" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
         },
       },
     },

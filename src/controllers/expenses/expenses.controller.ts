@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import Expense, { IExpense } from "../../models/Expense";
 import CardInvoice from "../../models/CardInvoice";
 import { uploadToS3 } from "../../utils/s3Upload";
+import logger from "../../config/logger";
 import {
   CreateExpenseDto,
   UpdateExpenseDto,
@@ -9,66 +10,54 @@ import {
 } from "./dto/expense.dto";
 import { validateAndRespond } from "../../utils/validation";
 
+const createRangeFilter = (
+  min?: number | string,
+  max?: number | string
+): Record<string, number> | object => {
+  const range: Record<string, number> = {};
+  if (min !== undefined)
+    range.$gte = typeof min === "string" ? Number.parseFloat(min) : min;
+  if (max !== undefined)
+    range.$lte = typeof max === "string" ? Number.parseFloat(max) : max;
+  return Object.keys(range).length ? range : {};
+};
+
+const createDateRangeFilter = (
+  startDate?: string,
+  endDate?: string
+): Record<string, Date> | null => {
+  const range: Record<string, Date> = {};
+  if (startDate) range.$gte = new Date(startDate);
+  if (endDate) range.$lte = new Date(endDate);
+  return Object.keys(range).length ? range : null;
+};
+
 const buildFilterQuery = (
   queryParams: ExpenseQueryParamsDto
 ): Record<string, unknown> => {
-  const filter: Record<string, unknown> = {};
+  const createdAtFilter = createDateRangeFilter(
+    queryParams.createdStartDate,
+    queryParams.createdEndDate
+  );
+  const updatedAtFilter = createDateRangeFilter(
+    queryParams.updatedStartDate,
+    queryParams.updatedEndDate
+  );
+  const amountFilter = createRangeFilter(
+    queryParams.minAmount,
+    queryParams.maxAmount
+  );
 
-  if (queryParams.bank) {
-    filter.bank = queryParams.bank;
-  }
-
-  if (queryParams.category) {
-    filter.category = queryParams.category;
-  }
-
-  if (queryParams.cardInvoiceId) {
-    filter.cardInvoiceId = queryParams.cardInvoiceId;
-  }
-
-  if (queryParams.minAmount || queryParams.maxAmount) {
-    filter.amount = {};
-    if (queryParams.minAmount) {
-      (filter.amount as Record<string, number>).$gte = parseFloat(
-        queryParams.minAmount
-      );
-    }
-    if (queryParams.maxAmount) {
-      (filter.amount as Record<string, number>).$lte = parseFloat(
-        queryParams.maxAmount
-      );
-    }
-  }
-
-  if (queryParams.createdStartDate || queryParams.createdEndDate) {
-    filter.createdAt = {};
-    if (queryParams.createdStartDate) {
-      (filter.createdAt as Record<string, Date>).$gte = new Date(
-        queryParams.createdStartDate
-      );
-    }
-    if (queryParams.createdEndDate) {
-      (filter.createdAt as Record<string, Date>).$lte = new Date(
-        queryParams.createdEndDate
-      );
-    }
-  }
-
-  if (queryParams.updatedStartDate || queryParams.updatedEndDate) {
-    filter.updatedAt = {};
-    if (queryParams.updatedStartDate) {
-      (filter.updatedAt as Record<string, Date>).$gte = new Date(
-        queryParams.updatedStartDate
-      );
-    }
-    if (queryParams.updatedEndDate) {
-      (filter.updatedAt as Record<string, Date>).$lte = new Date(
-        queryParams.updatedEndDate
-      );
-    }
-  }
-
-  return filter;
+  return {
+    ...(queryParams.bank && { bank: queryParams.bank }),
+    ...(queryParams.category && { category: queryParams.category }),
+    ...(queryParams.cardInvoiceId && {
+      cardInvoiceId: queryParams.cardInvoiceId,
+    }),
+    ...(Object.keys(amountFilter).length > 0 && { amount: amountFilter }),
+    ...(createdAtFilter && { createdAt: createdAtFilter }),
+    ...(updatedAtFilter && { updatedAt: updatedAtFilter }),
+  };
 };
 
 const createInstallmentExpenses = async (
@@ -114,31 +103,22 @@ export const getAllExpenses = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
-  try {
-    const filter = buildFilterQuery(request.query as ExpenseQueryParamsDto);
-    const expenses = await Expense.find(filter).sort({ date: -1 });
-    reply.send(expenses);
-  } catch (error) {
-    reply.status(500).send({ error: (error as Error).message });
-  }
+  logger.debug({ query: request.query }, "Fetching all expenses");
+  const filter = buildFilterQuery(request.query as ExpenseQueryParamsDto);
+  const expenses = await Expense.find(filter).sort({ date: -1 });
+  logger.info({ count: expenses.length }, "Successfully fetched expenses");
+  reply.send(expenses);
 };
 
 export const getExpenseById = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
-  try {
-    const expense = await Expense.findById(
-      (request.params as { id: string }).id
-    );
-    if (!expense) {
-      reply.status(404).send({ error: "Expense not found" });
-      return;
-    }
-    reply.send(expense);
-  } catch (error) {
-    reply.status(500).send({ error: (error as Error).message });
-  }
+  const expenseId = (request.params as { id: string }).id;
+  logger.debug({ expenseId }, "Fetching expense by ID");
+  const expense = await Expense.findById(expenseId).orFail();
+  logger.info({ expenseId }, "Successfully fetched expense");
+  reply.send(expense);
 };
 
 export const createExpense = async (
@@ -149,55 +129,72 @@ export const createExpense = async (
     return;
   }
 
-  try {
-    const body = request.body as CreateExpenseDto;
-    const { installmentTotal, installmentStartDate, ...expenseData } = body;
+  logger.debug({ body: request.body }, "Creating new expense");
+  const body = request.body as CreateExpenseDto;
+  const { installmentTotal, installmentStartDate, ...expenseData } = body;
 
-    if (installmentTotal && installmentTotal > 1) {
-      const expenses = await createInstallmentExpenses(
-        body,
-        installmentTotal,
-        installmentStartDate
-      );
-      const savedExpenses = await Expense.insertMany(expenses);
+  if (installmentTotal && installmentTotal > 1) {
+    logger.info(
+      { installmentTotal, bank: body.bank },
+      "Creating installment expenses"
+    );
+    const expenses = await createInstallmentExpenses(
+      body,
+      installmentTotal,
+      installmentStartDate
+    );
+    const savedExpenses = await Expense.insertMany(expenses);
 
-      // Update invoice amounts for installments
-      for (const expense of savedExpenses) {
-        if (expense.cardInvoiceId) {
-          await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
-            $inc: { amount: expense.amount },
-          });
-        }
-      }
-
-      reply.status(201).send(savedExpenses);
-    } else {
-      const expenseDate = installmentStartDate
-        ? new Date(installmentStartDate)
-        : new Date();
-      const cardInvoice = await CardInvoice.findOne({
-        bank: body.bank,
-        openDate: { $lte: expenseDate },
-        closingDate: { $gte: expenseDate },
-      });
-
-      const expense = new Expense({
-        ...expenseData,
-        date: expenseDate,
-        cardInvoiceId: cardInvoice?._id,
-      });
-      await expense.save();
-
-      if (cardInvoice) {
-        await CardInvoice.findByIdAndUpdate(cardInvoice._id, {
+    // Update invoice amounts for installments
+    for (const expense of savedExpenses) {
+      if (expense.cardInvoiceId) {
+        await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
           $inc: { amount: expense.amount },
         });
       }
-
-      reply.status(201).send(expense);
     }
-  } catch (error) {
-    reply.status(400).send({ error: (error as Error).message });
+
+    logger.info(
+      { count: savedExpenses.length, installmentTotal },
+      "Successfully created installment expenses"
+    );
+    reply.status(201).send(savedExpenses);
+  } else {
+    const expenseDate = installmentStartDate
+      ? new Date(installmentStartDate)
+      : new Date();
+    const cardInvoice = await CardInvoice.findOne({
+      bank: body.bank,
+      openDate: { $lte: expenseDate },
+      closingDate: { $gte: expenseDate },
+    });
+
+    const expense = new Expense({
+      ...expenseData,
+      date: expenseDate,
+      cardInvoiceId: cardInvoice?._id,
+    });
+    await expense.save();
+
+    if (cardInvoice) {
+      await CardInvoice.findByIdAndUpdate(cardInvoice._id, {
+        $inc: { amount: expense.amount },
+      });
+      logger.debug(
+        {
+          expenseId: expense._id,
+          invoiceId: cardInvoice._id,
+          amount: expense.amount,
+        },
+        "Updated invoice amount"
+      );
+    }
+
+    logger.info(
+      { expenseId: expense._id, amount: expense.amount },
+      "Successfully created expense"
+    );
+    reply.status(201).send(expense);
   }
 };
 
@@ -209,74 +206,87 @@ export const updateExpense = async (
     return;
   }
 
-  try {
-    const expense = await Expense.findByIdAndUpdate(
-      (request.params as { id: string }).id,
-      request.body as UpdateExpenseDto,
-      { new: true, runValidators: true }
-    );
-    if (!expense) {
-      reply.status(404).send({ error: "Expense not found" });
-      return;
+  const expenseId = (request.params as { id: string }).id;
+  logger.debug({ expenseId, body: request.body }, "Updating expense");
+  const oldExpense = await Expense.findById(expenseId).orFail();
+  const updateData = request.body as UpdateExpenseDto;
+
+  const expense = await Expense.findByIdAndUpdate(expenseId, updateData, {
+    new: true,
+    runValidators: true,
+  }).orFail();
+
+  // If amount changed, sync the invoice total
+  if (
+    updateData.amount !== undefined &&
+    updateData.amount !== oldExpense.amount
+  ) {
+    const amountDelta = updateData.amount - oldExpense.amount;
+    if (expense.cardInvoiceId) {
+      await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
+        $inc: { amount: amountDelta },
+      });
+      logger.debug(
+        { expenseId, invoiceId: expense.cardInvoiceId, delta: amountDelta },
+        "Synced invoice amount due to expense amount change"
+      );
     }
-    reply.send(expense);
-  } catch (error) {
-    reply.status(400).send({ error: (error as Error).message });
   }
+
+  logger.info({ expenseId }, "Successfully updated expense");
+  reply.send(expense);
 };
 
 export const deleteExpense = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
-  try {
-    const expense = await Expense.findByIdAndDelete(
-      (request.params as { id: string }).id
+  const expenseId = (request.params as { id: string }).id;
+  logger.debug({ expenseId }, "Deleting expense");
+  const expense = await Expense.findByIdAndDelete(expenseId).orFail();
+
+  if (expense.cardInvoiceId) {
+    await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
+      $inc: { amount: -expense.amount },
+    });
+    logger.debug(
+      { expenseId, invoiceId: expense.cardInvoiceId, amount: expense.amount },
+      "Decremented invoice amount"
     );
-    if (!expense) {
-      reply.status(404).send({ error: "Expense not found" });
-      return;
-    }
-
-    if (expense.cardInvoiceId) {
-      await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
-        $inc: { amount: -expense.amount },
-      });
-    }
-
-    reply.send({ message: "Expense deleted successfully" });
-  } catch (error) {
-    reply.status(500).send({ error: (error as Error).message });
   }
+
+  logger.info({ expenseId }, "Successfully deleted expense");
+  reply.send({ message: "Expense deleted successfully" });
 };
 
 export const uploadReceipt = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
-  try {
-    const data = await request.file();
-    if (!data) {
-      reply.status(400).send({ error: "No file uploaded" });
-      return;
-    }
-
-    const buffer = await data.toBuffer();
-    const fileUrl = await uploadToS3(buffer, data.filename, data.mimetype);
-
-    const expense = await Expense.findByIdAndUpdate(
-      (request.params as { id: string }).id,
-      { receiptUrl: fileUrl },
-      { new: true }
-    );
-
-    if (!expense) {
-      reply.status(404).send({ error: "Expense not found" });
-      return;
-    }
-
-    reply.send(expense);
-  } catch (error) {
-    reply.status(500).send({ error: (error as Error).message });
+  const expenseId = (request.params as { id: string }).id;
+  logger.debug({ expenseId }, "Uploading receipt file");
+  const data = await request.file();
+  if (!data) {
+    reply.status(400).send({ error: "No file uploaded" });
+    return;
   }
+
+  logger.debug(
+    { expenseId, filename: data.filename, mimetype: data.mimetype },
+    "Processing receipt upload"
+  );
+  const buffer = await data.toBuffer();
+  const fileUrl = await uploadToS3(buffer, data.filename, data.mimetype);
+
+  const expense = await Expense.findByIdAndUpdate(
+    expenseId,
+    { receipt: fileUrl },
+    { new: true }
+  ).orFail();
+
+  logger.info(
+    { expenseId, filename: data.filename, receiptUrl: fileUrl },
+    "Successfully uploaded receipt"
+  );
+  reply.send(expense);
 };

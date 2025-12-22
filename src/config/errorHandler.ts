@@ -32,7 +32,6 @@ export const errorHandler = (
     });
   }
 
-  // Mongo duplicate key error (e.g., unique index violation)
   const mongoError = error as mongoose.mongo.MongoServerError;
   if (mongoError?.code === 11000) {
     return reply.status(409).send({
@@ -41,7 +40,6 @@ export const errorHandler = (
     });
   }
 
-  // Log unknown errors
   request.log.error(error);
 
   return reply.status(500).send({

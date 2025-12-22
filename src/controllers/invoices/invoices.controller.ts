@@ -8,99 +8,67 @@ import {
 } from "./dto/invoice.dto";
 import { validateAndRespond } from "../../utils/validation";
 
-const addDateRangeFilter = (
-  filter: Record<string, unknown>,
+const createDateRangeFilter = (
   field: string,
   startDate?: string,
   endDate?: string
 ) => {
-  if (startDate || endDate) {
-    filter[field] = {};
-    if (startDate) {
-      (filter[field] as Record<string, Date>).$gte = new Date(startDate);
-    }
-    if (endDate) {
-      (filter[field] as Record<string, Date>).$lte = new Date(endDate);
-    }
-  }
+  const range = {
+    ...(startDate && { $gte: new Date(startDate) }),
+    ...(endDate && { $lte: new Date(endDate) }),
+  };
+  return Object.keys(range).length ? { [field]: range } : {};
 };
 
 const buildFilterQuery = (
   queryParams: InvoiceQueryParamsDto
 ): Record<string, unknown> => {
-  const filter: Record<string, unknown> = {};
-
-  if (queryParams.bank) {
-    filter.bank = queryParams.bank;
-  }
-
-  if (queryParams.openDate) {
-    filter.openDate = new Date(queryParams.openDate);
-  }
-
-  if (queryParams.closingDate) {
-    filter.closingDate = new Date(queryParams.closingDate);
-  }
-
-  if (queryParams.dueDate) {
-    filter.dueDate = new Date(queryParams.dueDate);
-  }
-
-  addDateRangeFilter(
-    filter,
-    "openDate",
-    queryParams.startDate,
-    queryParams.endDate
-  );
-
-  addDateRangeFilter(
-    filter,
-    "createdAt",
-    queryParams.createdStartDate,
-    queryParams.createdEndDate
-  );
-
-  addDateRangeFilter(
-    filter,
-    "updatedAt",
-    queryParams.updatedStartDate,
-    queryParams.updatedEndDate
-  );
-
-  return filter;
+  return {
+    ...(queryParams.bank && { bank: queryParams.bank }),
+    ...(queryParams.openDate && { openDate: new Date(queryParams.openDate) }),
+    ...(queryParams.closingDate && {
+      closingDate: new Date(queryParams.closingDate),
+    }),
+    ...(queryParams.dueDate && { dueDate: new Date(queryParams.dueDate) }),
+    ...createDateRangeFilter(
+      "openDate",
+      queryParams.startDate,
+      queryParams.endDate
+    ),
+    ...createDateRangeFilter(
+      "createdAt",
+      queryParams.createdStartDate,
+      queryParams.createdEndDate
+    ),
+    ...createDateRangeFilter(
+      "updatedAt",
+      queryParams.updatedStartDate,
+      queryParams.updatedEndDate
+    ),
+  };
 };
 
 export const getAllInvoices = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
-  try {
-    const filter = buildFilterQuery(request.query as InvoiceQueryParamsDto);
-    const invoices = await CardInvoice.find(filter)
-      .sort({ dueDate: -1 })
-      .populate("expenses");
-    reply.send(invoices);
-  } catch (error) {
-    reply.status(500).send({ error: (error as Error).message });
-  }
+  const filter = buildFilterQuery(request.query as InvoiceQueryParamsDto);
+  const invoices = await CardInvoice.find(filter)
+    .sort({ dueDate: -1 })
+    .populate("expenses");
+  reply.send(invoices);
 };
 
 export const getInvoiceById = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
-  try {
-    const invoice = await CardInvoice.findById(
-      (request.params as { id: string }).id
-    ).populate("expenses");
-    if (!invoice) {
-      reply.status(404).send({ error: "Invoice not found" });
-      return;
-    }
-    reply.send(invoice);
-  } catch (error) {
-    reply.status(500).send({ error: (error as Error).message });
-  }
+  const invoice = await CardInvoice.findById(
+    (request.params as { id: string }).id
+  )
+    .populate("expenses")
+    .orFail();
+  reply.send(invoice);
 };
 
 export const createInvoice = async (
@@ -111,13 +79,9 @@ export const createInvoice = async (
     return;
   }
 
-  try {
-    const invoice = new CardInvoice(request.body as CreateInvoiceDto);
-    await invoice.save();
-    reply.status(201).send(invoice);
-  } catch (error) {
-    reply.status(400).send({ error: (error as Error).message });
-  }
+  const invoice = new CardInvoice(request.body as CreateInvoiceDto);
+  await invoice.save();
+  reply.status(201).send(invoice);
 };
 
 // Update invoice
@@ -129,40 +93,24 @@ export const updateInvoice = async (
     return;
   }
 
-  try {
-    const invoice = await CardInvoice.findByIdAndUpdate(
-      (request.params as { id: string }).id,
-      request.body as UpdateInvoiceDto,
-      { new: true, runValidators: true }
-    );
-    if (!invoice) {
-      reply.status(404).send({ error: "Invoice not found" });
-      return;
-    }
-    reply.send(invoice);
-  } catch (error) {
-    reply.status(400).send({ error: (error as Error).message });
-  }
+  const invoice = await CardInvoice.findByIdAndUpdate(
+    (request.params as { id: string }).id,
+    request.body as UpdateInvoiceDto,
+    { new: true, runValidators: true }
+  ).orFail();
+  reply.send(invoice);
 };
 
 export const deleteInvoice = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
-  try {
-    const invoiceId = (request.params as { id: string }).id;
-    const invoice = await CardInvoice.findByIdAndDelete(invoiceId);
-    if (!invoice) {
-      reply.status(404).send({ error: "Invoice not found" });
-      return;
-    }
+  const invoiceId = (request.params as { id: string }).id;
+  await CardInvoice.findByIdAndDelete(invoiceId).orFail();
 
-    await Expense.deleteMany({ cardInvoiceId: invoiceId });
+  await Expense.deleteMany({ cardInvoiceId: invoiceId });
 
-    reply.send({
-      message: "Invoice and associated expenses deleted successfully",
-    });
-  } catch (error) {
-    reply.status(500).send({ error: (error as Error).message });
-  }
+  reply.send({
+    message: "Invoice and associated expenses deleted successfully",
+  });
 };

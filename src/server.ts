@@ -9,10 +9,13 @@ import connectDB from "./config/database";
 import invoiceRoutes from "./routes/invoices";
 import expenseRoutes from "./routes/expenses";
 import logger, { fastifyLoggerConfig } from "./config/logger";
+import { errorHandler } from "./config/errorHandler";
 
 validateEnv();
 
 const app = Fastify({ logger: fastifyLoggerConfig });
+
+app.setErrorHandler(errorHandler);
 
 app.register(rateLimit, {
   max: 100,

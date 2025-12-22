@@ -1,11 +1,18 @@
 require('dotenv').config();
 const fastify = require('fastify');
 const multipart = require('@fastify/multipart');
+const rateLimit = require('@fastify/rate-limit');
 const connectDB = require('./config/database');
 const invoiceRoutes = require('./routes/invoices');
 const expenseRoutes = require('./routes/expenses');
 
 const app = fastify({ logger: true });
+
+// Register rate limiting
+app.register(rateLimit, {
+  max: 100, // Maximum 100 requests
+  timeWindow: '1 minute', // Per minute
+});
 
 // Register multipart for file uploads
 app.register(multipart);

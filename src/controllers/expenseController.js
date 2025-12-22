@@ -57,9 +57,9 @@ const buildFilterQuery = (queryParams) => {
 };
 
 // Helper function to create installment expenses
-const createInstallmentExpenses = async (baseExpense, installmentTotal) => {
+const createInstallmentExpenses = async (baseExpense, installmentTotal, startDate = null) => {
   const expenses = [];
-  const baseDate = new Date();
+  const baseDate = startDate ? new Date(startDate) : new Date();
 
   for (let i = 1; i <= installmentTotal; i++) {
     const installmentDate = new Date(baseDate);
@@ -115,9 +115,11 @@ const createExpense = async (request, reply) => {
     // Check if installment is set
     if (data.installmentTotal && data.installmentTotal > 1) {
       const installmentTotal = parseInt(data.installmentTotal);
+      const startDate = data.installmentStartDate || null;
       delete data.installmentTotal; // Remove from base data
+      delete data.installmentStartDate; // Remove from base data
 
-      const expenses = await createInstallmentExpenses(data, installmentTotal);
+      const expenses = await createInstallmentExpenses(data, installmentTotal, startDate);
       return reply.status(201).send({
         message: `Created ${installmentTotal} installment expenses`,
         expenses,
@@ -172,7 +174,23 @@ const uploadReceipt = async (request, reply) => {
       return reply.status(400).send({ error: 'No file uploaded' });
     }
 
+    // Validate file type
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+    if (!allowedMimeTypes.includes(data.mimetype)) {
+      return reply.status(400).send({ 
+        error: 'Invalid file type. Only JPEG, PNG, GIF, and PDF files are allowed.' 
+      });
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     const buffer = await data.toBuffer();
+    if (buffer.length > maxSize) {
+      return reply.status(400).send({ 
+        error: 'File too large. Maximum size is 5MB.' 
+      });
+    }
+
     const receiptUrl = await uploadToS3(buffer, data.filename, data.mimetype);
 
     // Update expense with receipt URL

@@ -69,7 +69,6 @@ const buildFilterQuery = (
   return filter;
 };
 
-// Helper function to create installment expenses
 const createInstallmentExpenses = async (
   baseExpense: CreateExpenseDto,
   installmentTotal: number,
@@ -79,18 +78,13 @@ const createInstallmentExpenses = async (
   const baseDate = startDate ? new Date(startDate) : new Date();
 
   for (let i = 1; i <= installmentTotal; i++) {
-    // More robust month calculation to handle year transitions and month-end dates
     const year = baseDate.getFullYear();
     const month = baseDate.getMonth();
     const day = baseDate.getDate();
 
-    // Calculate target month and year
     const targetMonth = month + (i - 1);
     const targetDate = new Date(year, targetMonth, day);
 
-    // Handle month overflow (e.g., Jan 31 -> Feb 28/29)
-    // If the day changed, it means the target month didn't have enough days
-    // So we set it to the last day of the target month
     if (targetDate.getDate() !== day) {
       targetDate.setDate(0);
     }

@@ -20,7 +20,7 @@ const cardInvoiceSchema = new Schema<ICardInvoice>(
     },
   },
   {
-    timestamps: true, // This automatically adds createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 

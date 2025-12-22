@@ -13,8 +13,8 @@ validateEnv();
 const app = Fastify({ logger: fastifyLoggerConfig });
 
 app.register(rateLimit, {
-  max: 100, // Maximum 100 requests
-  timeWindow: "1 minute", // Per minute
+  max: 100,
+  timeWindow: "1 minute",
 });
 
 app.register(multipart);

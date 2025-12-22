@@ -6,7 +6,6 @@ const pinoLogger = pino({
   level: process.env.LOG_LEVEL || (isProduction ? "info" : "debug"),
 });
 
-// Fastify logger configuration
 export const fastifyLoggerConfig = {
   level: process.env.LOG_LEVEL || (isProduction ? "info" : "debug"),
   transport: isProduction
@@ -18,7 +17,6 @@ export const fastifyLoggerConfig = {
           singleLine: false,
           ignore: "pid,hostname",
           translateTime: "SYS:standard",
-          messageFormat: "{levelLabel} {msg}",
         },
       },
 };

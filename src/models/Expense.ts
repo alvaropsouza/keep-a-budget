@@ -34,7 +34,7 @@ const expenseSchema = new Schema<IExpense>(
       default: "",
     },
     receipt: {
-      type: String, // S3 URL
+      type: String,
       default: null,
     },
     installment: {
@@ -54,7 +54,7 @@ const expenseSchema = new Schema<IExpense>(
     },
   },
   {
-    timestamps: true, // This automatically adds createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 

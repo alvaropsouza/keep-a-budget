@@ -6,7 +6,6 @@ import {
   InvoiceQueryParamsDto,
 } from "./dto/invoice.dto";
 
-// Helper function to add date range filter
 const addDateRangeFilter = (
   filter: Record<string, unknown>,
   field: string,
@@ -24,23 +23,19 @@ const addDateRangeFilter = (
   }
 };
 
-// Helper function to build filter query
 const buildFilterQuery = (
   queryParams: InvoiceQueryParamsDto
 ): Record<string, unknown> => {
   const filter: Record<string, unknown> = {};
 
-  // Filter by bank
   if (queryParams.bank) {
     filter.bank = queryParams.bank;
   }
 
-  // Filter by invoiceDate
   if (queryParams.invoiceDate) {
     filter.invoiceDate = new Date(queryParams.invoiceDate);
   }
 
-  // Date range filters
   addDateRangeFilter(
     filter,
     "invoiceDate",
@@ -48,7 +43,6 @@ const buildFilterQuery = (
     queryParams.endDate
   );
 
-  // Created at date range
   addDateRangeFilter(
     filter,
     "createdAt",
@@ -56,7 +50,6 @@ const buildFilterQuery = (
     queryParams.createdEndDate
   );
 
-  // Updated at date range
   addDateRangeFilter(
     filter,
     "updatedAt",
@@ -67,7 +60,6 @@ const buildFilterQuery = (
   return filter;
 };
 
-// Get all invoices with optional filters
 export const getAllInvoices = async (
   request: FastifyRequest,
   reply: FastifyReply
@@ -81,7 +73,6 @@ export const getAllInvoices = async (
   }
 };
 
-// Get invoice by ID
 export const getInvoiceById = async (
   request: FastifyRequest,
   reply: FastifyReply
@@ -100,7 +91,6 @@ export const getInvoiceById = async (
   }
 };
 
-// Create new invoice
 export const createInvoice = async (
   request: FastifyRequest,
   reply: FastifyReply
@@ -135,7 +125,6 @@ export const updateInvoice = async (
   }
 };
 
-// Delete invoice
 export const deleteInvoice = async (
   request: FastifyRequest,
   reply: FastifyReply

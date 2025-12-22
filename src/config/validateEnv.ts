@@ -1,4 +1,3 @@
-// Validate required environment variables
 const validateEnv = (): void => {
   const required = [
     "MONGODB_URI",
@@ -17,7 +16,6 @@ const validateEnv = (): void => {
     );
   }
 
-  // Validate S3_BUCKET_NAME doesn't contain invalid characters
   const bucketName = process.env.S3_BUCKET_NAME;
   if (!/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/.test(bucketName!)) {
     throw new Error(
@@ -26,7 +24,6 @@ const validateEnv = (): void => {
     );
   }
 
-  // Validate AWS_REGION format
   const region = process.env.AWS_REGION;
   if (!/^[a-z]{2}-[a-z]+-\d{1}$/.test(region!)) {
     throw new Error(

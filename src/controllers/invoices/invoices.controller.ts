@@ -5,6 +5,7 @@ import {
   UpdateInvoiceDto,
   InvoiceQueryParamsDto,
 } from "./dto/invoice.dto";
+import { validateAndRespond } from "../../utils/validation";
 
 const addDateRangeFilter = (
   filter: Record<string, unknown>,
@@ -95,6 +96,10 @@ export const createInvoice = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
+  if (!(await validateAndRespond(CreateInvoiceDto, request.body, reply))) {
+    return;
+  }
+
   try {
     const invoice = new CardInvoice(request.body as CreateInvoiceDto);
     await invoice.save();
@@ -109,6 +114,10 @@ export const updateInvoice = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
+  if (!(await validateAndRespond(UpdateInvoiceDto, request.body, reply))) {
+    return;
+  }
+
   try {
     const invoice = await CardInvoice.findByIdAndUpdate(
       (request.params as { id: string }).id,

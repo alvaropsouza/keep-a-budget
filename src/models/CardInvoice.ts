@@ -1,8 +1,9 @@
 import mongoose, { Schema, Document } from "mongoose";
+import { BanksEnum } from "../enums/banks.enum";
 
 export interface ICardInvoice extends Document {
   invoiceDate: Date;
-  bank: "NUBANK" | "XP";
+  bank: BanksEnum;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,7 +16,7 @@ const cardInvoiceSchema = new Schema<ICardInvoice>(
     },
     bank: {
       type: String,
-      enum: ["NUBANK", "XP"],
+      enum: Object.values(BanksEnum),
       required: true,
     },
   },

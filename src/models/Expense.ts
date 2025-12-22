@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document } from "mongoose";
+import { BanksEnum } from "../enums/banks.enum";
 
 export interface IExpense extends Document {
-  bank: string;
+  bank: BanksEnum;
   category: string;
   amount: number;
   description?: string;
@@ -19,6 +20,7 @@ const expenseSchema = new Schema<IExpense>(
   {
     bank: {
       type: String,
+      enum: Object.values(BanksEnum),
       required: true,
     },
     category: {

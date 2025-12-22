@@ -6,6 +6,7 @@ import {
   UpdateExpenseDto,
   ExpenseQueryParamsDto,
 } from "./dto/expense.dto";
+import { validateAndRespond } from "../../utils/validation";
 
 const buildFilterQuery = (
   queryParams: ExpenseQueryParamsDto
@@ -136,6 +137,10 @@ export const createExpense = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
+  if (!(await validateAndRespond(CreateExpenseDto, request.body, reply))) {
+    return;
+  }
+
   try {
     const body = request.body as CreateExpenseDto;
     const { installmentTotal, installmentStartDate, ...expenseData } = body;
@@ -162,6 +167,10 @@ export const updateExpense = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
+  if (!(await validateAndRespond(UpdateExpenseDto, request.body, reply))) {
+    return;
+  }
+
   try {
     const expense = await Expense.findByIdAndUpdate(
       (request.params as { id: string }).id,

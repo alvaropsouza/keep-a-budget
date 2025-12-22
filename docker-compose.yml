@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: keep-a-budget-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: keep-a-budget
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - keep-a-budget-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: keep-a-budget-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/minio_data
+    command: server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - keep-a-budget-network
+
+volumes:
+  mongo_data:
+    driver: local
+  mongo_config:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  keep-a-budget-network:
+    driver: bridge

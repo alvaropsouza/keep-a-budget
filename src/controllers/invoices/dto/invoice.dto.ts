@@ -1,24 +1,52 @@
-import { IsString, IsDateString, IsOptional, IsEnum } from "class-validator";
+import {
+  IsString,
+  IsDateString,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+} from "class-validator";
 import { BanksEnum } from "../../../enums/banks.enum";
 
 export class CreateInvoiceDto {
-  @IsDateString()
-  invoiceDate!: string;
-
   @IsString()
   @IsEnum(BanksEnum)
   bank!: string;
+
+  @IsDateString()
+  openDate!: string;
+
+  @IsDateString()
+  closingDate!: string;
+
+  @IsDateString()
+  dueDate!: string;
+
+  @IsNumber()
+  @IsOptional()
+  amount?: number;
 }
 
 export class UpdateInvoiceDto {
-  @IsDateString()
-  @IsOptional()
-  invoiceDate?: string;
-
   @IsString()
   @IsOptional()
   @IsEnum(BanksEnum)
   bank?: string;
+
+  @IsDateString()
+  @IsOptional()
+  openDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  closingDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  dueDate?: string;
+
+  @IsNumber()
+  @IsOptional()
+  amount?: number;
 }
 
 export class InvoiceQueryParamsDto {
@@ -28,7 +56,15 @@ export class InvoiceQueryParamsDto {
 
   @IsDateString()
   @IsOptional()
-  invoiceDate?: string;
+  openDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  closingDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  dueDate?: string;
 
   @IsDateString()
   @IsOptional()

@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import Expense, { IExpense } from "../../models/Expense";
+import CardInvoice from "../../models/CardInvoice";
 import { uploadToS3 } from "../../utils/s3Upload";
 import {
   CreateExpenseDto,
@@ -73,7 +74,7 @@ const buildFilterQuery = (
 const createInstallmentExpenses = async (
   baseExpense: CreateExpenseDto,
   installmentTotal: number,
-  startDate: string | null = null
+  startDate?: string
 ): Promise<IExpense[]> => {
   const expenses: IExpense[] = [];
   const baseDate = startDate ? new Date(startDate) : new Date();
@@ -90,12 +91,19 @@ const createInstallmentExpenses = async (
       targetDate.setDate(0);
     }
 
+    const cardInvoice = await CardInvoice.findOne({
+      bank: baseExpense.bank,
+      openDate: { $lte: targetDate },
+      closingDate: { $gte: targetDate },
+    });
+
     const expenseData = {
       ...baseExpense,
       description: `${baseExpense.description} (${i}/${installmentTotal})`,
       date: targetDate,
       installmentNumber: i,
       installmentTotal: installmentTotal,
+      cardInvoiceId: cardInvoice?._id,
     };
     expenses.push(new Expense(expenseData));
   }
@@ -152,10 +160,40 @@ export const createExpense = async (
         installmentStartDate
       );
       const savedExpenses = await Expense.insertMany(expenses);
+
+      // Update invoice amounts for installments
+      for (const expense of savedExpenses) {
+        if (expense.cardInvoiceId) {
+          await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
+            $inc: { amount: expense.amount },
+          });
+        }
+      }
+
       reply.status(201).send(savedExpenses);
     } else {
-      const expense = new Expense(expenseData);
+      const expenseDate = installmentStartDate
+        ? new Date(installmentStartDate)
+        : new Date();
+      const cardInvoice = await CardInvoice.findOne({
+        bank: body.bank,
+        openDate: { $lte: expenseDate },
+        closingDate: { $gte: expenseDate },
+      });
+
+      const expense = new Expense({
+        ...expenseData,
+        date: expenseDate,
+        cardInvoiceId: cardInvoice?._id,
+      });
       await expense.save();
+
+      if (cardInvoice) {
+        await CardInvoice.findByIdAndUpdate(cardInvoice._id, {
+          $inc: { amount: expense.amount },
+        });
+      }
+
       reply.status(201).send(expense);
     }
   } catch (error) {

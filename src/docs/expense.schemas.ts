@@ -74,7 +74,6 @@ export const expenseSchemas = {
         amount: { type: "number", minimum: 0 },
         description: { type: "string" },
         receiptUrl: { type: "string" },
-        cardInvoiceId: { type: "string" },
         installmentTotal: { type: "number", minimum: 1 },
         installmentStartDate: { type: "string", format: "date-time" },
       },

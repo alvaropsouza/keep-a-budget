@@ -28,10 +28,6 @@ export class CreateExpenseDto {
   @IsOptional()
   receiptUrl?: string;
 
-  @IsMongoId()
-  @IsOptional()
-  cardInvoiceId?: string;
-
   @IsNumber()
   @IsOptional()
   @Min(1)

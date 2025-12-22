@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import CardInvoice from "../../models/CardInvoice";
+import Expense from "../../models/Expense";
 import {
   CreateInvoiceDto,
   UpdateInvoiceDto,
@@ -33,13 +34,21 @@ const buildFilterQuery = (
     filter.bank = queryParams.bank;
   }
 
-  if (queryParams.invoiceDate) {
-    filter.invoiceDate = new Date(queryParams.invoiceDate);
+  if (queryParams.openDate) {
+    filter.openDate = new Date(queryParams.openDate);
+  }
+
+  if (queryParams.closingDate) {
+    filter.closingDate = new Date(queryParams.closingDate);
+  }
+
+  if (queryParams.dueDate) {
+    filter.dueDate = new Date(queryParams.dueDate);
   }
 
   addDateRangeFilter(
     filter,
-    "invoiceDate",
+    "openDate",
     queryParams.startDate,
     queryParams.endDate
   );
@@ -67,7 +76,9 @@ export const getAllInvoices = async (
 ): Promise<void> => {
   try {
     const filter = buildFilterQuery(request.query as InvoiceQueryParamsDto);
-    const invoices = await CardInvoice.find(filter).sort({ invoiceDate: -1 });
+    const invoices = await CardInvoice.find(filter)
+      .sort({ dueDate: -1 })
+      .populate("expenses");
     reply.send(invoices);
   } catch (error) {
     reply.status(500).send({ error: (error as Error).message });
@@ -81,7 +92,7 @@ export const getInvoiceById = async (
   try {
     const invoice = await CardInvoice.findById(
       (request.params as { id: string }).id
-    );
+    ).populate("expenses");
     if (!invoice) {
       reply.status(404).send({ error: "Invoice not found" });
       return;
@@ -139,14 +150,18 @@ export const deleteInvoice = async (
   reply: FastifyReply
 ): Promise<void> => {
   try {
-    const invoice = await CardInvoice.findByIdAndDelete(
-      (request.params as { id: string }).id
-    );
+    const invoiceId = (request.params as { id: string }).id;
+    const invoice = await CardInvoice.findByIdAndDelete(invoiceId);
     if (!invoice) {
       reply.status(404).send({ error: "Invoice not found" });
       return;
     }
-    reply.send({ message: "Invoice deleted successfully" });
+
+    await Expense.deleteMany({ cardInvoiceId: invoiceId });
+
+    reply.send({
+      message: "Invoice and associated expenses deleted successfully",
+    });
   } catch (error) {
     reply.status(500).send({ error: (error as Error).message });
   }

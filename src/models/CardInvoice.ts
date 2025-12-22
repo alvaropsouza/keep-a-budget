@@ -42,6 +42,12 @@ const cardInvoiceSchema = new Schema<ICardInvoice>(
   }
 );
 
+// Prevent multiple invoices for the same bank and period
+cardInvoiceSchema.index(
+  { bank: 1, openDate: 1, closingDate: 1 },
+  { unique: true }
+);
+
 cardInvoiceSchema.virtual("expenses", {
   ref: "Expense",
   localField: "_id",

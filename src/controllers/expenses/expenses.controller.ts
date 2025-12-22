@@ -237,6 +237,13 @@ export const deleteExpense = async (
       reply.status(404).send({ error: "Expense not found" });
       return;
     }
+
+    if (expense.cardInvoiceId) {
+      await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
+        $inc: { amount: -expense.amount },
+      });
+    }
+
     reply.send({ message: "Expense deleted successfully" });
   } catch (error) {
     reply.status(500).send({ error: (error as Error).message });

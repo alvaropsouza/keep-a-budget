@@ -78,8 +78,23 @@ export const createInvoice = async (
   if (!(await validateAndRespond(CreateInvoiceDto, request.body, reply))) {
     return;
   }
+  const body = request.body as CreateInvoiceDto;
 
-  const invoice = new CardInvoice(request.body as CreateInvoiceDto);
+  // Optional early check to provide a clearer message before DB unique index kicks in
+  const existing = await CardInvoice.findOne({
+    bank: body.bank,
+    openDate: new Date(body.openDate),
+    closingDate: new Date(body.closingDate),
+  });
+
+  if (existing) {
+    reply.status(409).send({
+      error: "Invoice already exists for this bank and period",
+    });
+    return;
+  }
+
+  const invoice = new CardInvoice(body);
   await invoice.save();
   reply.status(201).send(invoice);
 };

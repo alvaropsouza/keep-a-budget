@@ -32,6 +32,15 @@ export const errorHandler = (
     });
   }
 
+  // Mongo duplicate key error (e.g., unique index violation)
+  const mongoError = error as mongoose.mongo.MongoServerError;
+  if (mongoError?.code === 11000) {
+    return reply.status(409).send({
+      error: "Invoice already exists for this bank and period",
+      details: mongoError.keyValue,
+    });
+  }
+
   // Log unknown errors
   request.log.error(error);
 

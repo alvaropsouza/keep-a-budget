@@ -2,6 +2,7 @@ import "dotenv/config";
 import validateEnv from "./config/validateEnv";
 import Fastify from "fastify";
 import multipart from "@fastify/multipart";
+import corsPlugin from "./config/cors";
 import rateLimit from "@fastify/rate-limit";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUI from "@fastify/swagger-ui";
@@ -16,6 +17,7 @@ validateEnv();
 
 const app = Fastify({ logger: fastifyLoggerConfig });
 
+app.register(corsPlugin);
 app.setErrorHandler(errorHandler);
 
 app.register(rateLimit, {

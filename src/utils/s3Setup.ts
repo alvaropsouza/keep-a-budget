@@ -46,6 +46,5 @@ export const setupS3Bucket = async (): Promise<void> => {
     logger.info({ bucket: bucketName }, "Successfully set public read policy");
   } catch (error) {
     logger.error({ error, bucket: bucketName }, "Failed to set bucket policy");
-    // Don't throw here, as the bucket might already be usable even if policy fails (e.g. AWS with blocked public access)
   }
 };

@@ -1,10 +1,14 @@
 require('dotenv').config();
+const validateEnv = require('./config/validateEnv');
 const fastify = require('fastify');
 const multipart = require('@fastify/multipart');
 const rateLimit = require('@fastify/rate-limit');
 const connectDB = require('./config/database');
 const invoiceRoutes = require('./routes/invoices');
 const expenseRoutes = require('./routes/expenses');
+
+// Validate environment variables before starting the server
+validateEnv();
 
 const app = fastify({ logger: true });
 
@@ -34,7 +38,7 @@ const start = async () => {
 
     // Start Fastify server
     const port = process.env.PORT || 3000;
-    const host = '0.0.0.0';
+    const host = process.env.HOST || '0.0.0.0';
     
     await app.listen({ port, host });
     console.log(`Server is running on http://${host}:${port}`);

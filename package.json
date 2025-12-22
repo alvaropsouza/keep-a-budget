@@ -2,10 +2,12 @@
   "name": "keep-a-budget",
   "version": "1.0.0",
   "description": "Backend app responsible for keeping track of credit card invoice expenses",
-  "main": "src/server.js",
+  "main": "dist/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsc && nodemon dist/server.js",
+    "dev:watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -21,6 +23,12 @@
     "mongoose": "^9.0.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "@types/aws-sdk": "^0.0.42",
+    "@types/jest": "^30.0.0",
+    "@types/mongoose": "^5.11.97",
+    "@types/node": "^20.19.27",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }

@@ -3,6 +3,8 @@ import validateEnv from "./config/validateEnv";
 import Fastify from "fastify";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
+import fastifySwagger from "@fastify/swagger";
+import fastifySwaggerUI from "@fastify/swagger-ui";
 import connectDB from "./config/database";
 import invoiceRoutes from "./routes/invoices";
 import expenseRoutes from "./routes/expenses";
@@ -19,8 +21,27 @@ app.register(rateLimit, {
 
 app.register(multipart);
 
-app.register(invoiceRoutes, { prefix: "/api/invoices" });
-app.register(expenseRoutes, { prefix: "/api/expenses" });
+app.register(fastifySwagger, {
+  swagger: {
+    info: {
+      title: "Keep a Budget API",
+      description:
+        "Budget tracking application for managing expenses and credit card invoices",
+      version: "1.0.0",
+    },
+    host: `${process.env.HOST || "localhost"}:${process.env.PORT || "3000"}`,
+    schemes: ["http", "https"],
+    consumes: ["application/json"],
+    produces: ["application/json"],
+  },
+});
+
+app.register(fastifySwaggerUI, {
+  routePrefix: "/docs",
+});
+
+app.register(invoiceRoutes, { prefix: "/invoices" });
+app.register(expenseRoutes, { prefix: "/expenses" });
 
 app.get("/health", async () => {
   return { status: "ok", timestamp: new Date().toISOString() };

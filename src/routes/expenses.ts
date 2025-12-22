@@ -7,17 +7,59 @@ import {
   deleteExpense,
   uploadReceipt,
 } from "../controllers/expenses/expenses.controller";
+import { expenseSchemas } from "../docs/expense.schemas";
 
 async function expenseRoutes(
   fastify: FastifyInstance,
   _options: FastifyPluginOptions
 ): Promise<void> {
-  fastify.get("/", getAllExpenses);
-  fastify.get("/:id", getExpenseById);
-  fastify.post("/", createExpense);
-  fastify.put("/:id", updateExpense);
-  fastify.delete("/:id", deleteExpense);
-  fastify.post("/:id/receipt", uploadReceipt);
+  fastify.get(
+    "/",
+    {
+      schema: expenseSchemas.getAllExpenses,
+    },
+    getAllExpenses
+  );
+
+  fastify.get(
+    "/:id",
+    {
+      schema: expenseSchemas.getExpenseById,
+    },
+    getExpenseById
+  );
+
+  fastify.post(
+    "/",
+    {
+      schema: expenseSchemas.createExpense,
+    },
+    createExpense
+  );
+
+  fastify.put(
+    "/:id",
+    {
+      schema: expenseSchemas.updateExpense,
+    },
+    updateExpense
+  );
+
+  fastify.delete(
+    "/:id",
+    {
+      schema: expenseSchemas.deleteExpense,
+    },
+    deleteExpense
+  );
+
+  fastify.post(
+    "/:id/receipt",
+    {
+      schema: expenseSchemas.uploadReceipt,
+    },
+    uploadReceipt
+  );
 }
 
 export default expenseRoutes;

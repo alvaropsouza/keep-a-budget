@@ -32,10 +32,8 @@ async function expenseRoutes(
   fastify.post(
     "/",
     {
-      schema: {
-        ...expenseSchemas.createExpense,
-        body: undefined,
-      },
+      schema: expenseSchemas.createExpense,
+      attachValidation: true,
     },
     createExpense
   );

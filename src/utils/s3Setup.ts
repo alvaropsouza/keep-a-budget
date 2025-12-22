@@ -1,8 +1,4 @@
-import {
-  CreateBucketCommand,
-  HeadBucketCommand,
-  PutBucketPolicyCommand,
-} from "@aws-sdk/client-s3";
+import { HeadBucketCommand, PutBucketPolicyCommand } from "@aws-sdk/client-s3";
 import s3Client from "../config/s3";
 import logger from "../config/logger";
 
@@ -10,22 +6,14 @@ export const setupS3Bucket = async (): Promise<void> => {
   const bucketName = process.env.S3_BUCKET_NAME!;
 
   try {
-    // Check if bucket exists
     await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));
     logger.info({ bucket: bucketName }, "S3 bucket already exists");
   } catch (error: any) {
     if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
-      // Create bucket if it doesn't exist
-      try {
-        await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
-        logger.info({ bucket: bucketName }, "Created S3 bucket");
-      } catch (createError) {
-        logger.error(
-          { error: createError, bucket: bucketName },
-          "Failed to create S3 bucket"
-        );
-        throw createError;
-      }
+      logger.error({ bucket: bucketName }, "S3 bucket does not exist");
+      throw new Error(
+        `S3 bucket "${bucketName}" does not exist. Please create it manually.`
+      );
     } else {
       logger.error(
         { error, bucket: bucketName },
@@ -35,7 +23,6 @@ export const setupS3Bucket = async (): Promise<void> => {
     }
   }
 
-  // Set public read policy
   const policy = {
     Version: "2012-10-17",
     Statement: [

@@ -10,6 +10,7 @@ import invoiceRoutes from "./routes/invoices";
 import expenseRoutes from "./routes/expenses";
 import logger, { fastifyLoggerConfig } from "./config/logger";
 import { errorHandler } from "./config/errorHandler";
+import { setupS3Bucket } from "./utils/s3Setup";
 
 validateEnv();
 
@@ -22,7 +23,11 @@ app.register(rateLimit, {
   timeWindow: "1 minute",
 });
 
-app.register(multipart);
+app.register(multipart, {
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+});
 
 app.register(fastifySwagger, {
   swagger: {
@@ -53,6 +58,7 @@ app.get("/health", async () => {
 const start = async (): Promise<void> => {
   try {
     await connectDB();
+    await setupS3Bucket();
 
     const port = Number.parseInt(process.env.PORT || "3000");
     const host = process.env.HOST || "0.0.0.0";

@@ -4,6 +4,7 @@ import { BanksEnum } from "../enums/banks.enum";
 export interface IExpense extends Document {
   bank: BanksEnum;
   category: string;
+  date: Date;
   amount: number;
   description?: string;
   receipt?: string;
@@ -26,6 +27,11 @@ const expenseSchema = new Schema<IExpense>(
     category: {
       type: String,
       required: true,
+    },
+    date: {
+      type: Date,
+      required: true,
+      default: Date.now,
     },
     amount: {
       type: Number,

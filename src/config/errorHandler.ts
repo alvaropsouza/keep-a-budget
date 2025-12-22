@@ -40,6 +40,13 @@ export const errorHandler = (
     });
   }
 
+  // Handle Fastify errors (like file too large)
+  if ((error as FastifyError).statusCode) {
+    return reply.status((error as FastifyError).statusCode!).send({
+      error: error.message,
+    });
+  }
+
   request.log.error(error);
 
   return reply.status(500).send({

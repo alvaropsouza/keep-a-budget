@@ -25,6 +25,7 @@ export const expenseSchemas = {
             _id: { type: "string" },
             bank: { type: "string" },
             category: { type: "string" },
+            date: { type: "string", format: "date-time" },
             amount: { type: "number" },
             description: { type: "string" },
             receipt: { type: "string" },
@@ -53,6 +54,7 @@ export const expenseSchemas = {
           _id: { type: "string" },
           bank: { type: "string" },
           category: { type: "string" },
+          date: { type: "string", format: "date-time" },
           amount: { type: "number" },
           description: { type: "string" },
           receipt: { type: "string" },
@@ -66,6 +68,7 @@ export const expenseSchemas = {
   createExpense: {
     tags: ["Expenses"],
     description: "Create a new expense",
+    consumes: ["multipart/form-data"],
     body: {
       type: "object",
       properties: {
@@ -75,6 +78,8 @@ export const expenseSchemas = {
         description: { type: "string" },
         installmentTotal: { type: "number", minimum: 1 },
         installmentStartDate: { type: "string", format: "date-time" },
+        receipt: { type: "string" },
+        file: { type: "string", format: "binary" },
       },
       required: ["bank", "category", "amount"],
     },
@@ -85,6 +90,7 @@ export const expenseSchemas = {
           _id: { type: "string" },
           bank: { type: "string" },
           category: { type: "string" },
+          date: { type: "string", format: "date-time" },
           amount: { type: "number" },
           description: { type: "string" },
           receipt: { type: "string" },
@@ -124,6 +130,7 @@ export const expenseSchemas = {
           _id: { type: "string" },
           bank: { type: "string" },
           category: { type: "string" },
+          date: { type: "string", format: "date-time" },
           amount: { type: "number" },
           description: { type: "string" },
           receipt: { type: "string" },

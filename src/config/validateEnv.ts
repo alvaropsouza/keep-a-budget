@@ -5,6 +5,7 @@ const validateEnv = (): void => {
     "AWS_ACCESS_KEY_ID",
     "AWS_SECRET_ACCESS_KEY",
     "S3_BUCKET_NAME",
+    "S3_ENDPOINT",
   ];
 
   const missing = required.filter((key) => !process.env[key]);
@@ -25,7 +26,7 @@ const validateEnv = (): void => {
   }
 
   const region = process.env.AWS_REGION;
-  if (!/^[a-z]{2}-[a-z]+-\d{1}$/.test(region!)) {
+  if (!/^[a-z]{2}-[a-z]+-\d$/.test(region!)) {
     throw new Error(
       'Invalid AWS_REGION: Region must be in the format like "us-east-1", "eu-west-2", etc.'
     );

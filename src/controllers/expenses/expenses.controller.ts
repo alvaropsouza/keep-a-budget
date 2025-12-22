@@ -32,6 +32,81 @@ const createDateRangeFilter = (
   return Object.keys(range).length ? range : null;
 };
 
+const parseExpenseRequest = async (
+  request: FastifyRequest
+): Promise<{
+  body: CreateExpenseDto;
+  fileBuffer: Buffer | null;
+  filename: string | null;
+  mimetype: string | null;
+}> => {
+  const contentType = request.headers["content-type"];
+  let body: CreateExpenseDto;
+  let fileBuffer: Buffer | null = null;
+  let filename: string | null = null;
+  let mimetype: string | null = null;
+
+  if (contentType?.includes("multipart/form-data")) {
+    logger.debug("Parsing multipart form data");
+    const parts = request.parts();
+    const formFields: Record<string, string> = {};
+
+    for await (const part of parts) {
+      if (part.type === "field") {
+        formFields[part.fieldname] = part.value as string;
+      } else if (part.type === "file") {
+        fileBuffer = await part.toBuffer();
+        filename = part.filename;
+        mimetype = part.mimetype;
+        logger.debug(
+          { filename, mimetype, size: fileBuffer.length },
+          "File received"
+        );
+      }
+    }
+
+    body = {
+      bank: formFields.bank as any,
+      category: formFields.category,
+      amount: Number.parseFloat(formFields.amount),
+      description: formFields.description,
+      installmentTotal: formFields.installmentTotal
+        ? Number.parseInt(formFields.installmentTotal)
+        : undefined,
+      installmentStartDate: formFields.installmentStartDate,
+      receipt: formFields.receipt,
+    };
+  } else {
+    body = request.body as CreateExpenseDto;
+  }
+
+  return { body, fileBuffer, filename, mimetype };
+};
+
+const uploadReceiptIfProvided = async (
+  expenseId: any,
+  fileBuffer: Buffer | null,
+  filename: string | null,
+  mimetype: string | null
+): Promise<string | null> => {
+  if (!fileBuffer || !filename || !mimetype) {
+    return null;
+  }
+
+  try {
+    const fileUrl = await uploadToS3(fileBuffer, filename, mimetype);
+    await Expense.findByIdAndUpdate(expenseId, { receipt: fileUrl });
+    logger.debug(
+      { expenseId, receiptUrl: fileUrl },
+      "Attached receipt to expense"
+    );
+    return fileUrl;
+  } catch (error) {
+    logger.error({ expenseId, error }, "Failed to upload receipt file");
+    return null;
+  }
+};
+
 const buildFilterQuery = (
   queryParams: ExpenseQueryParamsDto
 ): Record<string, unknown> => {
@@ -60,6 +135,92 @@ const buildFilterQuery = (
   };
 };
 
+const createSingleExpense = async (
+  body: CreateExpenseDto,
+  fileBuffer: Buffer | null,
+  filename: string | null,
+  mimetype: string | null
+): Promise<IExpense> => {
+  const { installmentStartDate, ...expenseData } = body;
+  const expenseDate = installmentStartDate
+    ? new Date(installmentStartDate)
+    : new Date();
+
+  const queryDate = new Date(
+    Date.UTC(
+      expenseDate.getUTCFullYear(),
+      expenseDate.getUTCMonth(),
+      expenseDate.getUTCDate()
+    )
+  );
+
+  const cardInvoice = await CardInvoice.findOne({
+    bank: body.bank,
+    openDate: { $lte: queryDate },
+    closingDate: { $gte: queryDate },
+  });
+
+  const expense = new Expense({
+    ...expenseData,
+    date: expenseDate,
+    cardInvoiceId: cardInvoice?._id,
+  });
+  await expense.save();
+
+  if (cardInvoice) {
+    await CardInvoice.findByIdAndUpdate(cardInvoice._id, {
+      $inc: { amount: expense.amount },
+    });
+    logger.debug(
+      {
+        expenseId: expense._id,
+        invoiceId: cardInvoice._id,
+        amount: expense.amount,
+      },
+      "Updated invoice amount"
+    );
+  }
+
+  // Upload file if provided
+  if (fileBuffer && filename && mimetype) {
+    const receiptUrl = await uploadReceiptIfProvided(
+      expense._id,
+      fileBuffer,
+      filename,
+      mimetype
+    );
+    if (receiptUrl) {
+      expense.receipt = receiptUrl;
+    }
+  }
+
+  return expense;
+};
+
+const createInstallmentsExpense = async (
+  body: CreateExpenseDto,
+  installmentTotal: number,
+  installmentStartDate?: string
+) => {
+  const expenses = await createInstallmentExpenses(
+    body,
+    installmentTotal,
+    installmentStartDate
+  );
+  const savedExpenses = await Expense.insertMany(expenses);
+
+  // Update invoice amounts for installments
+  for (const expense of savedExpenses) {
+    if (expense.cardInvoiceId) {
+      await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
+        $inc: { amount: expense.amount },
+      });
+    }
+  }
+
+  return savedExpenses;
+};
+
 const createInstallmentExpenses = async (
   baseExpense: CreateExpenseDto,
   installmentTotal: number,
@@ -69,15 +230,15 @@ const createInstallmentExpenses = async (
   const baseDate = startDate ? new Date(startDate) : new Date();
 
   for (let i = 1; i <= installmentTotal; i++) {
-    const year = baseDate.getFullYear();
-    const month = baseDate.getMonth();
-    const day = baseDate.getDate();
+    const year = baseDate.getUTCFullYear();
+    const month = baseDate.getUTCMonth();
+    const day = baseDate.getUTCDate();
 
     const targetMonth = month + (i - 1);
-    const targetDate = new Date(year, targetMonth, day);
+    const targetDate = new Date(Date.UTC(year, targetMonth, day));
 
-    if (targetDate.getDate() !== day) {
-      targetDate.setDate(0);
+    if (targetDate.getUTCDate() !== day) {
+      targetDate.setUTCDate(0);
     }
 
     const cardInvoice = await CardInvoice.findOne({
@@ -125,73 +286,47 @@ export const createExpense = async (
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> => {
-  if (!(await validateAndRespond(CreateExpenseDto, request.body, reply))) {
+  logger.debug("Processing expense creation request");
+
+  const { body, fileBuffer, filename, mimetype } = await parseExpenseRequest(
+    request
+  );
+
+  if (!(await validateAndRespond(CreateExpenseDto, body, reply))) {
     return;
   }
 
-  logger.debug({ body: request.body }, "Creating new expense");
-  const body = request.body as CreateExpenseDto;
-  const { installmentTotal, installmentStartDate, ...expenseData } = body;
+  logger.debug({ body }, "Creating new expense");
+  const { installmentTotal, installmentStartDate } = body;
 
   if (installmentTotal && installmentTotal > 1) {
     logger.info(
       { installmentTotal, bank: body.bank },
       "Creating installment expenses"
     );
-    const expenses = await createInstallmentExpenses(
+    const savedExpenses = await createInstallmentsExpense(
       body,
       installmentTotal,
       installmentStartDate
     );
-    const savedExpenses = await Expense.insertMany(expenses);
-
-    // Update invoice amounts for installments
-    for (const expense of savedExpenses) {
-      if (expense.cardInvoiceId) {
-        await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
-          $inc: { amount: expense.amount },
-        });
-      }
-    }
-
     logger.info(
       { count: savedExpenses.length, installmentTotal },
       "Successfully created installment expenses"
     );
     reply.status(201).send(savedExpenses);
   } else {
-    const expenseDate = installmentStartDate
-      ? new Date(installmentStartDate)
-      : new Date();
-    const cardInvoice = await CardInvoice.findOne({
-      bank: body.bank,
-      openDate: { $lte: expenseDate },
-      closingDate: { $gte: expenseDate },
-    });
-
-    const expense = new Expense({
-      ...expenseData,
-      date: expenseDate,
-      cardInvoiceId: cardInvoice?._id,
-    });
-    await expense.save();
-
-    if (cardInvoice) {
-      await CardInvoice.findByIdAndUpdate(cardInvoice._id, {
-        $inc: { amount: expense.amount },
-      });
-      logger.debug(
-        {
-          expenseId: expense._id,
-          invoiceId: cardInvoice._id,
-          amount: expense.amount,
-        },
-        "Updated invoice amount"
-      );
-    }
-
+    const expense = await createSingleExpense(
+      body,
+      fileBuffer,
+      filename,
+      mimetype
+    );
     logger.info(
-      { expenseId: expense._id, amount: expense.amount },
+      {
+        expenseId: expense._id,
+        amount: expense.amount,
+        hasReceipt: !!fileBuffer,
+      },
       "Successfully created expense"
     );
     reply.status(201).send(expense);

@@ -32,6 +32,10 @@ export class CreateExpenseDto {
   @IsDateString()
   @IsOptional()
   installmentStartDate?: string;
+
+  @IsString()
+  @IsOptional()
+  receipt?: string;
 }
 
 export class UpdateExpenseDto {

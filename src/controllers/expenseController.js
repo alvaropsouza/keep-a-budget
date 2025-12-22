@@ -1,0 +1,236 @@
+const Expense = require('../models/Expense');
+const { uploadToS3 } = require('../utils/s3Upload');
+
+// Helper function to build filter query
+const buildFilterQuery = (queryParams) => {
+  const filter = {};
+
+  // Filter by bank
+  if (queryParams.bank) {
+    filter.bank = queryParams.bank;
+  }
+
+  // Filter by category
+  if (queryParams.category) {
+    filter.category = queryParams.category;
+  }
+
+  // Filter by cardInvoiceId
+  if (queryParams.cardInvoiceId) {
+    filter.cardInvoiceId = queryParams.cardInvoiceId;
+  }
+
+  // Filter by amount range
+  if (queryParams.minAmount || queryParams.maxAmount) {
+    filter.amount = {};
+    if (queryParams.minAmount) {
+      filter.amount.$gte = parseFloat(queryParams.minAmount);
+    }
+    if (queryParams.maxAmount) {
+      filter.amount.$lte = parseFloat(queryParams.maxAmount);
+    }
+  }
+
+  // Created at date range
+  if (queryParams.createdStartDate || queryParams.createdEndDate) {
+    filter.createdAt = {};
+    if (queryParams.createdStartDate) {
+      filter.createdAt.$gte = new Date(queryParams.createdStartDate);
+    }
+    if (queryParams.createdEndDate) {
+      filter.createdAt.$lte = new Date(queryParams.createdEndDate);
+    }
+  }
+
+  // Updated at date range
+  if (queryParams.updatedStartDate || queryParams.updatedEndDate) {
+    filter.updatedAt = {};
+    if (queryParams.updatedStartDate) {
+      filter.updatedAt.$gte = new Date(queryParams.updatedStartDate);
+    }
+    if (queryParams.updatedEndDate) {
+      filter.updatedAt.$lte = new Date(queryParams.updatedEndDate);
+    }
+  }
+
+  return filter;
+};
+
+// Helper function to create installment expenses
+const createInstallmentExpenses = async (baseExpense, installmentTotal, startDate = null) => {
+  const expenses = [];
+  const baseDate = startDate ? new Date(startDate) : new Date();
+
+  for (let i = 1; i <= installmentTotal; i++) {
+    // More robust month calculation to handle year transitions and month-end dates
+    const year = baseDate.getFullYear();
+    const month = baseDate.getMonth();
+    const day = baseDate.getDate();
+    
+    // Calculate target month and year
+    const targetMonth = month + (i - 1);
+    const targetYear = year + Math.floor(targetMonth / 12);
+    const normalizedMonth = targetMonth % 12;
+    
+    // Get the last day of the target month
+    const lastDayOfMonth = new Date(targetYear, normalizedMonth + 1, 0).getDate();
+    
+    // Use the original day or the last day of month if original day doesn't exist
+    const targetDay = Math.min(day, lastDayOfMonth);
+    
+    const installmentDate = new Date(targetYear, normalizedMonth, targetDay);
+
+    const expense = new Expense({
+      ...baseExpense,
+      installment: {
+        current: i,
+        total: installmentTotal,
+      },
+      createdAt: installmentDate,
+    });
+
+    await expense.save();
+    expenses.push(expense);
+  }
+
+  return expenses;
+};
+
+// Get all expenses with optional filters
+const getAllExpenses = async (request, reply) => {
+  try {
+    const filter = buildFilterQuery(request.query);
+    const expenses = await Expense.find(filter)
+      .populate('cardInvoiceId')
+      .sort({ createdAt: -1 });
+    reply.send(expenses);
+  } catch (error) {
+    reply.status(500).send({ error: error.message });
+  }
+};
+
+// Get expense by ID
+const getExpenseById = async (request, reply) => {
+  try {
+    const expense = await Expense.findById(request.params.id).populate('cardInvoiceId');
+    if (!expense) {
+      return reply.status(404).send({ error: 'Expense not found' });
+    }
+    reply.send(expense);
+  } catch (error) {
+    reply.status(500).send({ error: error.message });
+  }
+};
+
+// Create new expense
+const createExpense = async (request, reply) => {
+  try {
+    const data = request.body;
+
+    // Check if installment is set
+    if (data.installmentTotal && data.installmentTotal > 1) {
+      const installmentTotal = parseInt(data.installmentTotal);
+      const startDate = data.installmentStartDate || null;
+      delete data.installmentTotal; // Remove from base data
+      delete data.installmentStartDate; // Remove from base data
+
+      const expenses = await createInstallmentExpenses(data, installmentTotal, startDate);
+      return reply.status(201).send({
+        message: `Created ${installmentTotal} installment expenses`,
+        expenses,
+      });
+    }
+
+    // Create single expense
+    const expense = new Expense(data);
+    await expense.save();
+    reply.status(201).send(expense);
+  } catch (error) {
+    reply.status(400).send({ error: error.message });
+  }
+};
+
+// Update expense
+const updateExpense = async (request, reply) => {
+  try {
+    const expense = await Expense.findByIdAndUpdate(
+      request.params.id,
+      request.body,
+      { new: true, runValidators: true }
+    );
+    if (!expense) {
+      return reply.status(404).send({ error: 'Expense not found' });
+    }
+    reply.send(expense);
+  } catch (error) {
+    reply.status(400).send({ error: error.message });
+  }
+};
+
+// Delete expense
+const deleteExpense = async (request, reply) => {
+  try {
+    const expense = await Expense.findByIdAndDelete(request.params.id);
+    if (!expense) {
+      return reply.status(404).send({ error: 'Expense not found' });
+    }
+    reply.send({ message: 'Expense deleted successfully' });
+  } catch (error) {
+    reply.status(500).send({ error: error.message });
+  }
+};
+
+// Upload receipt
+const uploadReceipt = async (request, reply) => {
+  try {
+    const data = await request.file();
+    
+    if (!data) {
+      return reply.status(400).send({ error: 'No file uploaded' });
+    }
+
+    // Validate file type
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+    if (!allowedMimeTypes.includes(data.mimetype)) {
+      return reply.status(400).send({ 
+        error: 'Invalid file type. Only JPEG, PNG, GIF, and PDF files are allowed.' 
+      });
+    }
+
+    // Validate file size
+    const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || '5');
+    const maxSize = maxSizeMB * 1024 * 1024; // Convert MB to bytes
+    const buffer = await data.toBuffer();
+    if (buffer.length > maxSize) {
+      return reply.status(400).send({ 
+        error: `File too large. Maximum size is ${maxSizeMB}MB.` 
+      });
+    }
+
+    const receiptUrl = await uploadToS3(buffer, data.filename, data.mimetype);
+
+    // Update expense with receipt URL
+    const expense = await Expense.findByIdAndUpdate(
+      request.params.id,
+      { receipt: receiptUrl },
+      { new: true }
+    );
+
+    if (!expense) {
+      return reply.status(404).send({ error: 'Expense not found' });
+    }
+
+    reply.send({ message: 'Receipt uploaded successfully', expense });
+  } catch (error) {
+    reply.status(500).send({ error: error.message });
+  }
+};
+
+module.exports = {
+  getAllExpenses,
+  getExpenseById,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  uploadReceipt,
+};

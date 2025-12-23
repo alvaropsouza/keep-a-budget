@@ -158,15 +158,15 @@ export const expenseSchemas = {
 
   uploadReceipt: {
     tags: ["Expenses"],
-    description: "Upload a receipt file (image or PDF) for an expense",
+    description: "Upload receipt for an expense",
+    consumes: ["multipart/form-data"],
     params: {
       type: "object",
       properties: {
-        id: { type: "string", description: "The expense ID" },
+        id: { type: "string" },
       },
       required: ["id"],
     },
-    consumes: ["multipart/form-data"],
     response: {
       200: {
         type: "object",
@@ -175,15 +175,27 @@ export const expenseSchemas = {
           bank: { type: "string" },
           category: { type: "string" },
           amount: { type: "number" },
-          description: { type: "string" },
-          receipt: {
-            type: "string",
-            description: "S3 URL of the uploaded receipt file",
-          },
-          installment: { type: "object" },
-          cardInvoiceId: { type: "string" },
-          createdAt: { type: "string", format: "date-time" },
-          updatedAt: { type: "string", format: "date-time" },
+          receipt: { type: "string" },
+        },
+      },
+    },
+  },
+
+  deleteReceipt: {
+    tags: ["Expenses"],
+    description: "Remove receipt from an expense",
+    params: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+      },
+      required: ["id"],
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
         },
       },
     },

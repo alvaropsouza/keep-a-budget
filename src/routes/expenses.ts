@@ -6,6 +6,7 @@ import {
   updateExpense,
   deleteExpense,
   uploadReceipt,
+  deleteReceipt,
 } from "../controllers/expenses/expenses.controller";
 import { expenseSchemas } from "../docs/expense.schemas";
 
@@ -60,6 +61,14 @@ async function expenseRoutes(
       schema: expenseSchemas.uploadReceipt,
     },
     uploadReceipt
+  );
+
+  fastify.delete(
+    "/:id/receipt",
+    {
+      schema: expenseSchemas.deleteReceipt,
+    },
+    deleteReceipt
   );
 }
 

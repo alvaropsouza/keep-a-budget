@@ -399,9 +399,11 @@ export const uploadReceipt = async (
   reply: FastifyReply
 ): Promise<void> => {
   const expenseId = (request.params as { id: string }).id;
-  logger.debug({ expenseId }, "Uploading receipt file");
+  logger.info({ expenseId }, "Starting receipt upload for expense");
+
   const data = await request.file();
   if (!data) {
+    logger.error({ expenseId }, "No file uploaded");
     reply.status(400).send({ error: "No file uploaded" });
     return;
   }
@@ -410,18 +412,57 @@ export const uploadReceipt = async (
     { expenseId, filename: data.filename, mimetype: data.mimetype },
     "Processing receipt upload"
   );
-  const buffer = await data.toBuffer();
-  const fileUrl = await uploadToS3(buffer, data.filename, data.mimetype);
+
+  try {
+    const buffer = await data.toBuffer();
+    logger.debug(
+      { expenseId, filename: data.filename, fileSize: buffer.length },
+      "File buffer created successfully"
+    );
+
+    const fileUrl = await uploadToS3(buffer, data.filename, data.mimetype);
+    logger.info(
+      { expenseId, filename: data.filename, receiptUrl: fileUrl },
+      "File uploaded to S3 successfully"
+    );
+
+    const expense = await Expense.findByIdAndUpdate(
+      expenseId,
+      { receipt: fileUrl },
+      { new: true }
+    ).orFail();
+
+    logger.info(
+      { expenseId, filename: data.filename, receiptUrl: fileUrl },
+      "Successfully uploaded and attached receipt to expense"
+    );
+    reply.send(expense);
+  } catch (error) {
+    logger.error(
+      { expenseId, filename: data?.filename, error },
+      "Failed to upload receipt"
+    );
+    reply.status(500).send({ error: "Failed to upload receipt file" });
+  }
+};
+
+export const deleteReceipt = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> => {
+  const { id } = request.params as { id: string };
+  logger.info({ expenseId: id }, "Removing receipt from expense");
 
   const expense = await Expense.findByIdAndUpdate(
-    expenseId,
-    { receipt: fileUrl },
+    id,
+    { $unset: { receipt: 1 } },
     { new: true }
-  ).orFail();
-
-  logger.info(
-    { expenseId, filename: data.filename, receiptUrl: fileUrl },
-    "Successfully uploaded receipt"
   );
-  reply.send(expense);
+
+  if (!expense) {
+    reply.status(404).send({ message: "Expense not found" });
+    return;
+  }
+
+  reply.send({ message: "Receipt removed successfully" });
 };

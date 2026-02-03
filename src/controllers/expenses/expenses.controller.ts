@@ -3,6 +3,7 @@ import Expense, { IExpense } from "../../models/Expense";
 import CardInvoice from "../../models/CardInvoice";
 import { uploadToS3 } from "../../utils/s3Upload";
 import logger from "../../config/logger";
+import { ExpenseTypeEnum } from "../../enums/expenseType.enum";
 import {
   CreateExpenseDto,
   UpdateExpenseDto,
@@ -12,7 +13,7 @@ import { validateAndRespond } from "../../utils/validation";
 
 const createRangeFilter = (
   min?: number | string,
-  max?: number | string
+  max?: number | string,
 ): Record<string, number> | object => {
   const range: Record<string, number> = {};
   if (min !== undefined)
@@ -24,7 +25,7 @@ const createRangeFilter = (
 
 const createDateRangeFilter = (
   startDate?: string,
-  endDate?: string
+  endDate?: string,
 ): Record<string, Date> | null => {
   const range: Record<string, Date> = {};
   if (startDate) range.$gte = new Date(startDate);
@@ -33,7 +34,7 @@ const createDateRangeFilter = (
 };
 
 const parseExpenseRequest = async (
-  request: FastifyRequest
+  request: FastifyRequest,
 ): Promise<{
   body: CreateExpenseDto;
   fileBuffer: Buffer | null;
@@ -60,7 +61,7 @@ const parseExpenseRequest = async (
         mimetype = part.mimetype;
         logger.debug(
           { filename, mimetype, size: fileBuffer.length },
-          "File received"
+          "File received",
         );
       }
     }
@@ -87,7 +88,7 @@ const uploadReceiptIfProvided = async (
   expenseId: any,
   fileBuffer: Buffer | null,
   filename: string | null,
-  mimetype: string | null
+  mimetype: string | null,
 ): Promise<string | null> => {
   if (!fileBuffer || !filename || !mimetype) {
     return null;
@@ -98,7 +99,7 @@ const uploadReceiptIfProvided = async (
     await Expense.findByIdAndUpdate(expenseId, { receipt: fileUrl });
     logger.debug(
       { expenseId, receiptUrl: fileUrl },
-      "Attached receipt to expense"
+      "Attached receipt to expense",
     );
     return fileUrl;
   } catch (error) {
@@ -108,19 +109,19 @@ const uploadReceiptIfProvided = async (
 };
 
 const buildFilterQuery = (
-  queryParams: ExpenseQueryParamsDto
+  queryParams: ExpenseQueryParamsDto,
 ): Record<string, unknown> => {
   const createdAtFilter = createDateRangeFilter(
     queryParams.createdStartDate,
-    queryParams.createdEndDate
+    queryParams.createdEndDate,
   );
   const updatedAtFilter = createDateRangeFilter(
     queryParams.updatedStartDate,
-    queryParams.updatedEndDate
+    queryParams.updatedEndDate,
   );
   const amountFilter = createRangeFilter(
     queryParams.minAmount,
-    queryParams.maxAmount
+    queryParams.maxAmount,
   );
 
   return {
@@ -139,7 +140,7 @@ const createSingleExpense = async (
   body: CreateExpenseDto,
   fileBuffer: Buffer | null,
   filename: string | null,
-  mimetype: string | null
+  mimetype: string | null,
 ): Promise<IExpense> => {
   const { installmentStartDate, ...expenseData } = body;
   const expenseDate = installmentStartDate
@@ -150,8 +151,8 @@ const createSingleExpense = async (
     Date.UTC(
       expenseDate.getUTCFullYear(),
       expenseDate.getUTCMonth(),
-      expenseDate.getUTCDate()
-    )
+      expenseDate.getUTCDate(),
+    ),
   );
 
   const cardInvoice = await CardInvoice.findOne({
@@ -162,6 +163,7 @@ const createSingleExpense = async (
 
   const expense = new Expense({
     ...expenseData,
+    type: ExpenseTypeEnum.EXPENSE,
     date: expenseDate,
     cardInvoiceId: cardInvoice?._id,
   });
@@ -169,7 +171,7 @@ const createSingleExpense = async (
 
   if (cardInvoice) {
     await CardInvoice.findByIdAndUpdate(cardInvoice._id, {
-      $inc: { amount: expense.amount },
+      $inc: { balance: expense.amount },
     });
     logger.debug(
       {
@@ -177,7 +179,7 @@ const createSingleExpense = async (
         invoiceId: cardInvoice._id,
         amount: expense.amount,
       },
-      "Updated invoice amount"
+      "Updated invoice balance",
     );
   }
 
@@ -187,7 +189,7 @@ const createSingleExpense = async (
       expense._id,
       fileBuffer,
       filename,
-      mimetype
+      mimetype,
     );
     if (receiptUrl) {
       expense.receipt = receiptUrl;
@@ -200,12 +202,12 @@ const createSingleExpense = async (
 const createInstallmentsExpense = async (
   body: CreateExpenseDto,
   installmentTotal: number,
-  installmentStartDate?: string
+  installmentStartDate?: string,
 ) => {
   const expenses = await createInstallmentExpenses(
     body,
     installmentTotal,
-    installmentStartDate
+    installmentStartDate,
   );
   const savedExpenses = await Expense.insertMany(expenses);
 
@@ -213,7 +215,7 @@ const createInstallmentsExpense = async (
   for (const expense of savedExpenses) {
     if (expense.cardInvoiceId) {
       await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
-        $inc: { amount: expense.amount },
+        $inc: { balance: expense.amount },
       });
     }
   }
@@ -224,7 +226,7 @@ const createInstallmentsExpense = async (
 const createInstallmentExpenses = async (
   baseExpense: CreateExpenseDto,
   installmentTotal: number,
-  startDate?: string
+  startDate?: string,
 ): Promise<IExpense[]> => {
   const expenses: IExpense[] = [];
   const baseDate = startDate ? new Date(startDate) : new Date();
@@ -249,6 +251,7 @@ const createInstallmentExpenses = async (
 
     const expenseData = {
       ...baseExpense,
+      type: ExpenseTypeEnum.EXPENSE,
       description: `${baseExpense.description} (${i}/${installmentTotal})`,
       date: targetDate,
       installmentNumber: i,
@@ -262,7 +265,7 @@ const createInstallmentExpenses = async (
 
 export const getAllExpenses = async (
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> => {
   logger.debug({ query: request.query }, "Fetching all expenses");
   const filter = buildFilterQuery(request.query as ExpenseQueryParamsDto);
@@ -273,7 +276,7 @@ export const getAllExpenses = async (
 
 export const getExpenseById = async (
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> => {
   const expenseId = (request.params as { id: string }).id;
   logger.debug({ expenseId }, "Fetching expense by ID");
@@ -284,13 +287,12 @@ export const getExpenseById = async (
 
 export const createExpense = async (
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> => {
   logger.debug("Processing expense creation request");
 
-  const { body, fileBuffer, filename, mimetype } = await parseExpenseRequest(
-    request
-  );
+  const { body, fileBuffer, filename, mimetype } =
+    await parseExpenseRequest(request);
 
   if (!(await validateAndRespond(CreateExpenseDto, body, reply))) {
     return;
@@ -302,16 +304,16 @@ export const createExpense = async (
   if (installmentTotal && installmentTotal > 1) {
     logger.info(
       { installmentTotal, bank: body.bank },
-      "Creating installment expenses"
+      "Creating installment expenses",
     );
     const savedExpenses = await createInstallmentsExpense(
       body,
       installmentTotal,
-      installmentStartDate
+      installmentStartDate,
     );
     logger.info(
       { count: savedExpenses.length, installmentTotal },
-      "Successfully created installment expenses"
+      "Successfully created installment expenses",
     );
     reply.status(201).send(savedExpenses);
   } else {
@@ -319,7 +321,7 @@ export const createExpense = async (
       body,
       fileBuffer,
       filename,
-      mimetype
+      mimetype,
     );
     logger.info(
       {
@@ -327,7 +329,7 @@ export const createExpense = async (
         amount: expense.amount,
         hasReceipt: !!fileBuffer,
       },
-      "Successfully created expense"
+      "Successfully created expense",
     );
     reply.status(201).send(expense);
   }
@@ -335,7 +337,7 @@ export const createExpense = async (
 
 export const updateExpense = async (
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> => {
   if (!(await validateAndRespond(UpdateExpenseDto, request.body, reply))) {
     return;
@@ -359,11 +361,11 @@ export const updateExpense = async (
     const amountDelta = updateData.amount - oldExpense.amount;
     if (expense.cardInvoiceId) {
       await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
-        $inc: { amount: amountDelta },
+        $inc: { balance: amountDelta },
       });
       logger.debug(
         { expenseId, invoiceId: expense.cardInvoiceId, delta: amountDelta },
-        "Synced invoice amount due to expense amount change"
+        "Synced invoice balance due to expense amount change",
       );
     }
   }
@@ -374,7 +376,7 @@ export const updateExpense = async (
 
 export const deleteExpense = async (
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> => {
   const expenseId = (request.params as { id: string }).id;
   logger.debug({ expenseId }, "Deleting expense");
@@ -382,11 +384,11 @@ export const deleteExpense = async (
 
   if (expense.cardInvoiceId) {
     await CardInvoice.findByIdAndUpdate(expense.cardInvoiceId, {
-      $inc: { amount: -expense.amount },
+      $inc: { balance: -expense.amount },
     });
     logger.debug(
       { expenseId, invoiceId: expense.cardInvoiceId, amount: expense.amount },
-      "Decremented invoice amount"
+      "Decremented invoice balance",
     );
   }
 
@@ -396,7 +398,7 @@ export const deleteExpense = async (
 
 export const uploadReceipt = async (
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> => {
   const expenseId = (request.params as { id: string }).id;
   logger.info({ expenseId }, "Starting receipt upload for expense");
@@ -410,37 +412,37 @@ export const uploadReceipt = async (
 
   logger.debug(
     { expenseId, filename: data.filename, mimetype: data.mimetype },
-    "Processing receipt upload"
+    "Processing receipt upload",
   );
 
   try {
     const buffer = await data.toBuffer();
     logger.debug(
       { expenseId, filename: data.filename, fileSize: buffer.length },
-      "File buffer created successfully"
+      "File buffer created successfully",
     );
 
     const fileUrl = await uploadToS3(buffer, data.filename, data.mimetype);
     logger.info(
       { expenseId, filename: data.filename, receiptUrl: fileUrl },
-      "File uploaded to S3 successfully"
+      "File uploaded to S3 successfully",
     );
 
     const expense = await Expense.findByIdAndUpdate(
       expenseId,
       { receipt: fileUrl },
-      { new: true }
+      { new: true },
     ).orFail();
 
     logger.info(
       { expenseId, filename: data.filename, receiptUrl: fileUrl },
-      "Successfully uploaded and attached receipt to expense"
+      "Successfully uploaded and attached receipt to expense",
     );
     reply.send(expense);
   } catch (error) {
     logger.error(
       { expenseId, filename: data?.filename, error },
-      "Failed to upload receipt"
+      "Failed to upload receipt",
     );
     reply.status(500).send({ error: "Failed to upload receipt file" });
   }
@@ -448,7 +450,7 @@ export const uploadReceipt = async (
 
 export const deleteReceipt = async (
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ): Promise<void> => {
   const { id } = request.params as { id: string };
   logger.info({ expenseId: id }, "Removing receipt from expense");
@@ -456,7 +458,7 @@ export const deleteReceipt = async (
   const expense = await Expense.findByIdAndUpdate(
     id,
     { $unset: { receipt: 1 } },
-    { new: true }
+    { new: true },
   );
 
   if (!expense) {

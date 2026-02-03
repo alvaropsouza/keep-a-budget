@@ -24,6 +24,7 @@ export const expenseSchemas = {
           properties: {
             _id: { type: "string" },
             bank: { type: "string" },
+            type: { type: "string", enum: ["ADVANCE", "EXPENSE"] },
             category: { type: "string" },
             date: { type: "string", format: "date-time" },
             amount: { type: "number" },
@@ -53,6 +54,7 @@ export const expenseSchemas = {
         properties: {
           _id: { type: "string" },
           bank: { type: "string" },
+          type: { type: "string", enum: ["ADVANCE", "EXPENSE"] },
           category: { type: "string" },
           date: { type: "string", format: "date-time" },
           amount: { type: "number" },
@@ -89,6 +91,7 @@ export const expenseSchemas = {
         properties: {
           _id: { type: "string" },
           bank: { type: "string" },
+          type: { type: "string", enum: ["ADVANCE", "EXPENSE"] },
           category: { type: "string" },
           date: { type: "string", format: "date-time" },
           amount: { type: "number" },
@@ -129,6 +132,7 @@ export const expenseSchemas = {
         properties: {
           _id: { type: "string" },
           bank: { type: "string" },
+          type: { type: "string", enum: ["ADVANCE", "EXPENSE"] },
           category: { type: "string" },
           date: { type: "string", format: "date-time" },
           amount: { type: "number" },
@@ -173,6 +177,7 @@ export const expenseSchemas = {
         properties: {
           _id: { type: "string" },
           bank: { type: "string" },
+          type: { type: "string", enum: ["ADVANCE", "EXPENSE"] },
           category: { type: "string" },
           amount: { type: "number" },
           receipt: { type: "string" },

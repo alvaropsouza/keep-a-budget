@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsEnum,
   IsNumber,
+  Min,
 } from "class-validator";
 import { BanksEnum } from "../../../enums/banks.enum";
 
@@ -23,7 +24,8 @@ export class CreateInvoiceDto {
 
   @IsNumber()
   @IsOptional()
-  amount?: number;
+  @Min(0)
+  balance?: number;
 }
 
 export class UpdateInvoiceDto {
@@ -46,7 +48,8 @@ export class UpdateInvoiceDto {
 
   @IsNumber()
   @IsOptional()
-  amount?: number;
+  @Min(0)
+  balance?: number;
 }
 
 export class InvoiceQueryParamsDto {
@@ -89,4 +92,10 @@ export class InvoiceQueryParamsDto {
   @IsDateString()
   @IsOptional()
   updatedEndDate?: string;
+}
+
+export class AdvanceInvoiceDto {
+  @IsNumber()
+  @Min(0.01)
+  amount!: number;
 }

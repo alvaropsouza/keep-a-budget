@@ -28,7 +28,8 @@ export const invoiceSchemas = {
             openDate: { type: "string", format: "date-time" },
             closingDate: { type: "string", format: "date-time" },
             dueDate: { type: "string", format: "date-time" },
-            amount: { type: "number" },
+            balance: { type: "number" },
+            advance: { type: "number" },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
             expenses: {
@@ -38,6 +39,7 @@ export const invoiceSchemas = {
                 properties: {
                   _id: { type: "string" },
                   bank: { type: "string" },
+                  type: { type: "string", enum: ["ADVANCE", "EXPENSE"] },
                   category: { type: "string" },
                   amount: { type: "number" },
                   description: { type: "string" },
@@ -79,7 +81,8 @@ export const invoiceSchemas = {
           openDate: { type: "string", format: "date-time" },
           closingDate: { type: "string", format: "date-time" },
           dueDate: { type: "string", format: "date-time" },
-          amount: { type: "number" },
+          balance: { type: "number" },
+          advance: { type: "number" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
           expenses: {
@@ -89,6 +92,7 @@ export const invoiceSchemas = {
               properties: {
                 _id: { type: "string" },
                 bank: { type: "string" },
+                type: { type: "string", enum: ["ADVANCE", "EXPENSE"] },
                 category: { type: "string" },
                 amount: { type: "number" },
                 description: { type: "string" },
@@ -120,7 +124,7 @@ export const invoiceSchemas = {
         openDate: { type: "string", format: "date-time" },
         closingDate: { type: "string", format: "date-time" },
         dueDate: { type: "string", format: "date-time" },
-        amount: { type: "number" },
+        balance: { type: "number" },
       },
       required: ["bank", "openDate", "closingDate", "dueDate"],
     },
@@ -133,7 +137,8 @@ export const invoiceSchemas = {
           openDate: { type: "string", format: "date-time" },
           closingDate: { type: "string", format: "date-time" },
           dueDate: { type: "string", format: "date-time" },
-          amount: { type: "number" },
+          balance: { type: "number" },
+          advance: { type: "number" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
         },
@@ -158,7 +163,7 @@ export const invoiceSchemas = {
         openDate: { type: "string", format: "date-time" },
         closingDate: { type: "string", format: "date-time" },
         dueDate: { type: "string", format: "date-time" },
-        amount: { type: "number" },
+        balance: { type: "number" },
       },
     },
     response: {
@@ -170,7 +175,43 @@ export const invoiceSchemas = {
           openDate: { type: "string", format: "date-time" },
           closingDate: { type: "string", format: "date-time" },
           dueDate: { type: "string", format: "date-time" },
-          amount: { type: "number" },
+          balance: { type: "number" },
+          advance: { type: "number" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+    },
+  },
+
+  advanceInvoice: {
+    tags: ["Invoices"],
+    description: "Advance a payment on an invoice",
+    params: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+      },
+      required: ["id"],
+    },
+    body: {
+      type: "object",
+      properties: {
+        amount: { type: "number", minimum: 0.01 },
+      },
+      required: ["amount"],
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          bank: { type: "string" },
+          openDate: { type: "string", format: "date-time" },
+          closingDate: { type: "string", format: "date-time" },
+          dueDate: { type: "string", format: "date-time" },
+          balance: { type: "number" },
+          advance: { type: "number" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
         },

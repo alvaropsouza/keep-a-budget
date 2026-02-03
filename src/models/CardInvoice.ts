@@ -6,9 +6,11 @@ export interface ICardInvoice extends Document {
   openDate: Date;
   closingDate: Date;
   dueDate: Date;
-  amount?: number;
+  balance: number;
+  advance: number;
   createdAt: Date;
   updatedAt: Date;
+  expenses?: any[];
 }
 
 const cardInvoiceSchema = new Schema<ICardInvoice>(
@@ -30,24 +32,33 @@ const cardInvoiceSchema = new Schema<ICardInvoice>(
       type: Date,
       required: true,
     },
-    amount: {
+    balance: {
       type: Number,
       required: false,
+      default: 0,
+      min: 0,
+    },
+    advance: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
     },
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 // Prevent multiple invoices for the same bank and period
 cardInvoiceSchema.index(
   { bank: 1, openDate: 1, closingDate: 1 },
-  { unique: true }
+  { unique: true },
 );
 
+// Virtual for expenses relationship
 cardInvoiceSchema.virtual("expenses", {
   ref: "Expense",
   localField: "_id",

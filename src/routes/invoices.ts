@@ -5,19 +5,20 @@ import {
   createInvoice,
   updateInvoice,
   deleteInvoice,
+  advanceInvoice,
 } from "../controllers/invoices/invoices.controller";
 import { invoiceSchemas } from "../docs/invoice.schemas";
 
 async function invoiceRoutes(
   fastify: FastifyInstance,
-  _options: FastifyPluginOptions
+  _options: FastifyPluginOptions,
 ): Promise<void> {
   fastify.get(
     "/",
     {
       schema: invoiceSchemas.getAllInvoices,
     },
-    getAllInvoices
+    getAllInvoices,
   );
 
   fastify.get(
@@ -25,7 +26,7 @@ async function invoiceRoutes(
     {
       schema: invoiceSchemas.getInvoiceById,
     },
-    getInvoiceById
+    getInvoiceById,
   );
 
   fastify.post(
@@ -33,7 +34,7 @@ async function invoiceRoutes(
     {
       schema: invoiceSchemas.createInvoice,
     },
-    createInvoice
+    createInvoice,
   );
 
   fastify.put(
@@ -41,7 +42,7 @@ async function invoiceRoutes(
     {
       schema: invoiceSchemas.updateInvoice,
     },
-    updateInvoice
+    updateInvoice,
   );
 
   fastify.delete(
@@ -49,7 +50,15 @@ async function invoiceRoutes(
     {
       schema: invoiceSchemas.deleteInvoice,
     },
-    deleteInvoice
+    deleteInvoice,
+  );
+
+  fastify.post(
+    "/:id/advance",
+    {
+      schema: invoiceSchemas.advanceInvoice,
+    },
+    advanceInvoice,
   );
 }
 

@@ -1,8 +1,10 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { BanksEnum } from "../enums/banks.enum";
+import { ExpenseTypeEnum } from "../enums/expenseType.enum";
 
 export interface IExpense extends Document {
   bank: BanksEnum;
+  type: ExpenseTypeEnum;
   category: string;
   date: Date;
   amount: number;
@@ -23,6 +25,12 @@ const expenseSchema = new Schema<IExpense>(
       type: String,
       enum: Object.values(BanksEnum),
       required: true,
+    },
+    type: {
+      type: String,
+      enum: Object.values(ExpenseTypeEnum),
+      required: true,
+      default: ExpenseTypeEnum.EXPENSE,
     },
     category: {
       type: String,
@@ -63,7 +71,7 @@ const expenseSchema = new Schema<IExpense>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export default mongoose.model<IExpense>("Expense", expenseSchema);

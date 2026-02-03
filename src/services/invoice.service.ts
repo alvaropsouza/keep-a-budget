@@ -3,9 +3,9 @@ import CardInvoice, { ICardInvoice } from "../models/CardInvoice";
 import Expense from "../models/Expense";
 import { ExpenseTypeEnum } from "../enums/expenseType.enum";
 import { FilterBuilder } from "../utils/filterBuilder";
-import { InvoiceQueryParamsDto } from "../dto/invoice.dto";
 import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
+import { InvoiceQueryParamsDto } from "../dto/invoice.dto";
 
 export class InvoiceService extends BaseService<ICardInvoice> {
   constructor() {
@@ -98,7 +98,7 @@ export class InvoiceService extends BaseService<ICardInvoice> {
 
     const updatedInvoice = await CardInvoice.findByIdAndUpdate(
       id,
-      { $inc: { advance: amount } },
+      { $inc: { advance: amount, balance: -amount } },
       { new: true, runValidators: true },
     )
       .populate("expenses")

@@ -7,7 +7,7 @@ import {
   IsDateString,
   IsEnum,
 } from "class-validator";
-import { BanksEnum } from "../../../enums/banks.enum";
+import { BanksEnum } from "../enums/banks.enum";
 
 export class CreateExpenseDto {
   @IsEnum(BanksEnum)
@@ -59,15 +59,6 @@ export class UpdateExpenseDto {
   @IsMongoId()
   @IsOptional()
   cardInvoiceId?: string;
-
-  @IsNumber()
-  @IsOptional()
-  @Min(1)
-  installmentTotal?: number;
-
-  @IsDateString()
-  @IsOptional()
-  installmentStartDate?: string;
 }
 
 export class ExpenseQueryParamsDto {

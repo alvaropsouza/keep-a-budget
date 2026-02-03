@@ -6,7 +6,7 @@ import {
   updateInvoice,
   deleteInvoice,
   advanceInvoice,
-} from "../controllers/invoices/invoices.controller";
+} from "../controllers/invoice.controller";
 import { invoiceSchemas } from "../docs/invoice.schemas";
 
 async function invoiceRoutes(

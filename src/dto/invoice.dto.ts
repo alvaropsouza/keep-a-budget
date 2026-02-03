@@ -6,7 +6,7 @@ import {
   IsNumber,
   Min,
 } from "class-validator";
-import { BanksEnum } from "../../../enums/banks.enum";
+import { BanksEnum } from "../enums/banks.enum";
 
 export class CreateInvoiceDto {
   @IsString()

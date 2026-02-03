@@ -7,19 +7,19 @@ import {
   deleteExpense,
   uploadReceipt,
   deleteReceipt,
-} from "../controllers/expenses/expenses.controller";
+} from "../controllers/expense.controller";
 import { expenseSchemas } from "../docs/expense.schemas";
 
 async function expenseRoutes(
   fastify: FastifyInstance,
-  _options: FastifyPluginOptions
+  _options: FastifyPluginOptions,
 ): Promise<void> {
   fastify.get(
     "/",
     {
       schema: expenseSchemas.getAllExpenses,
     },
-    getAllExpenses
+    getAllExpenses,
   );
 
   fastify.get(
@@ -27,7 +27,7 @@ async function expenseRoutes(
     {
       schema: expenseSchemas.getExpenseById,
     },
-    getExpenseById
+    getExpenseById,
   );
 
   fastify.post(
@@ -36,7 +36,7 @@ async function expenseRoutes(
       schema: expenseSchemas.createExpense,
       attachValidation: true,
     },
-    createExpense
+    createExpense,
   );
 
   fastify.put(
@@ -44,7 +44,7 @@ async function expenseRoutes(
     {
       schema: expenseSchemas.updateExpense,
     },
-    updateExpense
+    updateExpense,
   );
 
   fastify.delete(
@@ -52,7 +52,7 @@ async function expenseRoutes(
     {
       schema: expenseSchemas.deleteExpense,
     },
-    deleteExpense
+    deleteExpense,
   );
 
   fastify.post(
@@ -60,7 +60,7 @@ async function expenseRoutes(
     {
       schema: expenseSchemas.uploadReceipt,
     },
-    uploadReceipt
+    uploadReceipt,
   );
 
   fastify.delete(
@@ -68,7 +68,7 @@ async function expenseRoutes(
     {
       schema: expenseSchemas.deleteReceipt,
     },
-    deleteReceipt
+    deleteReceipt,
   );
 }
 

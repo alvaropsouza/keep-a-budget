@@ -1,5 +1,7 @@
 # Keep a Budget API
 
+> **✨ Projeto Recentemente Refatorado!** Esta aplicação passou por uma refatoração completa focada em clean code, reutilização de componentes e redução de complexidade. Veja [REFACTORING.md](./REFACTORING.md) para detalhes.
+
 Backend application for managing credit card invoices and expenses. Built with Node.js, Fastify, MongoDB, and AWS S3 (compatible with MinIO).
 
 ## 🚀 Features
@@ -9,6 +11,7 @@ Backend application for managing credit card invoices and expenses. Built with N
 - **Receipt Storage**: Upload and store receipt images in AWS S3 or MinIO.
 - **RESTful API**: High-performance API built with Fastify.
 - **API Documentation**: Interactive Swagger UI documentation.
+- **Clean Architecture**: Service layer, controllers, and reusable utilities following SOLID principles.
 
 ## 📋 Prerequisites
 
@@ -81,6 +84,31 @@ pnpm start
 ```
 
 The server will start at `http://localhost:3000`.
+
+## 🏗️ Project Structure
+
+```
+src/
+├── config/           # Configuration (database, S3, logger, error handling)
+├── controllers/      # Request handlers (thin layer)
+├── services/         # Business logic (reusable, testable)
+├── models/           # Mongoose models
+├── dto/              # Data Transfer Objects with validation
+├── routes/           # Route definitions
+├── docs/             # Swagger schemas
+├── enums/            # Enumerations
+├── utils/            # Utilities (FilterBuilder, validation, S3 upload)
+└── server.ts         # Application entry point
+```
+
+**Key Design Decisions:**
+- **Services Layer**: All business logic is in services, making it reusable and testable
+- **BaseService**: Generic CRUD operations inherited by all services
+- **BaseController**: Standard error handling and validation
+- **FilterBuilder**: Fluent API for building MongoDB queries
+- **DTOs**: Centralized validation using class-validator
+
+See [REFACTORING.md](./REFACTORING.md) for detailed architecture information.
 
 ## 📚 API Documentation
 

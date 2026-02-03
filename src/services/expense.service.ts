@@ -1,0 +1,249 @@
+import { BaseService } from "./base.service";
+import Expense, { IExpense } from "../models/Expense";
+import { InvoiceService } from "./invoice.service";
+import { ExpenseTypeEnum } from "../enums/expenseType.enum";
+import { FilterBuilder } from "../utils/filterBuilder";
+import { ExpenseQueryParamsDto } from "../dto/expense.dto";
+import { uploadToS3 } from "../utils/s3Upload";
+import logger from "../config/logger";
+
+interface CreateExpenseData {
+  bank: string;
+  category: string;
+  amount: number;
+  description?: string;
+  installmentTotal?: number;
+  installmentStartDate?: string;
+  receipt?: string;
+}
+
+interface FileData {
+  buffer: Buffer;
+  filename: string;
+  mimetype: string;
+}
+
+export class ExpenseService extends BaseService<IExpense> {
+  private invoiceService: InvoiceService;
+
+  constructor() {
+    super(Expense);
+    this.invoiceService = new InvoiceService();
+  }
+
+  buildFilter(queryParams: ExpenseQueryParamsDto): Record<string, unknown> {
+    return new FilterBuilder()
+      .addEquals("bank", queryParams.bank)
+      .addEquals("category", queryParams.category)
+      .addEquals("cardInvoiceId", queryParams.cardInvoiceId)
+      .addNumberRange("amount", queryParams.minAmount, queryParams.maxAmount)
+      .addDateRange(
+        "createdAt",
+        queryParams.createdStartDate,
+        queryParams.createdEndDate,
+      )
+      .addDateRange(
+        "updatedAt",
+        queryParams.updatedStartDate,
+        queryParams.updatedEndDate,
+      )
+      .build();
+  }
+
+  async getAll(filter: Record<string, unknown>): Promise<IExpense[]> {
+    return this.findAll(filter, { date: -1 });
+  }
+
+  async createExpense(
+    data: CreateExpenseData,
+    file?: FileData,
+  ): Promise<IExpense | IExpense[]> {
+    const { installmentTotal, installmentStartDate } = data;
+
+    if (installmentTotal && installmentTotal > 1) {
+      return this.createInstallments(
+        data,
+        installmentTotal,
+        installmentStartDate,
+      );
+    }
+
+    return this.createSingle(data, file);
+  }
+
+  private async createSingle(
+    data: CreateExpenseData,
+    file?: FileData,
+  ): Promise<IExpense> {
+    const expenseDate = data.installmentStartDate
+      ? new Date(data.installmentStartDate)
+      : new Date();
+
+    const cardInvoice = await this.invoiceService.findForExpenseDate(
+      data.bank,
+      expenseDate,
+    );
+
+    const expense = await this.create({
+      ...(data as any),
+      type: ExpenseTypeEnum.EXPENSE,
+      date: expenseDate,
+      cardInvoiceId: cardInvoice?._id,
+    });
+
+    if (cardInvoice) {
+      await this.invoiceService.updateBalance(cardInvoice._id, expense.amount);
+    }
+
+    if (file) {
+      const receiptUrl = await this.uploadReceipt(expense._id, file);
+      if (receiptUrl) {
+        expense.receipt = receiptUrl;
+      }
+    }
+
+    logger.info(
+      { expenseId: expense._id, amount: expense.amount },
+      "Expense created",
+    );
+    return expense;
+  }
+
+  private async createInstallments(
+    data: CreateExpenseData,
+    installmentTotal: number,
+    startDate?: string,
+  ): Promise<IExpense[]> {
+    const expenses = await this.buildInstallments(
+      data,
+      installmentTotal,
+      startDate,
+    );
+    const savedExpenses = await Expense.insertMany(expenses);
+
+    for (const expense of savedExpenses) {
+      if (expense.cardInvoiceId) {
+        await this.invoiceService.updateBalance(
+          expense.cardInvoiceId,
+          expense.amount,
+        );
+      }
+    }
+
+    logger.info(
+      { count: savedExpenses.length, installmentTotal },
+      "Installment expenses created",
+    );
+    return savedExpenses;
+  }
+
+  private async buildInstallments(
+    baseData: CreateExpenseData,
+    installmentTotal: number,
+    startDate?: string,
+  ): Promise<IExpense[]> {
+    const expenses: IExpense[] = [];
+    const baseDate = startDate ? new Date(startDate) : new Date();
+
+    for (let i = 1; i <= installmentTotal; i++) {
+      const targetDate = this.calculateInstallmentDate(baseDate, i - 1);
+      const cardInvoice = await this.invoiceService.findForExpenseDate(
+        baseData.bank,
+        targetDate,
+      );
+
+      const expense = new Expense({
+        ...(baseData as any),
+        type: ExpenseTypeEnum.EXPENSE,
+        description: `${baseData.description || baseData.category} (${i}/${installmentTotal})`,
+        date: targetDate,
+        installment: {
+          current: i,
+          total: installmentTotal,
+        },
+        cardInvoiceId: cardInvoice?._id,
+      });
+
+      expenses.push(expense);
+    }
+
+    return expenses;
+  }
+
+  private calculateInstallmentDate(baseDate: Date, monthsToAdd: number): Date {
+    const year = baseDate.getUTCFullYear();
+    const month = baseDate.getUTCMonth();
+    const day = baseDate.getUTCDate();
+
+    const targetMonth = month + monthsToAdd;
+    const targetDate = new Date(Date.UTC(year, targetMonth, day));
+
+    // Handle day overflow (e.g., Jan 31 -> Feb 31 = Feb 28/29)
+    if (targetDate.getUTCDate() !== day) {
+      targetDate.setUTCDate(0); // Set to last day of previous month
+    }
+
+    return targetDate;
+  }
+
+  async updateExpense(
+    id: string,
+    updateData: Partial<IExpense>,
+  ): Promise<IExpense> {
+    const oldExpense = await this.findById(id);
+    const expense = await this.update(id, updateData);
+
+    // Sync invoice balance if amount changed
+    if (
+      updateData.amount !== undefined &&
+      updateData.amount !== oldExpense.amount
+    ) {
+      const delta = updateData.amount - oldExpense.amount;
+      if (expense.cardInvoiceId) {
+        await this.invoiceService.updateBalance(expense.cardInvoiceId, delta);
+      }
+    }
+
+    return expense;
+  }
+
+  async deleteExpense(id: string): Promise<void> {
+    const expense = await this.delete(id);
+
+    if (expense.cardInvoiceId) {
+      await this.invoiceService.updateBalance(
+        expense.cardInvoiceId,
+        -expense.amount,
+      );
+    }
+
+    logger.info({ expenseId: id }, "Expense deleted");
+  }
+
+  async uploadReceipt(expenseId: any, file: FileData): Promise<string | null> {
+    try {
+      const fileUrl = await uploadToS3(
+        file.buffer,
+        file.filename,
+        file.mimetype,
+      );
+      await this.update(expenseId, { receipt: fileUrl } as any);
+      logger.info({ expenseId, receiptUrl: fileUrl }, "Receipt uploaded");
+      return fileUrl;
+    } catch (error) {
+      logger.error({ expenseId, error }, "Failed to upload receipt");
+      return null;
+    }
+  }
+
+  async deleteReceipt(id: string): Promise<IExpense> {
+    const expense = await Expense.findByIdAndUpdate(
+      id,
+      { $unset: { receipt: 1 } },
+      { new: true },
+    ).orFail();
+
+    logger.info({ expenseId: id }, "Receipt removed");
+    return expense;
+  }
+}

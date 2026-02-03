@@ -102,6 +102,7 @@ src/
 ```
 
 **Key Design Decisions:**
+
 - **Services Layer**: All business logic is in services, making it reusable and testable
 - **BaseService**: Generic CRUD operations inherited by all services
 - **BaseController**: Standard error handling and validation

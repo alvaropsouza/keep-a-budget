@@ -15,10 +15,9 @@ export class InvoiceService extends BaseService<ICardInvoice> {
   buildFilter(queryParams: InvoiceQueryParamsDto): Record<string, unknown> {
     return new FilterBuilder()
       .addEquals("bank", queryParams.bank)
-      .addDate("openDate", queryParams.openDate)
       .addDate("closingDate", queryParams.closingDate)
       .addDate("dueDate", queryParams.dueDate)
-      .addDateRange("openDate", queryParams.startDate, queryParams.endDate)
+      .addDateRange("closingDate", queryParams.startDate, queryParams.endDate)
       .addDateRange(
         "createdAt",
         queryParams.createdStartDate,
@@ -42,26 +41,15 @@ export class InvoiceService extends BaseService<ICardInvoice> {
     return this.findById(id, "expenses");
   }
 
-  async checkDuplicate(
-    bank: string,
-    openDate: string,
-    closingDate: string,
-  ): Promise<boolean> {
+  async checkDuplicate(bank: string, closingDate: string): Promise<boolean> {
     return this.exists({
       bank,
-      openDate: new Date(openDate),
       closingDate: new Date(closingDate),
     });
   }
 
   async createInvoice(data: Partial<ICardInvoice>): Promise<ICardInvoice> {
-    if (
-      await this.checkDuplicate(
-        data.bank!,
-        data.openDate!.toString(),
-        data.closingDate!.toString(),
-      )
-    ) {
+    if (await this.checkDuplicate(data.bank!, data.closingDate!.toString())) {
       throw new AppError(
         "Invoice already exists for this bank and period",
         409,
@@ -135,8 +123,9 @@ export class InvoiceService extends BaseService<ICardInvoice> {
 
     return CardInvoice.findOne({
       bank,
-      openDate: { $lte: queryDate },
       closingDate: { $gte: queryDate },
-    });
+    })
+      .sort({ closingDate: 1 })
+      .exec();
   }
 }

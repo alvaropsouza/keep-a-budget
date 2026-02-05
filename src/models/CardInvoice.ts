@@ -3,7 +3,6 @@ import { BanksEnum } from "../enums/banks.enum";
 
 export interface ICardInvoice extends Document {
   bank: BanksEnum;
-  openDate: Date;
   closingDate: Date;
   dueDate: Date;
   balance: number;
@@ -18,10 +17,6 @@ const cardInvoiceSchema = new Schema<ICardInvoice>(
     bank: {
       type: String,
       enum: Object.values(BanksEnum),
-      required: true,
-    },
-    openDate: {
-      type: Date,
       required: true,
     },
     closingDate: {
@@ -52,11 +47,8 @@ const cardInvoiceSchema = new Schema<ICardInvoice>(
   },
 );
 
-// Prevent multiple invoices for the same bank and period
-cardInvoiceSchema.index(
-  { bank: 1, openDate: 1, closingDate: 1 },
-  { unique: true },
-);
+// Prevent multiple invoices for the same bank and closing date
+cardInvoiceSchema.index({ bank: 1, closingDate: 1 }, { unique: true });
 
 // Virtual for expenses relationship
 cardInvoiceSchema.virtual("expenses", {

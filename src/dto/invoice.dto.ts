@@ -14,9 +14,6 @@ export class CreateInvoiceDto {
   bank!: string;
 
   @IsDateString()
-  openDate!: string;
-
-  @IsDateString()
   closingDate!: string;
 
   @IsDateString()
@@ -36,10 +33,6 @@ export class UpdateInvoiceDto {
 
   @IsDateString()
   @IsOptional()
-  openDate?: string;
-
-  @IsDateString()
-  @IsOptional()
   closingDate?: string;
 
   @IsDateString()
@@ -56,10 +49,6 @@ export class InvoiceQueryParamsDto {
   @IsString()
   @IsOptional()
   bank?: string;
-
-  @IsDateString()
-  @IsOptional()
-  openDate?: string;
 
   @IsDateString()
   @IsOptional()

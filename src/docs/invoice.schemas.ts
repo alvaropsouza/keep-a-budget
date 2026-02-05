@@ -6,7 +6,6 @@ export const invoiceSchemas = {
       type: "object",
       properties: {
         bank: { type: "string", enum: ["NUBANK", "XP"] },
-        openDate: { type: "string", format: "date-time" },
         closingDate: { type: "string", format: "date-time" },
         dueDate: { type: "string", format: "date-time" },
         createdStartDate: { type: "string", format: "date-time" },
@@ -25,7 +24,6 @@ export const invoiceSchemas = {
           properties: {
             _id: { type: "string" },
             bank: { type: "string" },
-            openDate: { type: "string", format: "date-time" },
             closingDate: { type: "string", format: "date-time" },
             dueDate: { type: "string", format: "date-time" },
             balance: { type: "number" },
@@ -78,7 +76,6 @@ export const invoiceSchemas = {
         properties: {
           _id: { type: "string" },
           bank: { type: "string" },
-          openDate: { type: "string", format: "date-time" },
           closingDate: { type: "string", format: "date-time" },
           dueDate: { type: "string", format: "date-time" },
           balance: { type: "number" },
@@ -121,12 +118,11 @@ export const invoiceSchemas = {
       type: "object",
       properties: {
         bank: { type: "string", enum: ["NUBANK", "XP"] },
-        openDate: { type: "string", format: "date-time" },
         closingDate: { type: "string", format: "date-time" },
         dueDate: { type: "string", format: "date-time" },
         balance: { type: "number" },
       },
-      required: ["bank", "openDate", "closingDate", "dueDate"],
+      required: ["bank", "closingDate", "dueDate"],
     },
     response: {
       201: {
@@ -134,7 +130,6 @@ export const invoiceSchemas = {
         properties: {
           _id: { type: "string" },
           bank: { type: "string" },
-          openDate: { type: "string", format: "date-time" },
           closingDate: { type: "string", format: "date-time" },
           dueDate: { type: "string", format: "date-time" },
           balance: { type: "number" },
@@ -160,7 +155,6 @@ export const invoiceSchemas = {
       type: "object",
       properties: {
         bank: { type: "string", enum: ["NUBANK", "XP"] },
-        openDate: { type: "string", format: "date-time" },
         closingDate: { type: "string", format: "date-time" },
         dueDate: { type: "string", format: "date-time" },
         balance: { type: "number" },
@@ -172,7 +166,6 @@ export const invoiceSchemas = {
         properties: {
           _id: { type: "string" },
           bank: { type: "string" },
-          openDate: { type: "string", format: "date-time" },
           closingDate: { type: "string", format: "date-time" },
           dueDate: { type: "string", format: "date-time" },
           balance: { type: "number" },
@@ -207,7 +200,6 @@ export const invoiceSchemas = {
         properties: {
           _id: { type: "string" },
           bank: { type: "string" },
-          openDate: { type: "string", format: "date-time" },
           closingDate: { type: "string", format: "date-time" },
           dueDate: { type: "string", format: "date-time" },
           balance: { type: "number" },

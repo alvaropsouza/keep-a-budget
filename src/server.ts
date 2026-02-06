@@ -46,6 +46,8 @@ const allowedOriginPatterns = parseOrigins(
 
 const corsOptions: FastifyCorsOptions = {
   origin: (origin, cb) => {
+    logger.debug({ origin, allowedOrigins }, "CORS origin check");
+    
     if (!origin) {
       cb(null, true);
       return;
@@ -60,13 +62,15 @@ const corsOptions: FastifyCorsOptions = {
       return;
     }
 
-    logger.warn({ origin }, "Blocked CORS origin");
+    logger.warn({ origin, allowedOrigins }, "Blocked CORS origin");
     cb(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Accept", "Authorization"],
   exposedHeaders: ["Content-Disposition"],
+  preflight: true,
+  strictPreflight: false,
 };
 
 app.register(fastifyCors, corsOptions);

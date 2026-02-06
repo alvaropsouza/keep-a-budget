@@ -18,7 +18,19 @@ validateEnv();
 const app = Fastify({ logger: fastifyLoggerConfig });
 
 const corsOptions: FastifyCorsOptions = {
-  origin: true,
+  origin: (origin, cb) => {
+    if (!origin) {
+      cb(null, true);
+      return;
+    }
+
+    const isProd = process.env.NODE_ENV === "production";
+    const allowedOrigins = isProd
+      ? ["https://keep-a-budget.up.railway.app"]
+      : ["http://localhost:8080"];
+
+    cb(null, allowedOrigins.includes(origin));
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Accept", "Authorization"],

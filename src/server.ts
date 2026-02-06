@@ -47,7 +47,7 @@ const allowedOriginPatterns = parseOrigins(
 const corsOptions: FastifyCorsOptions = {
   origin: (origin, cb) => {
     logger.debug({ origin, allowedOrigins }, "CORS origin check");
-    
+
     if (!origin) {
       cb(null, true);
       return;

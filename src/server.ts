@@ -18,9 +18,9 @@ validateEnv();
 const app = Fastify({ logger: fastifyLoggerConfig });
 
 app.register(fastifyCors, {
-  origin: "https://keep-a-budget.up.railway.app", // Your specific frontend origin
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allowed HTTP methods
-  allowedHeaders: ["Content-Type", "Authorization"], // Headers your frontend sends
+  origin: ["https://keep-a-budget.up.railway.app"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 });
 app.setErrorHandler(errorHandler);

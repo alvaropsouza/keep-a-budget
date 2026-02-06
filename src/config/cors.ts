@@ -78,7 +78,7 @@ logger.debug(
     allowedExactOrigins: Array.from(allowedExactOrigins),
     allowedOriginPatterns: envOriginPatterns,
   },
-  "CORS configuration loaded"
+  "CORS configuration loaded",
 );
 
 export default fp(async (fastify) => {

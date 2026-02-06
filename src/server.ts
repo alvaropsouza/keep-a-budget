@@ -11,17 +11,16 @@ import expenseRoutes from "./routes/expenses";
 import logger, { fastifyLoggerConfig } from "./config/logger";
 import { errorHandler } from "./config/errorHandler";
 import { setupS3Bucket } from "./utils/s3Setup";
-import { fastifyCors } from "@fastify/cors";
+import fastifyCors from "@fastify/cors";
 
 validateEnv();
 
 const app = Fastify({ logger: fastifyLoggerConfig });
 
 app.register(fastifyCors, {
-  origin: ["https://keep-a-budget.up.railway.app"],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
+  origin: "*",
+  methods: ["GET", "PUT", "POST", "DELETE"],
+  allowedHeaders: ["content-type", "accept", "content-type", "authorization"],
 });
 app.setErrorHandler(errorHandler);
 

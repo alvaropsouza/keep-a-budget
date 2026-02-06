@@ -17,60 +17,12 @@ validateEnv();
 
 const app = Fastify({ logger: fastifyLoggerConfig });
 
-const parseOrigins = (value?: string): string[] =>
-  value
-    ?.split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean) ?? [];
-
-const defaultOrigins = [
-  process.env.FRONTEND_URL,
-  "https://keep-a-budget.up.railway.app",
-  ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:5173"]),
-].filter(Boolean) as string[];
-
-const allowedOrigins = Array.from(
-  new Set([...parseOrigins(process.env.ALLOWED_ORIGINS), ...defaultOrigins]),
-);
-
-const allowedOriginPatterns = parseOrigins(
-  process.env.ALLOWED_ORIGIN_PATTERNS,
-).reduce<RegExp[]>((acc, pattern) => {
-  try {
-    acc.push(new RegExp(pattern));
-  } catch (error) {
-    logger.warn({ pattern, error }, "Invalid CORS origin pattern ignored");
-  }
-  return acc;
-}, []);
-
 const corsOptions: FastifyCorsOptions = {
-  origin: (origin, cb) => {
-    logger.debug({ origin, allowedOrigins }, "CORS origin check");
-
-    if (!origin) {
-      cb(null, true);
-      return;
-    }
-
-    if (
-      allowedOrigins.length === 0 ||
-      allowedOrigins.includes(origin) ||
-      allowedOriginPatterns.some((regex) => regex.test(origin))
-    ) {
-      cb(null, true);
-      return;
-    }
-
-    logger.warn({ origin, allowedOrigins }, "Blocked CORS origin");
-    cb(null, false);
-  },
+  origin: true,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Accept", "Authorization"],
   exposedHeaders: ["Content-Disposition"],
-  preflight: true,
-  strictPreflight: false,
 };
 
 app.register(fastifyCors, corsOptions);

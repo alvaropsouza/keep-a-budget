@@ -19,7 +19,9 @@ const app = Fastify({ logger: fastifyLoggerConfig });
 
 app.register(fastifyCors, {
   origin: ["*"],
-  strictPreflight: false,
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
 });
 app.setErrorHandler(errorHandler);
 

@@ -2,7 +2,11 @@ import fp from "fastify-plugin";
 import cors from "@fastify/cors";
 import "dotenv/config";
 
-const DEFAULT_ALLOWED_ORIGINS: [] = [];
+const DEFAULT_ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://keep-a-budget.up.railway.app",
+];
 
 const envOrigins = process.env.ALLOWED_ORIGINS?.split(",")
   .map((origin) => origin.trim())

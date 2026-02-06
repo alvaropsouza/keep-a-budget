@@ -54,6 +54,10 @@ AWS_ACCESS_KEY_ID=minioadmin
 AWS_SECRET_ACCESS_KEY=minioadmin
 S3_BUCKET_NAME=keep-a-budget-receipts
 S3_ENDPOINT=http://localhost:9000
+
+# CORS (optional overrides)
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,https://keep-a-budget.up.railway.app
+ALLOWED_ORIGIN_PATTERNS=
 ```
 
 > **Note:** The default values above work with the provided `docker-compose.yml` setup.

@@ -56,6 +56,7 @@ S3_BUCKET_NAME=keep-a-budget-receipts
 S3_ENDPOINT=http://localhost:9000
 
 # CORS (optional overrides)
+FRONTEND_URL=https://keep-a-budget.up.railway.app
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,https://keep-a-budget.up.railway.app
 ALLOWED_ORIGIN_PATTERNS=
 ```

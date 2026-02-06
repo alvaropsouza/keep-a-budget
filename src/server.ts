@@ -2,7 +2,6 @@ import "dotenv/config";
 import validateEnv from "./config/validateEnv";
 import Fastify from "fastify";
 import multipart from "@fastify/multipart";
-import corsPlugin from "./config/cors";
 import rateLimit from "@fastify/rate-limit";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUI from "@fastify/swagger-ui";
@@ -12,12 +11,16 @@ import expenseRoutes from "./routes/expenses";
 import logger, { fastifyLoggerConfig } from "./config/logger";
 import { errorHandler } from "./config/errorHandler";
 import { setupS3Bucket } from "./utils/s3Setup";
+import { fastifyCors } from "@fastify/cors";
 
 validateEnv();
 
 const app = Fastify({ logger: fastifyLoggerConfig });
 
-app.register(corsPlugin);
+app.register(fastifyCors, {
+  origin: ["*"],
+  strictPreflight: false,
+});
 app.setErrorHandler(errorHandler);
 
 app.register(rateLimit, {

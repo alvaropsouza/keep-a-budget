@@ -24,7 +24,8 @@ export class ExpenseController extends BaseController {
       const filter = this.service.buildFilter(
         request.query as ExpenseQueryParamsDto,
       );
-      const expenses = await this.service.getAll(filter);
+      // Use the new method that returns signed URLs for receipts
+      const expenses = await this.service.getAllWithSignedReceipts(filter);
       reply.send(expenses);
     } catch (error) {
       this.handleError(error, reply);
@@ -38,6 +39,13 @@ export class ExpenseController extends BaseController {
     try {
       const { id } = request.params as { id: string };
       const expense = await this.service.findById(id);
+
+      // If expense has a receipt, generate signed URL
+      if (expense.receipt) {
+        const signedUrl = await this.service.getReceiptUrl(expense.receipt);
+        (expense as any).receipt = signedUrl;
+      }
+
       reply.send(expense);
     } catch (error) {
       this.handleError(error, reply);
@@ -114,6 +122,13 @@ export class ExpenseController extends BaseController {
 
       await this.service.uploadReceipt(id, file);
       const expense = await this.service.findById(id);
+
+      // Generate signed URL for the uploaded receipt
+      if (expense.receipt) {
+        const signedUrl = await this.service.getReceiptUrl(expense.receipt);
+        (expense as any).receipt = signedUrl;
+      }
+
       reply.send(expense);
     } catch (error) {
       this.handleError(error, reply);

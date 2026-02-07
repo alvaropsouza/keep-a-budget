@@ -3,7 +3,6 @@ import validateEnv from "./config/validateEnv";
 import Fastify from "fastify";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
-import helmet from "@fastify/helmet";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUI from "@fastify/swagger-ui";
 import connectDB from "./config/database";
@@ -12,76 +11,15 @@ import expenseRoutes from "./routes/expenses";
 import logger, { fastifyLoggerConfig } from "./config/logger";
 import { errorHandler } from "./config/errorHandler";
 import { setupS3Bucket } from "./utils/s3Setup";
-import fastifyCors, { FastifyCorsOptions } from "@fastify/cors";
+import corsPlugin from "./plugins/cors";
+import helmetPlugin from "./plugins/helmet";
 
 validateEnv();
 
 const app = Fastify({ logger: fastifyLoggerConfig });
 
-const isProd = process.env.NODE_ENV === "production";
-
-const cspDirectives = {
-  defaultSrc: ["'self'"],
-  baseUri: ["'self'"],
-  connectSrc: ["'self'"],
-  fontSrc: ["'self'", "data:"],
-  formAction: ["'self'"],
-  frameAncestors: ["'none'"],
-  imgSrc: ["'self'", "data:", "blob:"],
-  objectSrc: ["'none'"],
-  scriptSrc: ["'self'", "'unsafe-inline'"],
-  styleSrc: ["'self'", "'unsafe-inline'"],
-};
-
-const corsOptions: FastifyCorsOptions = {
-  origin: (origin, cb) => {
-    if (!origin) {
-      cb(null, true);
-      return;
-    }
-
-    const isProd = process.env.NODE_ENV === "production";
-    const allowedOrigins = isProd
-      ? ["https://keep-a-budget.up.railway.app"]
-      : ["http://localhost:8080"];
-
-    cb(null, allowedOrigins.includes(origin));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Accept", "Authorization"],
-  exposedHeaders: ["Content-Disposition"],
-};
-
-app.register(fastifyCors, corsOptions);
-app.register(helmet, {
-  contentSecurityPolicy: isProd
-    ? {
-        directives: cspDirectives,
-      }
-    : false,
-  hsts: isProd
-    ? {
-        maxAge: 15552000,
-        includeSubDomains: true,
-        preload: true,
-      }
-    : false,
-  referrerPolicy: {
-    policy: "no-referrer",
-  },
-  crossOriginResourcePolicy: {
-    policy: "same-site",
-  },
-});
-
-app.addHook("onSend", async (_request, reply, payload) => {
-  reply.header(
-    "Permissions-Policy",
-    "geolocation=(), microphone=(), camera=(), payment=()",
-  );
-  return payload;
-});
+app.register(corsPlugin);
+app.register(helmetPlugin);
 app.setErrorHandler(errorHandler);
 
 app.register(rateLimit, {

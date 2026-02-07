@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 export const errorHandler = (
   error: FastifyError | Error,
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) => {
   if (error instanceof AppError) {
     return reply.status(error.statusCode).send({
@@ -34,9 +34,13 @@ export const errorHandler = (
 
   const mongoError = error as mongoose.mongo.MongoServerError;
   if (mongoError?.code === 11000) {
+    const duplicateFields = mongoError.keyValue || {};
+    const message = duplicateFields.email
+      ? "User already exists with this email"
+      : "Duplicate key error";
     return reply.status(409).send({
-      error: "Invoice already exists for this bank and period",
-      details: mongoError.keyValue,
+      error: message,
+      details: duplicateFields,
     });
   }
 

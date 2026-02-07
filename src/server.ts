@@ -8,6 +8,7 @@ import fastifySwaggerUI from "@fastify/swagger-ui";
 import connectDB from "./config/database";
 import invoiceRoutes from "./routes/invoices";
 import expenseRoutes from "./routes/expenses";
+import userRoutes from "./routes/users";
 import logger, { fastifyLoggerConfig } from "./config/logger";
 import { errorHandler } from "./config/errorHandler";
 import { setupS3Bucket } from "./utils/s3Setup";
@@ -33,27 +34,30 @@ app.register(multipart, {
   },
 });
 
-app.register(fastifySwagger, {
-  swagger: {
-    info: {
-      title: "Keep a Budget API",
-      description:
-        "Budget tracking application for managing expenses and credit card invoices",
-      version: "1.0.0",
+if (process.env.NODE_ENV !== "production") {
+  app.register(fastifySwagger, {
+    swagger: {
+      info: {
+        title: "Keep a Budget API",
+        description:
+          "Budget tracking application for managing expenses and credit card invoices",
+        version: "1.0.0",
+      },
+      host: `${process.env.HOST || "localhost"}:${process.env.PORT || "3000"}`,
+      schemes: ["http", "https"],
+      consumes: ["application/json"],
+      produces: ["application/json"],
     },
-    host: `${process.env.HOST || "localhost"}:${process.env.PORT || "3000"}`,
-    schemes: ["http", "https"],
-    consumes: ["application/json"],
-    produces: ["application/json"],
-  },
-});
+  });
 
-app.register(fastifySwaggerUI, {
-  routePrefix: "/docs",
-});
+  app.register(fastifySwaggerUI, {
+    routePrefix: "/docs",
+  });
+}
 
 app.register(invoiceRoutes, { prefix: "/invoices" });
 app.register(expenseRoutes, { prefix: "/expenses" });
+app.register(userRoutes, { prefix: "/users" });
 
 app.get("/health", async () => {
   return { status: "ok", timestamp: new Date().toISOString() };

@@ -9,6 +9,7 @@ import connectDB from "./config/database";
 import invoiceRoutes from "./routes/invoices";
 import expenseRoutes from "./routes/expenses";
 import userRoutes from "./routes/users";
+import fixedExpenseRoutes from "./routes/fixedExpenses";
 import logger, { fastifyLoggerConfig } from "./config/logger";
 import { errorHandler } from "./config/errorHandler";
 import { setupS3Bucket } from "./utils/s3Setup";
@@ -58,6 +59,7 @@ if (process.env.NODE_ENV !== "production") {
 app.register(invoiceRoutes, { prefix: "/invoices" });
 app.register(expenseRoutes, { prefix: "/expenses" });
 app.register(userRoutes, { prefix: "/users" });
+app.register(fixedExpenseRoutes, { prefix: "/fixed-expenses" });
 
 app.get("/health", async () => {
   return { status: "ok", timestamp: new Date().toISOString() };

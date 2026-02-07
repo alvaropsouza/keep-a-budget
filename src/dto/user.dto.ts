@@ -26,6 +26,10 @@ export class CreateUserDto {
   @IsOptional()
   salary?: number;
 
+  @IsString()
+  @IsOptional()
+  avatar?: string;
+
   @IsDateString()
   @IsOptional()
   lastLogin?: string;
@@ -52,6 +56,10 @@ export class UpdateUserDto {
   @Min(0)
   @IsOptional()
   salary?: number;
+
+  @IsString()
+  @IsOptional()
+  avatar?: string;
 
   @IsDateString()
   @IsOptional()

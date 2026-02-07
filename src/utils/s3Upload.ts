@@ -1,9 +1,11 @@
 import { Upload } from "@aws-sdk/lib-storage";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { ObjectCannedACL } from "@aws-sdk/client-s3";
 import s3Client from "../config/s3";
 import crypto from "node:crypto";
 import logger from "../config/logger";
-import { getS3Url, getS3UrlConfig } from "./s3Url";
+import { getS3UrlConfig } from "./s3Url";
 
 /**
  * Generate a unique S3 key for a file
@@ -24,13 +26,48 @@ export const generateS3Key = (
 };
 
 /**
- * Upload a file to S3 and return its public URL
+ * Extract S3 key from a URL or return the key if it's already a key
+ * This handles migration from public URLs to S3 keys
+ *
+ * @param urlOrKey - Either a full S3 URL or just the S3 key
+ * @returns The S3 key (e.g., "receipts/123-abc.jpg")
+ */
+export const extractS3Key = (urlOrKey: string): string => {
+  // If it's already a key (doesn't start with http), return as-is
+  if (!urlOrKey.startsWith("http://") && !urlOrKey.startsWith("https://")) {
+    return urlOrKey;
+  }
+
+  try {
+    const url = new URL(urlOrKey);
+    const pathname = url.pathname;
+
+    // Remove leading slash and bucket name if present
+    // Example: /keep-a-budget-receipts/receipts/file.jpg -> receipts/file.jpg
+    const parts = pathname.split("/").filter(Boolean);
+
+    // If first part is bucket name, remove it
+    const config = getS3UrlConfig();
+    if (parts[0] === config.bucket) {
+      parts.shift();
+    }
+
+    return parts.join("/");
+  } catch {
+    // If URL parsing fails, assume it's already a key
+    logger.warn({ urlOrKey }, "Failed to parse as URL, treating as S3 key");
+    return urlOrKey;
+  }
+};
+
+/**
+ * Upload a file to S3 (private) and return the S3 key
  *
  * @param fileBuffer - The file content as Buffer
  * @param fileName - Original filename
  * @param mimeType - MIME type of the file
  * @param options - Upload options
- * @returns The public URL of the uploaded file
+ * @returns The S3 key of the uploaded file
  */
 export const uploadToS3 = async (
   fileBuffer: Buffer,
@@ -56,19 +93,47 @@ export const uploadToS3 = async (
       Key: fileKey,
       Body: fileBuffer,
       ContentType: mimeType,
-      ACL: options.acl || "public-read",
+      // ACL removed - files are now private by default
     },
   });
 
   await upload.done();
 
-  // Generate URL using the centralized helper
-  const url = getS3Url(fileKey, config);
-
   logger.info(
-    { bucket: config.bucket, key: fileKey, url },
-    "File uploaded successfully",
+    { bucket: config.bucket, key: fileKey },
+    "File uploaded successfully (private)",
   );
 
-  return url;
+  return fileKey; // Return key instead of public URL
+};
+
+/**
+ * Generate a pre-signed URL for secure, temporary access to a private S3 object
+ *
+ * @param keyOrUrl - The S3 object key or a full URL (will extract key if URL)
+ * @param expiresIn - URL expiration time in seconds (default: 3600 = 1 hour)
+ * @returns A pre-signed URL that grants temporary access
+ */
+export const getSignedS3Url = async (
+  keyOrUrl: string,
+  expiresIn: number = 3600,
+): Promise<string> => {
+  const config = getS3UrlConfig();
+
+  // Extract key from URL if necessary (handles legacy data)
+  const key = extractS3Key(keyOrUrl);
+
+  const command = new GetObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+  });
+
+  const signedUrl = await getSignedUrl(s3Client, command, { expiresIn });
+
+  logger.debug(
+    { key, expiresIn, bucket: config.bucket },
+    "Generated pre-signed URL",
+  );
+
+  return signedUrl;
 };

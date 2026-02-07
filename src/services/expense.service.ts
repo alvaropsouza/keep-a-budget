@@ -4,7 +4,7 @@ import { InvoiceService } from "./invoice.service";
 import { ExpenseTypeEnum } from "../enums/expenseType.enum";
 import { FilterBuilder } from "../utils/filterBuilder";
 import { ExpenseQueryParamsDto } from "../dto/expense.dto";
-import { uploadToS3 } from "../utils/s3Upload";
+import { uploadToS3, getSignedS3Url } from "../utils/s3Upload";
 import logger from "../config/logger";
 
 interface CreateExpenseData {
@@ -222,18 +222,60 @@ export class ExpenseService extends BaseService<IExpense> {
 
   async uploadReceipt(expenseId: any, file: FileData): Promise<string | null> {
     try {
-      const fileUrl = await uploadToS3(
-        file.buffer,
-        file.filename,
-        file.mimetype,
-      );
-      await this.update(expenseId, { receipt: fileUrl } as any);
-      logger.info({ expenseId, receiptUrl: fileUrl }, "Receipt uploaded");
-      return fileUrl;
+      // Upload to S3 and store the key (not public URL)
+      const s3Key = await uploadToS3(file.buffer, file.filename, file.mimetype);
+      await this.update(expenseId, { receipt: s3Key } as any);
+      logger.info({ expenseId, s3Key }, "Receipt uploaded (private)");
+      return s3Key;
     } catch (error) {
       logger.error({ expenseId, error }, "Failed to upload receipt");
       return null;
     }
+  }
+
+  /**
+   * Generate a temporary signed URL for accessing a receipt
+   * @param s3Key - The S3 key stored in the receipt field
+   * @param expiresIn - URL expiration time in seconds (default: 1 hour)
+   * @returns Pre-signed URL with temporary access
+   */
+  async getReceiptUrl(
+    s3Key: string,
+    expiresIn: number = 3600,
+  ): Promise<string> {
+    return getSignedS3Url(s3Key, expiresIn);
+  }
+
+  /**
+   * Get expenses with signed receipt URLs
+   * @param filter - Query filter
+   * @returns Expenses with temporary receipt URLs
+   */
+  async getAllWithSignedReceipts(
+    filter: Record<string, unknown>,
+  ): Promise<IExpense[]> {
+    const expenses = await this.getAll(filter);
+
+    // Generate signed URLs for receipts
+    const expensesWithSignedUrls = await Promise.all(
+      expenses.map(async (expense) => {
+        if (expense.receipt) {
+          try {
+            const signedUrl = await this.getReceiptUrl(expense.receipt);
+            return { ...expense.toObject(), receipt: signedUrl };
+          } catch (error) {
+            logger.error(
+              { expenseId: expense._id, error },
+              "Failed to generate signed URL for receipt",
+            );
+            return expense;
+          }
+        }
+        return expense;
+      }),
+    );
+
+    return expensesWithSignedUrls as IExpense[];
   }
 
   async deleteReceipt(id: string): Promise<IExpense> {

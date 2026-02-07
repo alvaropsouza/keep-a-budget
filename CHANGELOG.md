@@ -1,5 +1,48 @@
 # Changelog
 
+## [2.1.0] - 2026-02-07
+
+### ✨ Improved S3 URL Management
+
+This release introduces a comprehensive S3 URL management system for better file handling.
+
+### Added
+
+- **`src/utils/s3Url.ts`**: Centralized S3 URL utilities
+  - `getS3Url()`: Generate public URLs for S3 objects
+  - `getKeyFromUrl()`: Extract S3 keys from URLs
+  - `isValidS3Url()`: Validate S3 URLs
+  - `getS3BaseUrl()`: Get bucket base URL
+  - `getS3UrlConfig()`: Environment-based configuration
+- **`docs/S3_URL_MANAGEMENT.md`**: Complete documentation for S3 URL system
+- **`generateS3Key()`**: Utility function for generating unique S3 keys
+
+### Changed
+
+- **`uploadToS3()`**: Refactored to use centralized URL generation
+  - Now returns clean URLs from `getS3Url()` helper
+  - Removed duplicate URL construction logic
+  - Added support for custom ACL and key prefix options
+  - Better logging with structured data
+- **Environment Handling**: Automatic detection of MinIO vs AWS S3
+  - Path-style URLs for MinIO (local development)
+  - Virtual-hosted URLs for AWS S3 (production)
+
+### Improved
+
+- **Type Safety**: Added proper TypeScript types for S3 operations
+- **Logging**: Structured logging for URL generation and file uploads
+- **Documentation**: Comprehensive guide with usage examples
+- **Maintainability**: Single source of truth for URL logic
+
+### Benefits
+
+- 🎯 Centralized URL management
+- 🔄 Environment-aware URL generation
+- 🛡️ Better type safety
+- 📝 Comprehensive documentation
+- 🧪 Easier testing and mocking
+
 ## [2.0.0] - 2026-02-03
 
 ### 🎉 Major Refactoring - Complete Architecture Overhaul

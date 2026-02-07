@@ -3,6 +3,7 @@ import validateEnv from "./config/validateEnv";
 import Fastify from "fastify";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
+import helmet from "@fastify/helmet";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUI from "@fastify/swagger-ui";
 import connectDB from "./config/database";
@@ -16,6 +17,21 @@ import fastifyCors, { FastifyCorsOptions } from "@fastify/cors";
 validateEnv();
 
 const app = Fastify({ logger: fastifyLoggerConfig });
+
+const isProd = process.env.NODE_ENV === "production";
+
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  baseUri: ["'self'"],
+  connectSrc: ["'self'"],
+  fontSrc: ["'self'", "data:"],
+  formAction: ["'self'"],
+  frameAncestors: ["'none'"],
+  imgSrc: ["'self'", "data:", "blob:"],
+  objectSrc: ["'none'"],
+  scriptSrc: ["'self'", "'unsafe-inline'"],
+  styleSrc: ["'self'", "'unsafe-inline'"],
+};
 
 const corsOptions: FastifyCorsOptions = {
   origin: (origin, cb) => {
@@ -38,6 +54,34 @@ const corsOptions: FastifyCorsOptions = {
 };
 
 app.register(fastifyCors, corsOptions);
+app.register(helmet, {
+  contentSecurityPolicy: isProd
+    ? {
+        directives: cspDirectives,
+      }
+    : false,
+  hsts: isProd
+    ? {
+        maxAge: 15552000,
+        includeSubDomains: true,
+        preload: true,
+      }
+    : false,
+  referrerPolicy: {
+    policy: "no-referrer",
+  },
+  crossOriginResourcePolicy: {
+    policy: "same-site",
+  },
+});
+
+app.addHook("onSend", async (_request, reply, payload) => {
+  reply.header(
+    "Permissions-Policy",
+    "geolocation=(), microphone=(), camera=(), payment=()",
+  );
+  return payload;
+});
 app.setErrorHandler(errorHandler);
 
 app.register(rateLimit, {

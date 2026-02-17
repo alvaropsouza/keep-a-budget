@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.3.0] - 2026-02-17
+
+### Added
+
+- **Automatic invoice generation for installments**: when a purchase is split into installments, the API now creates any missing future invoices for the same bank so each parcel has a card invoice to attach to.
+
+### Improved
+
+- Reused the new invoice generation flow during installment creation, ensuring balances stay in sync as soon as expenses are persisted.
+
+## [2.2.0] - 2026-02-17
+
+### Added
+
+- **Partial installment creation**: New `installmentStartNumber` parameter lets the backend generate only the remaining parcels of a purchase, preserving original numbering and invoice alignment.
+- **UI controls**: Expense dialog now exposes a "Parcela inicial" field with validation and helper text so users can start at the current installment directly from the web app.
+
+### Changed
+
+- Installment generation logic now validates parcel ranges and offsets dates based on the chosen starting number, ensuring descriptions (e.g., `8/10`) match what is saved.
+- Fastify schemas and multipart parsing were updated to document and accept the new field across API clients.
+
 ## [2.1.0] - 2026-02-07
 
 ### ✨ Improved S3 URL Management

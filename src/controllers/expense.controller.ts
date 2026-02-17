@@ -181,6 +181,9 @@ export class ExpenseController extends BaseController {
         installmentTotal: formFields.installmentTotal
           ? Number.parseInt(formFields.installmentTotal)
           : undefined,
+        installmentStartNumber: formFields.installmentStartNumber
+          ? Number.parseInt(formFields.installmentStartNumber)
+          : undefined,
         installmentStartDate: formFields.installmentStartDate,
         receipt: formFields.receipt,
       };

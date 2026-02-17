@@ -6,6 +6,7 @@ import { FilterBuilder } from "../utils/filterBuilder";
 import { ExpenseQueryParamsDto } from "../dto/expense.dto";
 import { uploadToS3, getSignedS3Url } from "../utils/s3Upload";
 import logger from "../config/logger";
+import { AppError } from "../utils/AppError";
 
 interface CreateExpenseData {
   bank: string;
@@ -13,6 +14,7 @@ interface CreateExpenseData {
   amount: number;
   description?: string;
   installmentTotal?: number;
+  installmentStartNumber?: number;
   installmentStartDate?: string;
   receipt?: string;
 }
@@ -58,13 +60,25 @@ export class ExpenseService extends BaseService<IExpense> {
     data: CreateExpenseData,
     file?: FileData,
   ): Promise<IExpense | IExpense[]> {
-    const { installmentTotal, installmentStartDate } = data;
+    const { installmentTotal, installmentStartDate, installmentStartNumber } =
+      data;
+
+    if (
+      installmentStartNumber &&
+      (!installmentTotal || installmentStartNumber > installmentTotal)
+    ) {
+      throw new AppError(
+        "installmentStartNumber must be less than or equal to installmentTotal",
+        400,
+      );
+    }
 
     if (installmentTotal && installmentTotal > 1) {
       return this.createInstallments(
         data,
         installmentTotal,
         installmentStartDate,
+        installmentStartNumber,
       );
     }
 
@@ -113,11 +127,22 @@ export class ExpenseService extends BaseService<IExpense> {
     data: CreateExpenseData,
     installmentTotal: number,
     startDate?: string,
+    installmentStartNumber: number = 1,
   ): Promise<IExpense[]> {
+    const firstInstallment = installmentStartNumber ?? 1;
+
+    if (firstInstallment > installmentTotal) {
+      throw new AppError(
+        "installmentStartNumber cannot be greater than installmentTotal",
+        400,
+      );
+    }
+
     const expenses = await this.buildInstallments(
       data,
       installmentTotal,
       startDate,
+      firstInstallment,
     );
     const savedExpenses = await Expense.insertMany(expenses);
 
@@ -141,13 +166,18 @@ export class ExpenseService extends BaseService<IExpense> {
     baseData: CreateExpenseData,
     installmentTotal: number,
     startDate?: string,
+    installmentStartNumber: number = 1,
   ): Promise<IExpense[]> {
     const expenses: IExpense[] = [];
     const baseDate = startDate ? new Date(startDate) : new Date();
+    const firstInstallment = installmentStartNumber ?? 1;
 
-    for (let i = 1; i <= installmentTotal; i++) {
-      const targetDate = this.calculateInstallmentDate(baseDate, i - 1);
-      const cardInvoice = await this.invoiceService.findForExpenseDate(
+    for (let i = firstInstallment; i <= installmentTotal; i++) {
+      const targetDate = this.calculateInstallmentDate(
+        baseDate,
+        i - firstInstallment,
+      );
+      const cardInvoice = await this.invoiceService.ensureInvoiceForDate(
         baseData.bank,
         targetDate,
       );

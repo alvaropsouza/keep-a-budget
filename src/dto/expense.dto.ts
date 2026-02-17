@@ -29,6 +29,11 @@ export class CreateExpenseDto {
   @Min(1)
   installmentTotal?: number;
 
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  installmentStartNumber?: number;
+
   @IsDateString()
   @IsOptional()
   installmentStartDate?: string;

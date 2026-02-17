@@ -6,10 +6,54 @@ import { FilterBuilder } from "../utils/filterBuilder";
 import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { InvoiceQueryParamsDto } from "../dto/invoice.dto";
+import { BanksEnum } from "../enums/banks.enum";
 
 export class InvoiceService extends BaseService<ICardInvoice> {
   constructor() {
     super(CardInvoice);
+  }
+
+  private addMonthsClamped(date: Date, months: number): Date {
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+
+    const target = new Date(Date.UTC(year, month + months, day));
+    if (target.getUTCDate() !== day) {
+      target.setUTCDate(0);
+    }
+
+    return target;
+  }
+
+  private async getLatestInvoice(bank: string): Promise<ICardInvoice | null> {
+    return CardInvoice.findOne({ bank }).sort({ closingDate: -1 }).exec();
+  }
+
+  private async safeCreateInvoice(
+    bank: string,
+    closingDate: Date,
+    dueDate: Date,
+  ): Promise<ICardInvoice> {
+    try {
+      return await this.createInvoice({
+        bank: bank as BanksEnum,
+        closingDate,
+        dueDate,
+        balance: 0,
+      });
+    } catch (error) {
+      if (error instanceof AppError && error.statusCode === 409) {
+        const existing = await CardInvoice.findOne({
+          bank,
+          closingDate,
+        }).exec();
+        if (existing) {
+          return existing;
+        }
+      }
+      throw error;
+    }
   }
 
   buildFilter(queryParams: InvoiceQueryParamsDto): Record<string, unknown> {
@@ -127,5 +171,44 @@ export class InvoiceService extends BaseService<ICardInvoice> {
     })
       .sort({ closingDate: 1 })
       .exec();
+  }
+
+  async ensureInvoiceForDate(bank: string, date: Date): Promise<ICardInvoice> {
+    const targetDate = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+
+    const existingInvoice = await this.findForExpenseDate(bank, targetDate);
+    if (existingInvoice) {
+      return existingInvoice;
+    }
+
+    const latestInvoice = await this.getLatestInvoice(bank);
+    if (!latestInvoice) {
+      throw new AppError(
+        `Nenhuma fatura cadastrada para o banco ${bank}. Crie a primeira fatura manualmente para definirmos o ciclo.`,
+        400,
+      );
+    }
+
+    let currentClosingDate = latestInvoice.closingDate;
+    let currentDueDate = latestInvoice.dueDate;
+    let createdInvoice: ICardInvoice | null = null;
+
+    while (!createdInvoice || createdInvoice.closingDate < targetDate) {
+      const nextClosingDate = this.addMonthsClamped(currentClosingDate, 1);
+      const nextDueDate = this.addMonthsClamped(currentDueDate, 1);
+
+      createdInvoice = await this.safeCreateInvoice(
+        bank,
+        nextClosingDate,
+        nextDueDate,
+      );
+
+      currentClosingDate = createdInvoice.closingDate;
+      currentDueDate = createdInvoice.dueDate;
+    }
+
+    return createdInvoice;
   }
 }

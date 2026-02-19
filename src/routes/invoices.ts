@@ -6,6 +6,8 @@ import {
   updateInvoice,
   deleteInvoice,
   advanceInvoice,
+  closeInvoice,
+  reopenInvoice,
 } from "../controllers/invoice.controller";
 import { invoiceSchemas } from "../docs/invoice.schemas";
 
@@ -59,6 +61,22 @@ async function invoiceRoutes(
       schema: invoiceSchemas.advanceInvoice,
     },
     advanceInvoice,
+  );
+
+  fastify.post(
+    "/:id/close",
+    {
+      schema: invoiceSchemas.closeInvoice,
+    },
+    closeInvoice,
+  );
+
+  fastify.post(
+    "/:id/reopen",
+    {
+      schema: invoiceSchemas.reopenInvoice,
+    },
+    reopenInvoice,
   );
 }
 

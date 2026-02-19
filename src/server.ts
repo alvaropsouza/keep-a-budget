@@ -13,6 +13,7 @@ import fixedExpenseRoutes from "./routes/fixedExpenses";
 import logger, { fastifyLoggerConfig } from "./config/logger";
 import { errorHandler } from "./config/errorHandler";
 import { setupS3Bucket } from "./utils/s3Setup";
+import { invoiceClosureJob } from "./jobs/invoiceClosureJob";
 import corsPlugin from "./plugins/cors";
 import helmetPlugin from "./plugins/helmet";
 
@@ -69,6 +70,9 @@ const start = async (): Promise<void> => {
   try {
     await connectDB();
     await setupS3Bucket();
+
+    // Start the invoice closure job
+    invoiceClosureJob.start();
 
     const port = Number.parseInt(process.env.PORT || "3000");
     const host = process.env.HOST || "0.0.0.0";

@@ -211,4 +211,95 @@ export class InvoiceService extends BaseService<ICardInvoice> {
 
     return createdInvoice;
   }
+
+  async closeInvoice(
+    id: string,
+    manualBalance?: number,
+  ): Promise<ICardInvoice> {
+    const invoice = await this.findById(id);
+
+    if (invoice.isClosed) {
+      throw new AppError("Invoice is already closed", 400);
+    }
+
+    const updateData: Partial<ICardInvoice> = {
+      isClosed: true,
+    };
+
+    if (manualBalance !== undefined) {
+      updateData.balance = manualBalance;
+    }
+
+    const updatedInvoice = await CardInvoice.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    })
+      .populate("expenses")
+      .orFail();
+
+    logger.info(
+      { invoiceId: id, finalBalance: updatedInvoice.balance },
+      "Invoice closed",
+    );
+    return updatedInvoice;
+  }
+
+  async checkAndCloseExpiredInvoices(): Promise<{
+    closed: number;
+    invoices: ICardInvoice[];
+  }> {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const expiredInvoices = await CardInvoice.find({
+      isClosed: false,
+      closingDate: { $lt: today },
+    });
+
+    const closedInvoices: ICardInvoice[] = [];
+
+    for (const invoice of expiredInvoices) {
+      try {
+        const closed = await this.closeInvoice(invoice._id.toString());
+        closedInvoices.push(closed);
+      } catch (error) {
+        logger.error(
+          { invoiceId: invoice._id, error },
+          "Failed to auto-close expired invoice",
+        );
+      }
+    }
+
+    logger.info(
+      { total: closedInvoices.length },
+      "Auto-closed expired invoices",
+    );
+
+    return {
+      closed: closedInvoices.length,
+      invoices: closedInvoices,
+    };
+  }
+
+  async reopenInvoice(id: string): Promise<ICardInvoice> {
+    const invoice = await this.findById(id);
+
+    if (!invoice.isClosed) {
+      throw new AppError("Invoice is not closed", 400);
+    }
+
+    const updatedInvoice = await CardInvoice.findByIdAndUpdate(
+      id,
+      { isClosed: false },
+      {
+        new: true,
+        runValidators: true,
+      },
+    )
+      .populate("expenses")
+      .orFail();
+
+    logger.info({ invoiceId: id }, "Invoice reopened");
+    return updatedInvoice;
+  }
 }

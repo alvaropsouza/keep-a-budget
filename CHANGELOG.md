@@ -1,5 +1,63 @@
 # Changelog
 
+## [2.5.0] - 2026-02-19
+
+### Added
+
+- **Reabertura de faturas**: Endpoint para reabrir faturas fechadas
+  - Novo endpoint `POST /invoices/:id/reopen`
+  - Método `InvoiceService.reopenInvoice(id)`: Reabre uma fatura fechada
+  - Validação: não permite reabrir fatura que já está aberta
+  - Schema Swagger para `reopenInvoice`
+- **Proteção de faturas fechadas**: Validações para impedir alterações em faturas fechadas
+  - Criação de despesas bloqueada em faturas fechadas
+  - Edição de despesas bloqueada em faturas fechadas
+  - Exclusão de despesas bloqueada em faturas fechadas
+  - Criação de parcelas bloqueada se qualquer fatura estiver fechada
+  - Mensagens de erro claras orientando o usuário a reabrir a fatura
+
+### Changed
+
+- `ExpenseService.createSingle()`: Valida se fatura está fechada antes de criar despesa
+- `ExpenseService.buildInstallments()`: Valida se faturas estão fechadas antes de criar parcelas
+- `ExpenseService.updateExpense()`: Valida se fatura está fechada antes de editar despesa
+- `ExpenseService.deleteExpense()`: Valida se fatura está fechada antes de excluir despesa
+
+### Technical
+
+- Método `reopenInvoice` exportado no `invoice.controller.ts`
+- Rota configurada em `invoices.ts`
+- Schema adicionado em `invoice.schemas.ts`
+
+## [2.4.0] - 2026-02-19
+
+### Added
+
+- **Invoice closure functionality**: Faturas agora podem ser marcadas como fechadas (`isClosed`)
+  - Novo campo `isClosed` no modelo `CardInvoice` (padrão: `false`)
+  - Endpoint `POST /invoices/:id/close` para fechar fatura manualmente
+  - Suporte para ajustar o valor da fatura ao fechar através do parâmetro opcional `balance`
+  - Faturas fechadas ainda podem ter o `balance` alterado via `PUT /invoices/:id`
+- **Verificação automática diária**: Job agendado para fechar faturas vencidas
+  - Executa diariamente às 00:05
+  - Fecha automaticamente faturas onde `closingDate` já passou e `isClosed` é `false`
+  - Logs estruturados de todas as faturas fechadas automaticamente
+- **Novo DTO**: `CloseInvoiceDto` para fechar faturas com valor opcional
+- **Documentação Swagger**: Schema completo da nova rota de fechamento de faturas
+
+### Changed
+
+- `UpdateInvoiceDto` agora aceita o campo opcional `isClosed`
+- Todos os schemas de resposta do Swagger incluem o campo `isClosed`
+
+### Technical
+
+- Adicionada dependência `node-cron` (v4.2.1) para agendamento de tarefas
+- Novo serviço `InvoiceClosureJob` em `src/jobs/invoiceClosureJob.ts`
+- Métodos adicionados em `InvoiceService`:
+  - `closeInvoice(id, manualBalance?)`: Fecha uma fatura específica
+  - `checkAndCloseExpiredInvoices()`: Verifica e fecha faturas vencidas
+
 ## [2.3.0] - 2026-02-17
 
 ### Added

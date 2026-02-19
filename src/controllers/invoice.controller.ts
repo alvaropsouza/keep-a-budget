@@ -6,6 +6,7 @@ import {
   UpdateInvoiceDto,
   InvoiceQueryParamsDto,
   AdvanceInvoiceDto,
+  CloseInvoiceDto,
 } from "../dto/invoice.dto";
 
 export class InvoiceController extends BaseController {
@@ -109,6 +110,37 @@ export class InvoiceController extends BaseController {
       this.handleError(error, reply);
     }
   };
+
+  close = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> => {
+    try {
+      if (!(await this.validate(CloseInvoiceDto, request.body, reply))) {
+        return;
+      }
+
+      const { id } = request.params as { id: string };
+      const { balance } = request.body as CloseInvoiceDto;
+      const invoice = await this.service.closeInvoice(id, balance);
+      reply.send(invoice);
+    } catch (error) {
+      this.handleError(error, reply);
+    }
+  };
+
+  reopen = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> => {
+    try {
+      const { id } = request.params as { id: string };
+      const invoice = await this.service.reopenInvoice(id);
+      reply.send(invoice);
+    } catch (error) {
+      this.handleError(error, reply);
+    }
+  };
 }
 
 // Export singleton instance
@@ -120,4 +152,6 @@ export const {
   update: updateInvoice,
   delete: deleteInvoice,
   advance: advanceInvoice,
+  close: closeInvoice,
+  reopen: reopenInvoice,
 } = invoiceController;

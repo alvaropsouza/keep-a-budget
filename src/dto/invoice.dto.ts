@@ -43,6 +43,9 @@ export class UpdateInvoiceDto {
   @IsOptional()
   @Min(0)
   balance?: number;
+
+  @IsOptional()
+  isClosed?: boolean;
 }
 
 export class InvoiceQueryParamsDto {
@@ -87,4 +90,11 @@ export class AdvanceInvoiceDto {
   @IsNumber()
   @Min(0.01)
   amount!: number;
+}
+
+export class CloseInvoiceDto {
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  balance?: number;
 }

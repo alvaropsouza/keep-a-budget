@@ -98,6 +98,13 @@ export class ExpenseService extends BaseService<IExpense> {
       expenseDate,
     );
 
+    if (cardInvoice?.isClosed) {
+      throw new AppError(
+        "Cannot add expenses to a closed invoice. Please reopen the invoice first.",
+        400,
+      );
+    }
+
     const expense = await this.create({
       ...(data as any),
       type: ExpenseTypeEnum.EXPENSE,
@@ -182,6 +189,13 @@ export class ExpenseService extends BaseService<IExpense> {
         targetDate,
       );
 
+      if (cardInvoice?.isClosed) {
+        throw new AppError(
+          `Cannot add expenses to closed invoice for ${targetDate.toISOString()}. Please reopen the invoice first.`,
+          400,
+        );
+      }
+
       const expense = new Expense({
         ...(baseData as any),
         type: ExpenseTypeEnum.EXPENSE,
@@ -221,6 +235,19 @@ export class ExpenseService extends BaseService<IExpense> {
     updateData: Partial<IExpense>,
   ): Promise<IExpense> {
     const oldExpense = await this.findById(id);
+
+    if (oldExpense.cardInvoiceId) {
+      const invoice = await this.invoiceService.findById(
+        oldExpense.cardInvoiceId.toString(),
+      );
+      if (invoice?.isClosed) {
+        throw new AppError(
+          "Cannot update expenses in a closed invoice. Please reopen the invoice first.",
+          400,
+        );
+      }
+    }
+
     const expense = await this.update(id, updateData);
 
     // Sync invoice balance if amount changed
@@ -238,7 +265,21 @@ export class ExpenseService extends BaseService<IExpense> {
   }
 
   async deleteExpense(id: string): Promise<void> {
-    const expense = await this.delete(id);
+    const expense = await this.findById(id);
+
+    if (expense.cardInvoiceId) {
+      const invoice = await this.invoiceService.findById(
+        expense.cardInvoiceId.toString(),
+      );
+      if (invoice?.isClosed) {
+        throw new AppError(
+          "Cannot delete expenses from a closed invoice. Please reopen the invoice first.",
+          400,
+        );
+      }
+    }
+
+    await this.delete(id);
 
     if (expense.cardInvoiceId) {
       await this.invoiceService.updateBalance(

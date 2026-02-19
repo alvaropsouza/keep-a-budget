@@ -28,6 +28,7 @@ export const invoiceSchemas = {
             dueDate: { type: "string", format: "date-time" },
             balance: { type: "number" },
             advance: { type: "number" },
+            isClosed: { type: "boolean" },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
             expenses: {
@@ -80,6 +81,7 @@ export const invoiceSchemas = {
           dueDate: { type: "string", format: "date-time" },
           balance: { type: "number" },
           advance: { type: "number" },
+          isClosed: { type: "boolean" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
           expenses: {
@@ -134,6 +136,7 @@ export const invoiceSchemas = {
           dueDate: { type: "string", format: "date-time" },
           balance: { type: "number" },
           advance: { type: "number" },
+          isClosed: { type: "boolean" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
         },
@@ -170,6 +173,7 @@ export const invoiceSchemas = {
           dueDate: { type: "string", format: "date-time" },
           balance: { type: "number" },
           advance: { type: "number" },
+          isClosed: { type: "boolean" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
         },
@@ -204,6 +208,69 @@ export const invoiceSchemas = {
           dueDate: { type: "string", format: "date-time" },
           balance: { type: "number" },
           advance: { type: "number" },
+          isClosed: { type: "boolean" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+    },
+  },
+
+  closeInvoice: {
+    tags: ["Invoices"],
+    description: "Close an invoice manually",
+    params: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+      },
+      required: ["id"],
+    },
+    body: {
+      type: "object",
+      properties: {
+        balance: { type: "number", minimum: 0 },
+      },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          bank: { type: "string" },
+          closingDate: { type: "string", format: "date-time" },
+          dueDate: { type: "string", format: "date-time" },
+          balance: { type: "number" },
+          advance: { type: "number" },
+          isClosed: { type: "boolean" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+    },
+  },
+
+  reopenInvoice: {
+    tags: ["Invoices"],
+    description: "Reopen a closed invoice",
+    params: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+      },
+      required: ["id"],
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          bank: { type: "string" },
+          closingDate: { type: "string", format: "date-time" },
+          dueDate: { type: "string", format: "date-time" },
+          balance: { type: "number" },
+          advance: { type: "number" },
+          isClosed: { type: "boolean" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
         },

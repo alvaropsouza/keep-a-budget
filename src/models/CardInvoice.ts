@@ -7,6 +7,7 @@ export interface ICardInvoice extends Document {
   dueDate: Date;
   balance: number;
   advance: number;
+  isClosed: boolean;
   createdAt: Date;
   updatedAt: Date;
   expenses?: any[];
@@ -38,6 +39,11 @@ const cardInvoiceSchema = new Schema<ICardInvoice>(
       required: true,
       default: 0,
       min: 0,
+    },
+    isClosed: {
+      type: Boolean,
+      required: true,
+      default: false,
     },
   },
   {

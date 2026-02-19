@@ -226,7 +226,7 @@ export class InvoiceService extends BaseService<ICardInvoice> {
       isClosed: true,
     };
 
-    if (manualBalance !== undefined) {
+    if (manualBalance) {
       updateData.balance = manualBalance;
     }
 

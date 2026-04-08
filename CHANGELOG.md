@@ -5,6 +5,11 @@
 ### Added
 
 - **Exclusão seletiva de "Pagamento de fatura" na importação CSV**: o parser `parseXpCsv` agora aceita um `Set<number>` opcional de índices de linha a ignorar. Os endpoints `POST /invoices/:id/import-csv` e `POST /invoices/create-from-csv` aceitam o campo `excludeIndexes` (JSON array) no `multipart/form-data`, permitindo que o frontend envie quais linhas o usuário optou por descartar.
+- **Suporte a CSV do Nubank**: a importação/criação de fatura via CSV agora aceita planilhas do Nubank (`date,title,amount`) além de XP.
+
+### Changed
+
+- **Importação CSV multi-banco**: os fluxos `import-csv` e `create-from-csv` passaram a usar parser por banco (`XP`/`NUBANK`); no `create-from-csv`, o banco passa a ser informado no `multipart/form-data`.
 
 ### Changed
 

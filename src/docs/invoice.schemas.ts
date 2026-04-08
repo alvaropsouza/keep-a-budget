@@ -296,7 +296,7 @@ export const invoiceSchemas = {
   importCsv: {
     tags: ["Invoices"],
     description:
-      "Import expenses from a XP bank CSV export. Replaces all existing expenses in the invoice with the CSV data.",
+      "Import expenses from a supported bank CSV export (XP/NUBANK). Replaces all existing expenses in the invoice with the CSV data.",
     params: {
       type: "object",
       properties: {
@@ -326,7 +326,7 @@ export const invoiceSchemas = {
   createFromCsv: {
     tags: ["Invoices"],
     description:
-      "Create a new XP invoice and populate its expenses from a CSV export. bank is fixed to XP.",
+      "Create a new invoice and populate its expenses from a supported bank CSV export (XP/NUBANK).",
     consumes: ["multipart/form-data"],
     response: {
       201: {

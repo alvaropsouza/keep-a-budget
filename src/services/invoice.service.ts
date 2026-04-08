@@ -7,7 +7,7 @@ import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { InvoiceQueryParamsDto } from "../dto/invoice.dto";
 import { BanksEnum } from "../enums/banks.enum";
-import { parseXpCsv } from "../utils/xpCsvParser";
+import { parseInvoiceCsv } from "../utils/xpCsvParser";
 
 export class InvoiceService extends BaseService<ICardInvoice> {
   constructor() {
@@ -305,19 +305,21 @@ export class InvoiceService extends BaseService<ICardInvoice> {
   }
 
   async createFromCsv(
+    bank: BanksEnum,
     closingDate: string,
     dueDate: string,
     csvContent: string,
     excludeIndexes?: number[],
   ): Promise<ICardInvoice> {
     const invoice = await this.createInvoice({
-      bank: BanksEnum.XP,
+      bank,
       closingDate: new Date(closingDate),
       dueDate: new Date(dueDate),
       balance: 0,
     });
 
-    const rows = parseXpCsv(
+    const rows = parseInvoiceCsv(
+      bank,
       csvContent,
       excludeIndexes ? new Set(excludeIndexes) : undefined,
     );
@@ -328,7 +330,7 @@ export class InvoiceService extends BaseService<ICardInvoice> {
     }
 
     const newExpenses = rows.map((row) => ({
-      bank: BanksEnum.XP,
+      bank,
       type: ExpenseTypeEnum.EXPENSE,
       category: "Importado",
       date: row.date,
@@ -395,7 +397,8 @@ export class InvoiceService extends BaseService<ICardInvoice> {
     });
 
     // Parse CSV
-    const rows = parseXpCsv(
+    const rows = parseInvoiceCsv(
+      invoice.bank,
       csvContent,
       excludeIndexes ? new Set(excludeIndexes) : undefined,
     );

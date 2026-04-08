@@ -8,6 +8,7 @@ import {
   AdvanceInvoiceDto,
   CloseInvoiceDto,
 } from "../dto/invoice.dto";
+import { BanksEnum } from "../enums/banks.enum";
 
 export class InvoiceController extends BaseController {
   private service: InvoiceService;
@@ -199,6 +200,7 @@ export class InvoiceController extends BaseController {
       let csvContent: string | null = null;
       let closingDate: string | null = null;
       let dueDate: string | null = null;
+      let bank: BanksEnum | null = null;
       let excludeIndexes: number[] | undefined;
 
       for await (const part of parts) {
@@ -206,6 +208,12 @@ export class InvoiceController extends BaseController {
           if (part.fieldname === "closingDate")
             closingDate = part.value as string;
           if (part.fieldname === "dueDate") dueDate = part.value as string;
+          if (part.fieldname === "bank") {
+            const rawBank = String(part.value).toUpperCase();
+            if (rawBank === BanksEnum.XP || rawBank === BanksEnum.NUBANK) {
+              bank = rawBank as BanksEnum;
+            }
+          }
           if (part.fieldname === "excludeIndexes") {
             try {
               excludeIndexes = JSON.parse(part.value as string) as number[];
@@ -236,8 +244,13 @@ export class InvoiceController extends BaseController {
           .send({ error: "closingDate and dueDate are required" });
         return;
       }
+      if (!bank) {
+        reply.status(400).send({ error: "bank is required" });
+        return;
+      }
 
       const invoice = await this.service.createFromCsv(
+        bank,
         closingDate,
         dueDate,
         csvContent,

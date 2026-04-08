@@ -7,6 +7,7 @@ import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { InvoiceQueryParamsDto } from "../dto/invoice.dto";
 import { BanksEnum } from "../enums/banks.enum";
+import { parseXpCsv } from "../utils/xpCsvParser";
 
 export class InvoiceService extends BaseService<ICardInvoice> {
   constructor() {
@@ -300,6 +301,139 @@ export class InvoiceService extends BaseService<ICardInvoice> {
       .orFail();
 
     logger.info({ invoiceId: id }, "Invoice reopened");
+    return updatedInvoice;
+  }
+
+  async createFromCsv(
+    closingDate: string,
+    dueDate: string,
+    csvContent: string,
+    excludeIndexes?: number[],
+  ): Promise<ICardInvoice> {
+    const invoice = await this.createInvoice({
+      bank: BanksEnum.XP,
+      closingDate: new Date(closingDate),
+      dueDate: new Date(dueDate),
+      balance: 0,
+    });
+
+    const rows = parseXpCsv(
+      csvContent,
+      excludeIndexes ? new Set(excludeIndexes) : undefined,
+    );
+
+    if (rows.length === 0) {
+      logger.warn({ closingDate }, "CSV create produced no valid expenses");
+      return this.getByIdWithExpenses(invoice._id.toString());
+    }
+
+    const newExpenses = rows.map((row) => ({
+      bank: BanksEnum.XP,
+      type: ExpenseTypeEnum.EXPENSE,
+      category: "Importado",
+      date: row.date,
+      amount: row.amount,
+      description: row.description,
+      installment: row.installment ?? undefined,
+      cardInvoiceId: invoice._id,
+    }));
+
+    await Expense.insertMany(newExpenses);
+
+    const newTotal = rows.reduce((sum, r) => sum + r.amount, 0);
+
+    const updatedInvoice = await CardInvoice.findByIdAndUpdate(
+      invoice._id,
+      { $inc: { balance: newTotal } },
+      { new: true, runValidators: true },
+    )
+      .populate("expenses")
+      .orFail();
+
+    logger.info(
+      { invoiceId: invoice._id, imported: rows.length, total: newTotal },
+      "Invoice created from CSV",
+    );
+
+    return updatedInvoice;
+  }
+
+  async importFromCsv(
+    id: string,
+    csvContent: string,
+    excludeIndexes?: number[],
+  ): Promise<ICardInvoice> {
+    const invoice = await this.findById(id);
+
+    if (invoice.isClosed) {
+      throw new AppError(
+        "Cannot import expenses into a closed invoice. Please reopen the invoice first.",
+        400,
+      );
+    }
+
+    // Sum of current EXPENSE-type expenses to rollback from balance
+    const existingExpenses = await Expense.find({
+      cardInvoiceId: id,
+      type: ExpenseTypeEnum.EXPENSE,
+    });
+
+    const existingExpensesTotal = existingExpenses.reduce(
+      (sum, e) => sum + e.amount,
+      0,
+    );
+
+    // Delete all EXPENSE-type expenses for this invoice
+    await Expense.deleteMany({
+      cardInvoiceId: id,
+      type: ExpenseTypeEnum.EXPENSE,
+    });
+
+    // Rollback balance
+    await CardInvoice.findByIdAndUpdate(id, {
+      $inc: { balance: -existingExpensesTotal },
+    });
+
+    // Parse CSV
+    const rows = parseXpCsv(
+      csvContent,
+      excludeIndexes ? new Set(excludeIndexes) : undefined,
+    );
+
+    if (rows.length === 0) {
+      logger.warn({ invoiceId: id }, "CSV import produced no valid expenses");
+      return this.getByIdWithExpenses(id);
+    }
+
+    // Build expense documents
+    const newExpenses = rows.map((row) => ({
+      bank: invoice.bank,
+      type: ExpenseTypeEnum.EXPENSE,
+      category: "Importado",
+      date: row.date,
+      amount: row.amount,
+      description: row.description,
+      installment: row.installment ?? undefined,
+      cardInvoiceId: invoice._id,
+    }));
+
+    await Expense.insertMany(newExpenses);
+
+    const newTotal = rows.reduce((sum, r) => sum + r.amount, 0);
+
+    const updatedInvoice = await CardInvoice.findByIdAndUpdate(
+      id,
+      { $inc: { balance: newTotal } },
+      { new: true, runValidators: true },
+    )
+      .populate("expenses")
+      .orFail();
+
+    logger.info(
+      { invoiceId: id, imported: rows.length, total: newTotal },
+      "CSV imported into invoice",
+    );
+
     return updatedInvoice;
   }
 }

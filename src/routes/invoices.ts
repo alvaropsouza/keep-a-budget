@@ -8,6 +8,8 @@ import {
   advanceInvoice,
   closeInvoice,
   reopenInvoice,
+  importInvoiceCsv,
+  createInvoiceFromCsv,
 } from "../controllers/invoice.controller";
 import { invoiceSchemas } from "../docs/invoice.schemas";
 
@@ -37,6 +39,14 @@ async function invoiceRoutes(
       schema: invoiceSchemas.createInvoice,
     },
     createInvoice,
+  );
+
+  fastify.post(
+    "/create-from-csv",
+    {
+      schema: invoiceSchemas.createFromCsv,
+    },
+    createInvoiceFromCsv,
   );
 
   fastify.put(
@@ -77,6 +87,14 @@ async function invoiceRoutes(
       schema: invoiceSchemas.reopenInvoice,
     },
     reopenInvoice,
+  );
+
+  fastify.post(
+    "/:id/import-csv",
+    {
+      schema: invoiceSchemas.importCsv,
+    },
+    importInvoiceCsv,
   );
 }
 

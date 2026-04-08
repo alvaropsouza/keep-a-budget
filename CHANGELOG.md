@@ -1,6 +1,28 @@
 # Changelog
 
-## [2.5.0] - 2026-02-19
+## [Unreleased]
+
+### Added
+
+- **Exclusão seletiva de "Pagamento de fatura" na importação CSV**: o parser `parseXpCsv` agora aceita um `Set<number>` opcional de índices de linha a ignorar. Os endpoints `POST /invoices/:id/import-csv` e `POST /invoices/create-from-csv` aceitam o campo `excludeIndexes` (JSON array) no `multipart/form-data`, permitindo que o frontend envie quais linhas o usuário optou por descartar.
+
+### Changed
+
+- **Parser CSV XP**: A regra de auto-filtro de "Pagamento de fatura" por limiar de valor (-R$ 4.000) foi removida. Todos os lançamentos "Pagamento de fatura" agora são inclusos no resultado do parser e a decisão de ignorá-los fica a cargo do usuário via `excludeIndexes`. Entradas com valor zero continuam sendo descartadas.
+
+## [2.6.0] - 2026-04-08
+
+### Added
+
+- **Importação de fatura via CSV (XP)**: Permite recriar as despesas de uma fatura a partir de uma planilha exportada pelo app XP
+  - Novo endpoint `POST /invoices/:id/import-csv` (multipart/form-data)
+  - Novo endpoint `POST /invoices/create-from-csv` (multipart/form-data) — cria a fatura e importa as despesas em uma única operação; aceita `closingDate`, `dueDate` e o arquivo CSV; banco fixo em XP
+  - Novo parser `src/utils/xpCsvParser.ts` que suporta o formato XP: `Data;Estabelecimento;Portador;Valor;Parcela`
+  - Apenas "Pagamento de fatura" e entradas com valor zero são ignoradas; estornos e adiantamentos são importados normalmente
+  - Parcelas no formato `X de Y` são preservadas com `installment.current` e `installment.total`
+  - As despesas existentes (tipo `EXPENSE`) da fatura são substituídas; adiantamentos não são afetados
+  - Não é possível importar em faturas fechadas
+  - Schema Swagger adicionado para `importCsv` e `createFromCsv`
 
 ### Added
 

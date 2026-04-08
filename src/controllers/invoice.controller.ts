@@ -141,6 +141,113 @@ export class InvoiceController extends BaseController {
       this.handleError(error, reply);
     }
   };
+
+  importCsv = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> => {
+    try {
+      const { id } = request.params as { id: string };
+      const parts = request.parts();
+      let csvContent: string | null = null;
+      let excludeIndexes: number[] | undefined;
+
+      for await (const part of parts) {
+        if (part.type === "field") {
+          if (part.fieldname === "excludeIndexes") {
+            try {
+              excludeIndexes = JSON.parse(part.value as string) as number[];
+            } catch {
+              // ignore malformed value
+            }
+          }
+        } else if (part.type === "file") {
+          if (
+            !part.mimetype.includes("csv") &&
+            !part.filename.endsWith(".csv")
+          ) {
+            reply.status(400).send({ error: "Only CSV files are accepted" });
+            return;
+          }
+          const buffer = await part.toBuffer();
+          csvContent = buffer.toString("utf-8");
+        }
+      }
+
+      if (!csvContent) {
+        reply.status(400).send({ error: "No file uploaded" });
+        return;
+      }
+
+      const invoice = await this.service.importFromCsv(
+        id,
+        csvContent,
+        excludeIndexes,
+      );
+      reply.send(invoice);
+    } catch (error) {
+      this.handleError(error, reply);
+    }
+  };
+
+  createFromCsv = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> => {
+    try {
+      const parts = request.parts();
+      let csvContent: string | null = null;
+      let closingDate: string | null = null;
+      let dueDate: string | null = null;
+      let excludeIndexes: number[] | undefined;
+
+      for await (const part of parts) {
+        if (part.type === "field") {
+          if (part.fieldname === "closingDate")
+            closingDate = part.value as string;
+          if (part.fieldname === "dueDate") dueDate = part.value as string;
+          if (part.fieldname === "excludeIndexes") {
+            try {
+              excludeIndexes = JSON.parse(part.value as string) as number[];
+            } catch {
+              // ignore malformed value
+            }
+          }
+        } else if (part.type === "file") {
+          if (
+            !part.filename.endsWith(".csv") &&
+            !part.mimetype.includes("csv")
+          ) {
+            reply.status(400).send({ error: "Only CSV files are accepted" });
+            return;
+          }
+          const buffer = await part.toBuffer();
+          csvContent = buffer.toString("utf-8");
+        }
+      }
+
+      if (!csvContent) {
+        reply.status(400).send({ error: "No CSV file uploaded" });
+        return;
+      }
+      if (!closingDate || !dueDate) {
+        reply
+          .status(400)
+          .send({ error: "closingDate and dueDate are required" });
+        return;
+      }
+
+      const invoice = await this.service.createFromCsv(
+        closingDate,
+        dueDate,
+        csvContent,
+        excludeIndexes,
+      );
+      reply.status(201).send(invoice);
+    } catch (error) {
+      this.handleError(error, reply);
+    }
+  };
 }
 
 // Export singleton instance
@@ -154,4 +261,6 @@ export const {
   advance: advanceInvoice,
   close: closeInvoice,
   reopen: reopenInvoice,
+  importCsv: importInvoiceCsv,
+  createFromCsv: createInvoiceFromCsv,
 } = invoiceController;

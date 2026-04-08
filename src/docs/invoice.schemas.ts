@@ -292,4 +292,57 @@ export const invoiceSchemas = {
       204: { type: "null" },
     },
   },
+
+  importCsv: {
+    tags: ["Invoices"],
+    description:
+      "Import expenses from a XP bank CSV export. Replaces all existing expenses in the invoice with the CSV data.",
+    params: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+      },
+      required: ["id"],
+    },
+    consumes: ["multipart/form-data"],
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          bank: { type: "string" },
+          closingDate: { type: "string", format: "date-time" },
+          dueDate: { type: "string", format: "date-time" },
+          balance: { type: "number" },
+          advance: { type: "number" },
+          isClosed: { type: "boolean" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+    },
+  },
+
+  createFromCsv: {
+    tags: ["Invoices"],
+    description:
+      "Create a new XP invoice and populate its expenses from a CSV export. bank is fixed to XP.",
+    consumes: ["multipart/form-data"],
+    response: {
+      201: {
+        type: "object",
+        properties: {
+          _id: { type: "string" },
+          bank: { type: "string" },
+          closingDate: { type: "string", format: "date-time" },
+          dueDate: { type: "string", format: "date-time" },
+          balance: { type: "number" },
+          advance: { type: "number" },
+          isClosed: { type: "boolean" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+    },
+  },
 };

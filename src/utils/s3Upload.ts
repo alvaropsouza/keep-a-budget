@@ -24,8 +24,12 @@ export const generateS3Key = (
   const timestamp = Date.now();
   const randomHash = crypto.randomBytes(8).toString("hex");
   if (userEmail) {
-    const sanitizedEmail = userEmail.toLowerCase().replace(/[^a-z0-9@._-]/g, "-");
-    return `${prefix}/${sanitizedEmail}/${timestamp}-${randomHash}-${sanitizedFileName}`;
+    const sanitizedEmail = userEmail
+      .toLowerCase()
+      .replace(/[^a-z0-9@._-]/g, "-");
+    const now = new Date();
+    const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return `${sanitizedEmail}/${prefix}/${yearMonth}/${timestamp}-${randomHash}-${sanitizedFileName}`;
   }
   return `${prefix}/${timestamp}-${randomHash}-${sanitizedFileName}`;
 };

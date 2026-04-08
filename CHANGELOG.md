@@ -14,6 +14,7 @@
 ### Changed
 
 - **Parser CSV XP**: A regra de auto-filtro de "Pagamento de fatura" por limiar de valor (-R$ 4.000) foi removida. Todos os lançamentos "Pagamento de fatura" agora são inclusos no resultado do parser e a decisão de ignorá-los fica a cargo do usuário via `excludeIndexes`. Entradas com valor zero continuam sendo descartadas.
+- **Configuração S3**: removido `forcePathStyle` do cliente S3 e `S3_ENDPOINT` das variáveis de ambiente obrigatórias. A integração agora usa diretamente o AWS S3 sem necessidade de endpoint customizado.
 
 ## [2.6.0] - 2026-04-08
 

@@ -23,6 +23,7 @@ interface FileData {
   buffer: Buffer;
   filename: string;
   mimetype: string;
+  userEmail?: string;
 }
 
 export class ExpenseService extends BaseService<IExpense> {
@@ -294,7 +295,9 @@ export class ExpenseService extends BaseService<IExpense> {
   async uploadReceipt(expenseId: any, file: FileData): Promise<string | null> {
     try {
       // Upload to S3 and store the key (not public URL)
-      const s3Key = await uploadToS3(file.buffer, file.filename, file.mimetype);
+      const s3Key = await uploadToS3(file.buffer, file.filename, file.mimetype, {
+        userEmail: file.userEmail,
+      });
       await this.update(expenseId, { receipt: s3Key } as any);
       logger.info({ expenseId, s3Key }, "Receipt uploaded (private)");
       return s3Key;

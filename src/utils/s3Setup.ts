@@ -1,4 +1,4 @@
-import { HeadBucketCommand, PutBucketPolicyCommand } from "@aws-sdk/client-s3";
+import { HeadBucketCommand } from "@aws-sdk/client-s3";
 import s3Client from "../config/s3";
 import logger from "../config/logger";
 
@@ -21,30 +21,5 @@ export const setupS3Bucket = async (): Promise<void> => {
       );
       throw error;
     }
-  }
-
-  const policy = {
-    Version: "2012-10-17",
-    Statement: [
-      {
-        Sid: "PublicReadGetObject",
-        Effect: "Allow",
-        Principal: "*",
-        Action: ["s3:GetObject"],
-        Resource: [`arn:aws:s3:::${bucketName}/*`],
-      },
-    ],
-  };
-
-  try {
-    await s3Client.send(
-      new PutBucketPolicyCommand({
-        Bucket: bucketName,
-        Policy: JSON.stringify(policy),
-      })
-    );
-    logger.info({ bucket: bucketName }, "Successfully set public read policy");
-  } catch (error) {
-    logger.error({ error, bucket: bucketName }, "Failed to set bucket policy");
   }
 };

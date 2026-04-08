@@ -106,19 +106,29 @@ export class ExpenseController extends BaseController {
   ): Promise<void> => {
     try {
       const { id } = request.params as { id: string };
-      const data = await request.file();
 
-      if (!data) {
+      let fileBuffer: Buffer | undefined;
+      let filename: string | undefined;
+      let mimetype: string | undefined;
+      let userEmail: string | undefined;
+
+      const parts = request.parts();
+      for await (const part of parts) {
+        if (part.type === "field" && part.fieldname === "userEmail") {
+          userEmail = part.value as string;
+        } else if (part.type === "file") {
+          fileBuffer = await part.toBuffer();
+          filename = part.filename;
+          mimetype = part.mimetype;
+        }
+      }
+
+      if (!fileBuffer || !filename || !mimetype) {
         reply.status(400).send({ error: "No file uploaded" });
         return;
       }
 
-      const buffer = await data.toBuffer();
-      const file = {
-        buffer,
-        filename: data.filename,
-        mimetype: data.mimetype,
-      };
+      const file = { buffer: fileBuffer, filename, mimetype, userEmail };
 
       await this.service.uploadReceipt(id, file);
       const expense = await this.service.findById(id);

@@ -17,11 +17,16 @@ import { getS3UrlConfig } from "./s3Url";
 export const generateS3Key = (
   fileName: string,
   prefix: string = "receipts",
+  userEmail?: string,
 ): string => {
   // eslint-disable-next-line unicorn/prefer-string-replace-all
   const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "-");
   const timestamp = Date.now();
   const randomHash = crypto.randomBytes(8).toString("hex");
+  if (userEmail) {
+    const sanitizedEmail = userEmail.toLowerCase().replace(/[^a-z0-9@._-]/g, "-");
+    return `${prefix}/${sanitizedEmail}/${timestamp}-${randomHash}-${sanitizedFileName}`;
+  }
   return `${prefix}/${timestamp}-${randomHash}-${sanitizedFileName}`;
 };
 
@@ -76,10 +81,11 @@ export const uploadToS3 = async (
   options: {
     keyPrefix?: string;
     acl?: ObjectCannedACL;
+    userEmail?: string;
   } = {},
 ): Promise<string> => {
   const config = getS3UrlConfig();
-  const fileKey = generateS3Key(fileName, options.keyPrefix);
+  const fileKey = generateS3Key(fileName, options.keyPrefix, options.userEmail);
 
   logger.debug(
     { bucket: config.bucket, key: fileKey, size: fileBuffer.length },

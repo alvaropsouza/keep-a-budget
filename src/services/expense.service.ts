@@ -7,6 +7,8 @@ import { ExpenseQueryParamsDto } from "../dto/expense.dto";
 import { uploadToS3, getSignedS3Url } from "../utils/s3Upload";
 import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
+import { runWithTransaction } from "../utils/runWithTransaction";
+import { ClientSession } from "mongoose";
 
 interface CreateExpenseData {
   bank: string;
@@ -61,6 +63,18 @@ export class ExpenseService extends BaseService<IExpense> {
     data: CreateExpenseData,
     file?: FileData,
   ): Promise<IExpense | IExpense[]> {
+    logger.info(
+      {
+        bank: data.bank,
+        category: data.category,
+        amount: data.amount,
+        installmentTotal: data.installmentTotal,
+        installmentStartNumber: data.installmentStartNumber,
+        hasReceiptFile: Boolean(file),
+      },
+      "Starting expense creation",
+    );
+
     const { installmentTotal, installmentStartDate, installmentStartNumber } =
       data;
 
@@ -94,28 +108,63 @@ export class ExpenseService extends BaseService<IExpense> {
       ? new Date(data.installmentStartDate)
       : new Date();
 
-    const cardInvoice = await this.invoiceService.findForExpenseDate(
-      data.bank,
-      expenseDate,
-    );
-
-    if (cardInvoice?.isClosed) {
-      throw new AppError(
-        "Cannot add expenses to a closed invoice. Please reopen the invoice first.",
-        400,
+    const expense = await runWithTransaction(async (session) => {
+      logger.debug(
+        {
+          bank: data.bank,
+          expenseDate,
+          hasSession: Boolean(session),
+        },
+        "Resolving invoice for single expense",
       );
-    }
 
-    const expense = await this.create({
-      ...(data as any),
-      type: ExpenseTypeEnum.EXPENSE,
-      date: expenseDate,
-      cardInvoiceId: cardInvoice?._id,
+      const cardInvoice = await this.invoiceService.findForExpenseDate(
+        data.bank,
+        expenseDate,
+        session,
+      );
+
+      if (cardInvoice?.isClosed) {
+        throw new AppError(
+          "Cannot add expenses to a closed invoice. Please reopen the invoice first.",
+          400,
+        );
+      }
+
+      const createdExpense = await this.create(
+        {
+          ...(data as any),
+          type: ExpenseTypeEnum.EXPENSE,
+          date: expenseDate,
+          cardInvoiceId: cardInvoice?._id,
+        },
+        session,
+      );
+
+      if (cardInvoice) {
+        logger.debug(
+          {
+            invoiceId: cardInvoice._id,
+            amount: createdExpense.amount,
+          },
+          "Updating invoice balance after expense creation",
+        );
+        await this.invoiceService.updateBalance(
+          cardInvoice._id,
+          createdExpense.amount,
+          session,
+        );
+      }
+
+      return createdExpense;
+    }, {
+      operationName: "expense.createSingle",
+      metadata: {
+        bank: data.bank,
+        category: data.category,
+        amount: data.amount,
+      },
     });
-
-    if (cardInvoice) {
-      await this.invoiceService.updateBalance(cardInvoice._id, expense.amount);
-    }
 
     if (file) {
       const receiptUrl = await this.uploadReceipt(expense._id, file);
@@ -146,22 +195,52 @@ export class ExpenseService extends BaseService<IExpense> {
       );
     }
 
-    const expenses = await this.buildInstallments(
-      data,
-      installmentTotal,
-      startDate,
-      firstInstallment,
-    );
-    const savedExpenses = await Expense.insertMany(expenses);
+    const savedExpenses = await runWithTransaction(async (session) => {
+      logger.debug(
+        {
+          bank: data.bank,
+          installmentTotal,
+          firstInstallment,
+          hasSession: Boolean(session),
+        },
+        "Building installment expenses",
+      );
 
-    for (const expense of savedExpenses) {
-      if (expense.cardInvoiceId) {
-        await this.invoiceService.updateBalance(
-          expense.cardInvoiceId,
-          expense.amount,
+      const expenses = await this.buildInstallments(
+        data,
+        installmentTotal,
+        startDate,
+        firstInstallment,
+        session,
+      );
+      const insertedExpenses = await Expense.insertMany(expenses, { session });
+
+      const balancesByInvoice = new Map<string, number>();
+      for (const expense of insertedExpenses) {
+        if (!expense.cardInvoiceId) {
+          continue;
+        }
+
+        const invoiceId = expense.cardInvoiceId.toString();
+        balancesByInvoice.set(
+          invoiceId,
+          (balancesByInvoice.get(invoiceId) ?? 0) + expense.amount,
         );
       }
-    }
+
+      for (const [invoiceId, amount] of balancesByInvoice) {
+        await this.invoiceService.updateBalance(invoiceId, amount, session);
+      }
+
+      return insertedExpenses as IExpense[];
+    }, {
+      operationName: "expense.createInstallments",
+      metadata: {
+        bank: data.bank,
+        category: data.category,
+        installmentTotal,
+      },
+    });
 
     logger.info(
       { count: savedExpenses.length, installmentTotal },
@@ -175,6 +254,7 @@ export class ExpenseService extends BaseService<IExpense> {
     installmentTotal: number,
     startDate?: string,
     installmentStartNumber: number = 1,
+    session?: ClientSession,
   ): Promise<IExpense[]> {
     const expenses: IExpense[] = [];
     const baseDate = startDate ? new Date(startDate) : new Date();
@@ -188,6 +268,7 @@ export class ExpenseService extends BaseService<IExpense> {
       const cardInvoice = await this.invoiceService.ensureInvoiceForDate(
         baseData.bank,
         targetDate,
+        session,
       );
 
       if (cardInvoice?.isClosed) {
@@ -235,59 +316,81 @@ export class ExpenseService extends BaseService<IExpense> {
     id: string,
     updateData: Partial<IExpense>,
   ): Promise<IExpense> {
-    const oldExpense = await this.findById(id);
+    return runWithTransaction(async (session) => {
+      const oldExpense = await this.findById(id, undefined, session);
 
-    if (oldExpense.cardInvoiceId) {
-      const invoice = await this.invoiceService.findById(
-        oldExpense.cardInvoiceId.toString(),
-      );
-      if (invoice?.isClosed) {
-        throw new AppError(
-          "Cannot update expenses in a closed invoice. Please reopen the invoice first.",
-          400,
+      if (oldExpense.cardInvoiceId) {
+        const invoice = await this.invoiceService.findById(
+          oldExpense.cardInvoiceId.toString(),
+          undefined,
+          session,
+        );
+        if (invoice?.isClosed) {
+          throw new AppError(
+            "Cannot update expenses in a closed invoice. Please reopen the invoice first.",
+            400,
+          );
+        }
+      }
+
+      const expense = await this.update(id, updateData, session);
+
+      if (
+        updateData.amount !== undefined &&
+        updateData.amount !== oldExpense.amount &&
+        expense.cardInvoiceId
+      ) {
+        const delta = updateData.amount - oldExpense.amount;
+        await this.invoiceService.updateBalance(
+          expense.cardInvoiceId,
+          delta,
+          session,
         );
       }
-    }
 
-    const expense = await this.update(id, updateData);
-
-    // Sync invoice balance if amount changed
-    if (
-      updateData.amount !== undefined &&
-      updateData.amount !== oldExpense.amount
-    ) {
-      const delta = updateData.amount - oldExpense.amount;
-      if (expense.cardInvoiceId) {
-        await this.invoiceService.updateBalance(expense.cardInvoiceId, delta);
-      }
-    }
-
-    return expense;
+      return expense;
+    }, {
+      operationName: "expense.updateExpense",
+      metadata: {
+        expenseId: id,
+        updatedKeys: Object.keys(updateData),
+      },
+    });
   }
 
   async deleteExpense(id: string): Promise<void> {
-    const expense = await this.findById(id);
+    await runWithTransaction(async (session) => {
+      const expense = await this.findById(id, undefined, session);
 
-    if (expense.cardInvoiceId) {
-      const invoice = await this.invoiceService.findById(
-        expense.cardInvoiceId.toString(),
-      );
-      if (invoice?.isClosed) {
-        throw new AppError(
-          "Cannot delete expenses from a closed invoice. Please reopen the invoice first.",
-          400,
+      if (expense.cardInvoiceId) {
+        const invoice = await this.invoiceService.findById(
+          expense.cardInvoiceId.toString(),
+          undefined,
+          session,
+        );
+        if (invoice?.isClosed) {
+          throw new AppError(
+            "Cannot delete expenses from a closed invoice. Please reopen the invoice first.",
+            400,
+          );
+        }
+      }
+
+      await this.delete(id, session);
+
+      if (expense.cardInvoiceId) {
+        await this.invoiceService.updateBalance(
+          expense.cardInvoiceId,
+          -expense.amount,
+          session,
         );
       }
-    }
-
-    await this.delete(id);
-
-    if (expense.cardInvoiceId) {
-      await this.invoiceService.updateBalance(
-        expense.cardInvoiceId,
-        -expense.amount,
-      );
-    }
+    }, {
+      operationName: "expense.deleteExpense",
+      metadata: {
+        expenseId: id,
+      },
+    });
 
     logger.info({ expenseId: id }, "Expense deleted");
   }
@@ -304,7 +407,7 @@ export class ExpenseService extends BaseService<IExpense> {
         },
       );
       await this.update(expenseId, { receipt: s3Key } as any);
-      logger.info({ expenseId, s3Key }, "Receipt uploaded (private)");
+      logger.info({ expenseId }, "Receipt uploaded (private)");
       return s3Key;
     } catch (error) {
       logger.error({ expenseId, error }, "Failed to upload receipt");

@@ -4,6 +4,7 @@ import { FilterBuilder } from "../utils/filterBuilder";
 import { FixedExpenseQueryParamsDto } from "../dto/fixedExpense.dto";
 import logger from "../config/logger";
 import mongoose from "mongoose";
+import { AppError } from "../utils/AppError";
 
 interface CreateFixedExpenseData {
   name: string;
@@ -85,7 +86,7 @@ export class FixedExpenseService extends BaseService<IFixedExpense> {
         existingFixedExpense.userId &&
         existingFixedExpense.userId.toString() !== userId
       ) {
-        throw new Error("Unauthorized to update this fixed expense");
+        throw new AppError("Unauthorized to update this fixed expense", 403);
       }
     }
 
@@ -105,7 +106,7 @@ export class FixedExpenseService extends BaseService<IFixedExpense> {
         existingFixedExpense.userId &&
         existingFixedExpense.userId.toString() !== userId
       ) {
-        throw new Error("Unauthorized to delete this fixed expense");
+        throw new AppError("Unauthorized to delete this fixed expense", 403);
       }
     }
 

@@ -6,7 +6,6 @@ import {
   UpdateExpenseDto,
   ExpenseQueryParamsDto,
 } from "../dto/expense.dto";
-import logger from "../config/logger";
 
 export class ExpenseController extends BaseController {
   private service: ExpenseService;
@@ -57,9 +56,38 @@ export class ExpenseController extends BaseController {
     reply: FastifyReply,
   ): Promise<void> => {
     try {
+      request.log.info(
+        {
+          reqId: request.id,
+          contentType: request.headers["content-type"],
+        },
+        "Starting POST /expenses request",
+      );
+
       const { body, file } = await this.parseRequest(request);
 
+      request.log.debug(
+        {
+          reqId: request.id,
+          bank: body.bank,
+          category: body.category,
+          amount: body.amount,
+          installmentTotal: body.installmentTotal,
+          installmentStartNumber: body.installmentStartNumber,
+          hasFile: Boolean(file),
+        },
+        "Expense payload parsed successfully",
+      );
+
       if (!(await this.validate(CreateExpenseDto, body, reply))) {
+        request.log.warn(
+          {
+            reqId: request.id,
+            bank: body.bank,
+            category: body.category,
+          },
+          "Expense payload validation failed",
+        );
         return;
       }
 
@@ -166,7 +194,13 @@ export class ExpenseController extends BaseController {
       | undefined;
 
     if (contentType?.includes("multipart/form-data")) {
-      logger.debug("Parsing multipart form data");
+      request.log.debug(
+        {
+          reqId: request.id,
+          contentType,
+        },
+        "Parsing multipart expense payload",
+      );
       const parts = request.parts();
       const formFields: Record<string, string> = {};
 
@@ -174,6 +208,14 @@ export class ExpenseController extends BaseController {
         if (part.type === "field") {
           formFields[part.fieldname] = part.value as string;
         } else if (part.type === "file") {
+          request.log.debug(
+            {
+              reqId: request.id,
+              filename: part.filename,
+              mimetype: part.mimetype,
+            },
+            "Reading uploaded expense file",
+          );
           const buffer = await part.toBuffer();
           file = {
             buffer,
@@ -198,6 +240,13 @@ export class ExpenseController extends BaseController {
         receipt: formFields.receipt,
       };
     } else {
+      request.log.debug(
+        {
+          reqId: request.id,
+          contentType,
+        },
+        "Using JSON expense payload",
+      );
       body = request.body as CreateExpenseDto;
     }
 

@@ -9,6 +9,18 @@
 
 ### Changed
 
+- **Transações nos serviços financeiros**: criação, atualização e exclusão de despesas, adiantamentos e importações CSV agora agrupam persistência de despesas e ajustes de saldo da fatura em transações MongoDB para evitar inconsistências parciais.
+- **Erros operacionais padronizados**: operações de despesa fixa sem autorização agora retornam erro operacional com status 403, mantendo a resposta HTTP consistente com o restante da API.
+- **Logs de payload e recibo reduzidos**: os serviços deixaram de registrar payloads completos e chaves S3 de recibos nos logs estruturados.
+- **Fallback para Mongo standalone**: operações que usam transação agora detectam ambientes sem replica set e refazem a execução sem transação, registrando explicitamente a degradação no log em vez de falhar com erro 500.
+- **Logging de falha com contexto de rota**: controllers e error handler agora registram método, URL, reqId, params, query e erro completo para mostrar exatamente onde a requisição falhou.
+
+### Technical
+
+- Adicionado o utilitário `runWithTransaction` para centralizar sessões do Mongoose em fluxos multi-etapa.
+
+### Changed
+
 - **Importação CSV multi-banco**: os fluxos `import-csv` e `create-from-csv` passaram a usar parser por banco (`XP`/`NUBANK`); no `create-from-csv`, o banco passa a ser informado no `multipart/form-data`.
 
 ### Changed

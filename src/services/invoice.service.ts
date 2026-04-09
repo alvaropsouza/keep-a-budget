@@ -8,6 +8,8 @@ import { AppError } from "../utils/AppError";
 import { InvoiceQueryParamsDto } from "../dto/invoice.dto";
 import { BanksEnum } from "../enums/banks.enum";
 import { parseInvoiceCsv } from "../utils/xpCsvParser";
+import { ClientSession } from "mongoose";
+import { runWithTransaction } from "../utils/runWithTransaction";
 
 export class InvoiceService extends BaseService<ICardInvoice> {
   constructor() {
@@ -27,28 +29,44 @@ export class InvoiceService extends BaseService<ICardInvoice> {
     return target;
   }
 
-  private async getLatestInvoice(bank: string): Promise<ICardInvoice | null> {
-    return CardInvoice.findOne({ bank }).sort({ closingDate: -1 }).exec();
+  private async getLatestInvoice(
+    bank: string,
+    session?: ClientSession,
+  ): Promise<ICardInvoice | null> {
+    const query = CardInvoice.findOne({ bank }).sort({ closingDate: -1 });
+    if (session) {
+      query.session(session);
+    }
+    return query.exec();
   }
 
   private async safeCreateInvoice(
     bank: string,
     closingDate: Date,
     dueDate: Date,
+    session?: ClientSession,
   ): Promise<ICardInvoice> {
     try {
-      return await this.createInvoice({
-        bank: bank as BanksEnum,
-        closingDate,
-        dueDate,
-        balance: 0,
-      });
-    } catch (error) {
-      if (error instanceof AppError && error.statusCode === 409) {
-        const existing = await CardInvoice.findOne({
-          bank,
+      return await this.createInvoice(
+        {
+          bank: bank as BanksEnum,
           closingDate,
-        }).exec();
+          dueDate,
+          balance: 0,
+        },
+        session,
+      );
+    } catch (error) {
+      const isConflict =
+        (error instanceof AppError && error.statusCode === 409) ||
+        (error as { code?: number })?.code === 11000;
+
+      if (isConflict) {
+        const query = CardInvoice.findOne({ bank, closingDate });
+        if (session) {
+          query.session(session);
+        }
+        const existing = await query.exec();
         if (existing) {
           return existing;
         }
@@ -86,105 +104,146 @@ export class InvoiceService extends BaseService<ICardInvoice> {
     return this.findById(id, "expenses");
   }
 
-  async checkDuplicate(bank: string, closingDate: string): Promise<boolean> {
-    return this.exists({
-      bank,
-      closingDate: new Date(closingDate),
-    });
+  async checkDuplicate(
+    bank: string,
+    closingDate: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    return this.exists(
+      {
+        bank,
+        closingDate: new Date(closingDate),
+      },
+      session,
+    );
   }
 
-  async createInvoice(data: Partial<ICardInvoice>): Promise<ICardInvoice> {
-    if (await this.checkDuplicate(data.bank!, data.closingDate!.toString())) {
+  async createInvoice(
+    data: Partial<ICardInvoice>,
+    session?: ClientSession,
+  ): Promise<ICardInvoice> {
+    if (
+      await this.checkDuplicate(
+        data.bank!,
+        data.closingDate!.toString(),
+        session,
+      )
+    ) {
       throw new AppError(
         "Invoice already exists for this bank and period",
         409,
       );
     }
-    return this.create(data);
+    return this.create(data, session);
   }
 
   async deleteWithExpenses(id: string): Promise<void> {
-    await this.delete(id);
-    await Expense.deleteMany({ cardInvoiceId: id });
+    await runWithTransaction(async (session) => {
+      await Expense.deleteMany({ cardInvoiceId: id }, { session });
+      await this.delete(id, session);
+    });
     logger.info({ invoiceId: id }, "Invoice and associated expenses deleted");
   }
 
   async advancePayment(id: string, amount: number): Promise<ICardInvoice> {
-    const invoice = await this.getByIdWithExpenses(id);
+    await runWithTransaction(async (session) => {
+      const invoice = await this.findById(id, undefined, session);
 
-    const currentBalance = invoice.balance ?? 0;
-    const advancedAmount = invoice.advance ?? 0;
-    const availableBalance = currentBalance - advancedAmount;
+      const currentBalance = invoice.balance ?? 0;
+      const advancedAmount = invoice.advance ?? 0;
+      const availableBalance = currentBalance - advancedAmount;
 
-    if (amount > availableBalance) {
-      throw new AppError(
-        "Advance amount cannot exceed available balance",
-        400,
-        {
-          currentBalance,
-          advancedAmount,
-          availableBalance,
-          requestedAmount: amount,
-        },
-      );
-    }
+      if (amount > availableBalance) {
+        throw new AppError(
+          "Advance amount cannot exceed available balance",
+          400,
+          {
+            currentBalance,
+            advancedAmount,
+            availableBalance,
+            requestedAmount: amount,
+          },
+        );
+      }
 
-    const updatedInvoice = await CardInvoice.findByIdAndUpdate(
-      id,
-      { $inc: { advance: amount, balance: -amount } },
-      { new: true, runValidators: true },
-    )
-      .populate("expenses")
-      .orFail();
+      await CardInvoice.findByIdAndUpdate(
+        id,
+        { $inc: { advance: amount, balance: -amount } },
+        { new: true, runValidators: true, session },
+      ).orFail();
 
-    await Expense.create({
-      bank: invoice.bank,
-      type: ExpenseTypeEnum.ADVANCE,
-      category: "Advance",
-      amount,
-      description: "Advance payment",
-      date: new Date(),
-      cardInvoiceId: invoice._id,
+      const advanceExpense = new Expense({
+        bank: invoice.bank,
+        type: ExpenseTypeEnum.ADVANCE,
+        category: "Advance",
+        amount,
+        description: "Advance payment",
+        date: new Date(),
+        cardInvoiceId: invoice._id,
+      });
+
+      await advanceExpense.save({ session });
     });
 
     logger.info({ invoiceId: id, amount }, "Advance payment processed");
-    return updatedInvoice;
+    return this.getByIdWithExpenses(id);
   }
 
-  async updateBalance(invoiceId: any, delta: number): Promise<void> {
-    await CardInvoice.findByIdAndUpdate(invoiceId, {
-      $inc: { balance: delta },
-    });
+  async updateBalance(
+    invoiceId: any,
+    delta: number,
+    session?: ClientSession,
+  ): Promise<void> {
+    await CardInvoice.findByIdAndUpdate(
+      invoiceId,
+      {
+        $inc: { balance: delta },
+      },
+      { session },
+    ).orFail();
     logger.debug({ invoiceId, delta }, "Invoice balance updated");
   }
 
   async findForExpenseDate(
     bank: string,
     date: Date,
+    session?: ClientSession,
   ): Promise<ICardInvoice | null> {
     const queryDate = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
     );
 
-    return CardInvoice.findOne({
+    const query = CardInvoice.findOne({
       bank,
       closingDate: { $gte: queryDate },
-    })
-      .sort({ closingDate: 1 })
-      .exec();
+    }).sort({ closingDate: 1 });
+
+    if (session) {
+      query.session(session);
+    }
+
+    return query.exec();
   }
 
-  async ensureInvoiceForDate(bank: string, date: Date): Promise<ICardInvoice> {
+  async ensureInvoiceForDate(
+    bank: string,
+    date: Date,
+    session?: ClientSession,
+  ): Promise<ICardInvoice> {
     const targetDate = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
     );
 
-    const existingInvoice = await this.findForExpenseDate(bank, targetDate);
+    const existingInvoice = await this.findForExpenseDate(
+      bank,
+      targetDate,
+      session,
+    );
     if (existingInvoice) {
       return existingInvoice;
     }
 
-    const latestInvoice = await this.getLatestInvoice(bank);
+    const latestInvoice = await this.getLatestInvoice(bank, session);
     if (!latestInvoice) {
       throw new AppError(
         `Nenhuma fatura cadastrada para o banco ${bank}. Crie a primeira fatura manualmente para definirmos o ciclo.`,
@@ -204,6 +263,7 @@ export class InvoiceService extends BaseService<ICardInvoice> {
         bank,
         nextClosingDate,
         nextDueDate,
+        session,
       );
 
       currentClosingDate = createdInvoice.closingDate;
@@ -311,49 +371,56 @@ export class InvoiceService extends BaseService<ICardInvoice> {
     csvContent: string,
     excludeIndexes?: number[],
   ): Promise<ICardInvoice> {
-    const invoice = await this.createInvoice({
-      bank,
-      closingDate: new Date(closingDate),
-      dueDate: new Date(dueDate),
-      balance: 0,
-    });
-
     const rows = parseInvoiceCsv(
       bank,
       csvContent,
       excludeIndexes ? new Set(excludeIndexes) : undefined,
     );
 
-    if (rows.length === 0) {
-      logger.warn({ closingDate }, "CSV create produced no valid expenses");
-      return this.getByIdWithExpenses(invoice._id.toString());
-    }
+    const invoiceId = await runWithTransaction(async (session) => {
+      const invoice = await this.createInvoice(
+        {
+          bank,
+          closingDate: new Date(closingDate),
+          dueDate: new Date(dueDate),
+          balance: 0,
+        },
+        session,
+      );
 
-    const newExpenses = rows.map((row) => ({
-      bank,
-      type: ExpenseTypeEnum.EXPENSE,
-      category: "Importado",
-      date: row.date,
-      amount: row.amount,
-      description: row.description,
-      installment: row.installment ?? undefined,
-      cardInvoiceId: invoice._id,
-    }));
+      if (rows.length === 0) {
+        logger.warn({ closingDate }, "CSV create produced no valid expenses");
+        return invoice._id.toString();
+      }
 
-    await Expense.insertMany(newExpenses);
+      const newExpenses = rows.map((row) => ({
+        bank,
+        type: ExpenseTypeEnum.EXPENSE,
+        category: "Importado",
+        date: row.date,
+        amount: row.amount,
+        description: row.description,
+        installment: row.installment ?? undefined,
+        cardInvoiceId: invoice._id,
+      }));
 
-    const newTotal = rows.reduce((sum, r) => sum + r.amount, 0);
+      await Expense.insertMany(newExpenses, { session });
 
-    const updatedInvoice = await CardInvoice.findByIdAndUpdate(
-      invoice._id,
-      { $inc: { balance: newTotal } },
-      { new: true, runValidators: true },
-    )
-      .populate("expenses")
-      .orFail();
+      const newTotal = rows.reduce((sum, r) => sum + r.amount, 0);
+
+      await CardInvoice.findByIdAndUpdate(
+        invoice._id,
+        { $inc: { balance: newTotal } },
+        { new: true, runValidators: true, session },
+      ).orFail();
+
+      return invoice._id.toString();
+    });
+
+    const updatedInvoice = await this.getByIdWithExpenses(invoiceId);
 
     logger.info(
-      { invoiceId: invoice._id, imported: rows.length, total: newTotal },
+      { invoiceId: updatedInvoice._id, imported: rows.length },
       "Invoice created from CSV",
     );
 
@@ -374,66 +441,76 @@ export class InvoiceService extends BaseService<ICardInvoice> {
       );
     }
 
-    // Sum of current EXPENSE-type expenses to rollback from balance
-    const existingExpenses = await Expense.find({
-      cardInvoiceId: id,
-      type: ExpenseTypeEnum.EXPENSE,
-    });
-
-    const existingExpensesTotal = existingExpenses.reduce(
-      (sum, e) => sum + e.amount,
-      0,
-    );
-
-    // Delete all EXPENSE-type expenses for this invoice
-    await Expense.deleteMany({
-      cardInvoiceId: id,
-      type: ExpenseTypeEnum.EXPENSE,
-    });
-
-    // Rollback balance
-    await CardInvoice.findByIdAndUpdate(id, {
-      $inc: { balance: -existingExpensesTotal },
-    });
-
-    // Parse CSV
     const rows = parseInvoiceCsv(
       invoice.bank,
       csvContent,
       excludeIndexes ? new Set(excludeIndexes) : undefined,
     );
 
-    if (rows.length === 0) {
-      logger.warn({ invoiceId: id }, "CSV import produced no valid expenses");
-      return this.getByIdWithExpenses(id);
-    }
+    await runWithTransaction(async (session) => {
+      const existingExpenses = await Expense.find(
+        {
+          cardInvoiceId: id,
+          type: ExpenseTypeEnum.EXPENSE,
+        },
+        null,
+        { session },
+      );
 
-    // Build expense documents
-    const newExpenses = rows.map((row) => ({
-      bank: invoice.bank,
-      type: ExpenseTypeEnum.EXPENSE,
-      category: "Importado",
-      date: row.date,
-      amount: row.amount,
-      description: row.description,
-      installment: row.installment ?? undefined,
-      cardInvoiceId: invoice._id,
-    }));
+      const existingExpensesTotal = existingExpenses.reduce(
+        (sum, expense) => sum + expense.amount,
+        0,
+      );
 
-    await Expense.insertMany(newExpenses);
+      await Expense.deleteMany(
+        {
+          cardInvoiceId: id,
+          type: ExpenseTypeEnum.EXPENSE,
+        },
+        { session },
+      );
 
-    const newTotal = rows.reduce((sum, r) => sum + r.amount, 0);
+      await CardInvoice.findByIdAndUpdate(
+        id,
+        {
+          $inc: { balance: -existingExpensesTotal },
+        },
+        { session },
+      ).orFail();
 
-    const updatedInvoice = await CardInvoice.findByIdAndUpdate(
-      id,
-      { $inc: { balance: newTotal } },
-      { new: true, runValidators: true },
-    )
-      .populate("expenses")
-      .orFail();
+      if (rows.length === 0) {
+        logger.warn({ invoiceId: id }, "CSV import produced no valid expenses");
+        return id;
+      }
+
+      const newExpenses = rows.map((row) => ({
+        bank: invoice.bank,
+        type: ExpenseTypeEnum.EXPENSE,
+        category: "Importado",
+        date: row.date,
+        amount: row.amount,
+        description: row.description,
+        installment: row.installment ?? undefined,
+        cardInvoiceId: invoice._id,
+      }));
+
+      await Expense.insertMany(newExpenses, { session });
+
+      const newTotal = rows.reduce((sum, row) => sum + row.amount, 0);
+
+      await CardInvoice.findByIdAndUpdate(
+        id,
+        { $inc: { balance: newTotal } },
+        { new: true, runValidators: true, session },
+      ).orFail();
+
+      return id;
+    });
+
+    const updatedInvoice = await this.getByIdWithExpenses(id);
 
     logger.info(
-      { invoiceId: id, imported: rows.length, total: newTotal },
+      { invoiceId: id, imported: rows.length },
       "CSV imported into invoice",
     );
 

@@ -7,9 +7,26 @@ export const errorHandler = (
   request: FastifyRequest,
   reply: FastifyReply,
 ) => {
+  request.log.error(
+    {
+      error,
+      reqId: request.id,
+      method: request.method,
+      url: request.url,
+      params: request.params,
+      query: request.query,
+      body:
+        request.method === "GET" || request.method === "HEAD"
+          ? undefined
+          : request.body,
+    },
+    "Unhandled request error",
+  );
+
   if (error instanceof AppError) {
     return reply.status(error.statusCode).send({
       error: error.message,
+      ...(error.details && { details: error.details }),
     });
   }
 
@@ -50,8 +67,6 @@ export const errorHandler = (
       error: error.message,
     });
   }
-
-  request.log.error(error);
 
   return reply.status(500).send({
     error: "Internal Server Error",

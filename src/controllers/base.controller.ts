@@ -11,6 +11,18 @@ export abstract class BaseController {
   }
 
   protected handleError(error: any, reply: FastifyReply): void {
+    reply.request.log.error(
+      {
+        error,
+        reqId: reply.request.id,
+        method: reply.request.method,
+        url: reply.request.url,
+        params: reply.request.params,
+        query: reply.request.query,
+      },
+      "Controller request failed",
+    );
+
     if (error.name === "DocumentNotFoundError") {
       reply.status(404).send({ error: "Resource not found" });
       return;

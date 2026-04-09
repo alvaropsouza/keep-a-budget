@@ -108,63 +108,66 @@ export class ExpenseService extends BaseService<IExpense> {
       ? new Date(data.installmentStartDate)
       : new Date();
 
-    const expense = await runWithTransaction(async (session) => {
-      logger.debug(
-        {
-          bank: data.bank,
-          expenseDate,
-          hasSession: Boolean(session),
-        },
-        "Resolving invoice for single expense",
-      );
-
-      const cardInvoice = await this.invoiceService.findForExpenseDate(
-        data.bank,
-        expenseDate,
-        session,
-      );
-
-      if (cardInvoice?.isClosed) {
-        throw new AppError(
-          "Cannot add expenses to a closed invoice. Please reopen the invoice first.",
-          400,
-        );
-      }
-
-      const createdExpense = await this.create(
-        {
-          ...(data as any),
-          type: ExpenseTypeEnum.EXPENSE,
-          date: expenseDate,
-          cardInvoiceId: cardInvoice?._id,
-        },
-        session,
-      );
-
-      if (cardInvoice) {
+    const expense = await runWithTransaction(
+      async (session) => {
         logger.debug(
           {
-            invoiceId: cardInvoice._id,
-            amount: createdExpense.amount,
+            bank: data.bank,
+            expenseDate,
+            hasSession: Boolean(session),
           },
-          "Updating invoice balance after expense creation",
+          "Resolving invoice for single expense",
         );
-        await this.invoiceService.updateBalance(
-          cardInvoice._id,
-          createdExpense.amount,
+
+        const cardInvoice = await this.invoiceService.findForExpenseDate(
+          data.bank,
+          expenseDate,
           session,
         );
-      }
 
-      return createdExpense;
-    }, {
-      operationName: "expense.createSingle",
-      metadata: {
-        bank: data.bank,
-        category: data.category,
-        amount: data.amount,
+        if (cardInvoice?.isClosed) {
+          throw new AppError(
+            "Cannot add expenses to a closed invoice. Please reopen the invoice first.",
+            400,
+          );
+        }
+
+        const createdExpense = await this.create(
+          {
+            ...(data as any),
+            type: ExpenseTypeEnum.EXPENSE,
+            date: expenseDate,
+            cardInvoiceId: cardInvoice?._id,
+          },
+          session,
+        );
+
+        if (cardInvoice) {
+          logger.debug(
+            {
+              invoiceId: cardInvoice._id,
+              amount: createdExpense.amount,
+            },
+            "Updating invoice balance after expense creation",
+          );
+          await this.invoiceService.updateBalance(
+            cardInvoice._id,
+            createdExpense.amount,
+            session,
+          );
+        }
+
+        return createdExpense;
       },
-    });
+      {
+        operationName: "expense.createSingle",
+        metadata: {
+          bank: data.bank,
+          category: data.category,
+          amount: data.amount,
+        },
+      },
+    );
 
     if (file) {
       const receiptUrl = await this.uploadReceipt(expense._id, file);
@@ -195,52 +198,57 @@ export class ExpenseService extends BaseService<IExpense> {
       );
     }
 
-    const savedExpenses = await runWithTransaction(async (session) => {
-      logger.debug(
-        {
-          bank: data.bank,
+    const savedExpenses = await runWithTransaction(
+      async (session) => {
+        logger.debug(
+          {
+            bank: data.bank,
+            installmentTotal,
+            firstInstallment,
+            hasSession: Boolean(session),
+          },
+          "Building installment expenses",
+        );
+
+        const expenses = await this.buildInstallments(
+          data,
           installmentTotal,
+          startDate,
           firstInstallment,
-          hasSession: Boolean(session),
-        },
-        "Building installment expenses",
-      );
+          session,
+        );
+        const insertedExpenses = await Expense.insertMany(expenses, {
+          session,
+        });
 
-      const expenses = await this.buildInstallments(
-        data,
-        installmentTotal,
-        startDate,
-        firstInstallment,
-        session,
-      );
-      const insertedExpenses = await Expense.insertMany(expenses, { session });
+        const balancesByInvoice = new Map<string, number>();
+        for (const expense of insertedExpenses) {
+          if (!expense.cardInvoiceId) {
+            continue;
+          }
 
-      const balancesByInvoice = new Map<string, number>();
-      for (const expense of insertedExpenses) {
-        if (!expense.cardInvoiceId) {
-          continue;
+          const invoiceId = expense.cardInvoiceId.toString();
+          balancesByInvoice.set(
+            invoiceId,
+            (balancesByInvoice.get(invoiceId) ?? 0) + expense.amount,
+          );
         }
 
-        const invoiceId = expense.cardInvoiceId.toString();
-        balancesByInvoice.set(
-          invoiceId,
-          (balancesByInvoice.get(invoiceId) ?? 0) + expense.amount,
-        );
-      }
+        for (const [invoiceId, amount] of balancesByInvoice) {
+          await this.invoiceService.updateBalance(invoiceId, amount, session);
+        }
 
-      for (const [invoiceId, amount] of balancesByInvoice) {
-        await this.invoiceService.updateBalance(invoiceId, amount, session);
-      }
-
-      return insertedExpenses as IExpense[];
-    }, {
-      operationName: "expense.createInstallments",
-      metadata: {
-        bank: data.bank,
-        category: data.category,
-        installmentTotal,
+        return insertedExpenses as IExpense[];
       },
-    });
+      {
+        operationName: "expense.createInstallments",
+        metadata: {
+          bank: data.bank,
+          category: data.category,
+          installmentTotal,
+        },
+      },
+    );
 
     logger.info(
       { count: savedExpenses.length, installmentTotal },
@@ -316,81 +324,87 @@ export class ExpenseService extends BaseService<IExpense> {
     id: string,
     updateData: Partial<IExpense>,
   ): Promise<IExpense> {
-    return runWithTransaction(async (session) => {
-      const oldExpense = await this.findById(id, undefined, session);
+    return runWithTransaction(
+      async (session) => {
+        const oldExpense = await this.findById(id, undefined, session);
 
-      if (oldExpense.cardInvoiceId) {
-        const invoice = await this.invoiceService.findById(
-          oldExpense.cardInvoiceId.toString(),
-          undefined,
-          session,
-        );
-        if (invoice?.isClosed) {
-          throw new AppError(
-            "Cannot update expenses in a closed invoice. Please reopen the invoice first.",
-            400,
+        if (oldExpense.cardInvoiceId) {
+          const invoice = await this.invoiceService.findById(
+            oldExpense.cardInvoiceId.toString(),
+            undefined,
+            session,
+          );
+          if (invoice?.isClosed) {
+            throw new AppError(
+              "Cannot update expenses in a closed invoice. Please reopen the invoice first.",
+              400,
+            );
+          }
+        }
+
+        const expense = await this.update(id, updateData, session);
+
+        if (
+          updateData.amount !== undefined &&
+          updateData.amount !== oldExpense.amount &&
+          expense.cardInvoiceId
+        ) {
+          const delta = updateData.amount - oldExpense.amount;
+          await this.invoiceService.updateBalance(
+            expense.cardInvoiceId,
+            delta,
+            session,
           );
         }
-      }
 
-      const expense = await this.update(id, updateData, session);
-
-      if (
-        updateData.amount !== undefined &&
-        updateData.amount !== oldExpense.amount &&
-        expense.cardInvoiceId
-      ) {
-        const delta = updateData.amount - oldExpense.amount;
-        await this.invoiceService.updateBalance(
-          expense.cardInvoiceId,
-          delta,
-          session,
-        );
-      }
-
-      return expense;
-    }, {
-      operationName: "expense.updateExpense",
-      metadata: {
-        expenseId: id,
-        updatedKeys: Object.keys(updateData),
+        return expense;
       },
-    });
+      {
+        operationName: "expense.updateExpense",
+        metadata: {
+          expenseId: id,
+          updatedKeys: Object.keys(updateData),
+        },
+      },
+    );
   }
 
   async deleteExpense(id: string): Promise<void> {
-    await runWithTransaction(async (session) => {
-      const expense = await this.findById(id, undefined, session);
+    await runWithTransaction(
+      async (session) => {
+        const expense = await this.findById(id, undefined, session);
 
-      if (expense.cardInvoiceId) {
-        const invoice = await this.invoiceService.findById(
-          expense.cardInvoiceId.toString(),
-          undefined,
-          session,
-        );
-        if (invoice?.isClosed) {
-          throw new AppError(
-            "Cannot delete expenses from a closed invoice. Please reopen the invoice first.",
-            400,
+        if (expense.cardInvoiceId) {
+          const invoice = await this.invoiceService.findById(
+            expense.cardInvoiceId.toString(),
+            undefined,
+            session,
+          );
+          if (invoice?.isClosed) {
+            throw new AppError(
+              "Cannot delete expenses from a closed invoice. Please reopen the invoice first.",
+              400,
+            );
+          }
+        }
+
+        await this.delete(id, session);
+
+        if (expense.cardInvoiceId) {
+          await this.invoiceService.updateBalance(
+            expense.cardInvoiceId,
+            -expense.amount,
+            session,
           );
         }
-      }
-
-      await this.delete(id, session);
-
-      if (expense.cardInvoiceId) {
-        await this.invoiceService.updateBalance(
-          expense.cardInvoiceId,
-          -expense.amount,
-          session,
-        );
-      }
-    }, {
-      operationName: "expense.deleteExpense",
-      metadata: {
-        expenseId: id,
       },
-    });
+      {
+        operationName: "expense.deleteExpense",
+        metadata: {
+          expenseId: id,
+        },
+      },
+    );
 
     logger.info({ expenseId: id }, "Expense deleted");
   }

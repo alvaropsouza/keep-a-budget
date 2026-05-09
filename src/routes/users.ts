@@ -17,6 +17,7 @@ async function userRoutes(
     "/",
     {
       schema: userSchemas.getAllUsers,
+      preHandler: fastify.authenticate,
     },
     getAllUsers,
   );
@@ -25,6 +26,7 @@ async function userRoutes(
     "/by-email/:email",
     {
       schema: userSchemas.getUserByEmail,
+      preHandler: fastify.authenticate,
     },
     getUserByEmail,
   );
@@ -33,6 +35,7 @@ async function userRoutes(
     "/:id",
     {
       schema: userSchemas.getUserById,
+      preHandler: fastify.authenticate,
     },
     getUserById,
   );
@@ -49,6 +52,7 @@ async function userRoutes(
     "/:id",
     {
       schema: userSchemas.updateUser,
+      preHandler: fastify.authenticate,
     },
     updateUser,
   );
@@ -57,6 +61,7 @@ async function userRoutes(
     "/:id",
     {
       schema: userSchemas.deleteUser,
+      preHandler: fastify.authenticate,
     },
     deleteUser,
   );

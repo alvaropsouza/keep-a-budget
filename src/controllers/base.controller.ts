@@ -1,5 +1,7 @@
 import { FastifyReply } from "fastify";
 import { validateAndRespond } from "../utils/validation";
+import { AppError } from "../utils/AppError";
+import { AuthUser } from "../services/auth.service";
 
 export abstract class BaseController {
   protected async validate(
@@ -37,5 +39,13 @@ export abstract class BaseController {
     }
 
     reply.status(500).send({ error: "Internal server error" });
+  }
+
+  protected requireAuthUser(authUser: AuthUser | null | undefined): AuthUser {
+    if (!authUser) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    return authUser;
   }
 }

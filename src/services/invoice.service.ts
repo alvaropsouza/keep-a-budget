@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "../generated/prisma/client/client";
 import { ICardInvoice } from "../models/CardInvoice";
 import { IExpense } from "../models/Expense";
 import { ExpenseTypeEnum } from "../enums/expenseType.enum";

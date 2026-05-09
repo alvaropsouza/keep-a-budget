@@ -17,6 +17,7 @@ async function fixedExpenseRoutes(
     "/",
     {
       schema: fixedExpenseSchemas.getAllFixedExpenses,
+      preHandler: fastify.authenticate,
     },
     getAllFixedExpenses,
   );
@@ -25,6 +26,7 @@ async function fixedExpenseRoutes(
     "/total",
     {
       schema: fixedExpenseSchemas.getTotalFixedExpenses,
+      preHandler: fastify.authenticate,
     },
     getTotalFixedExpenses,
   );
@@ -33,6 +35,7 @@ async function fixedExpenseRoutes(
     "/:id",
     {
       schema: fixedExpenseSchemas.getFixedExpenseById,
+      preHandler: fastify.authenticate,
     },
     getFixedExpenseById,
   );
@@ -42,6 +45,7 @@ async function fixedExpenseRoutes(
     {
       schema: fixedExpenseSchemas.createFixedExpense,
       attachValidation: true,
+      preHandler: fastify.authenticate,
     },
     createFixedExpense,
   );
@@ -50,6 +54,7 @@ async function fixedExpenseRoutes(
     "/:id",
     {
       schema: fixedExpenseSchemas.updateFixedExpense,
+      preHandler: fastify.authenticate,
     },
     updateFixedExpense,
   );
@@ -58,6 +63,7 @@ async function fixedExpenseRoutes(
     "/:id",
     {
       schema: fixedExpenseSchemas.deleteFixedExpense,
+      preHandler: fastify.authenticate,
     },
     deleteFixedExpense,
   );

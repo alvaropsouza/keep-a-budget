@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { BaseController } from "./base.controller";
 import { UserService } from "../services/user.service";
 import { CreateUserDto, UpdateUserDto } from "../dto/user.dto";
+import { AppError } from "../utils/AppError";
 
 export class UserController extends BaseController {
   private service: UserService;
@@ -13,8 +14,9 @@ export class UserController extends BaseController {
 
   getAll = async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const users = await this.service.getAll();
-      reply.send(users);
+      const authUser = this.requireAuthUser(_request.authUser);
+      const user = await this.service.findById(authUser.userId);
+      reply.send([user]);
     } catch (error) {
       this.handleError(error, reply);
     }
@@ -22,7 +24,11 @@ export class UserController extends BaseController {
 
   getById = async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      const authUser = this.requireAuthUser(request.authUser);
       const { id } = request.params as { id: string };
+      if (id !== authUser.userId) {
+        throw new AppError("Unauthorized", 403);
+      }
       const user = await this.service.findById(id);
       reply.send(user);
     } catch (error) {
@@ -32,7 +38,12 @@ export class UserController extends BaseController {
 
   getByEmail = async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      const authUser = this.requireAuthUser(request.authUser);
       const { email } = request.params as { email: string };
+      const normalized = email.trim().toLowerCase();
+      if (normalized !== authUser.email) {
+        throw new AppError("Unauthorized", 403);
+      }
       const user = await this.service.findByEmail(email, true);
       reply.send(user);
     } catch (error) {
@@ -55,11 +66,15 @@ export class UserController extends BaseController {
 
   update = async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      const authUser = this.requireAuthUser(request.authUser);
       if (!(await this.validate(UpdateUserDto, request.body, reply))) {
         return;
       }
 
       const { id } = request.params as { id: string };
+      if (id !== authUser.userId) {
+        throw new AppError("Unauthorized", 403);
+      }
       const user = await this.service.update(id, request.body as any);
       reply.send(user);
     } catch (error) {
@@ -69,7 +84,11 @@ export class UserController extends BaseController {
 
   delete = async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      const authUser = this.requireAuthUser(request.authUser);
       const { id } = request.params as { id: string };
+      if (id !== authUser.userId) {
+        throw new AppError("Unauthorized", 403);
+      }
       await this.service.delete(id);
       reply.send({ message: "User deleted successfully" });
     } catch (error) {

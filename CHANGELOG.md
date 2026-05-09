@@ -2,6 +2,72 @@
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-05-09
+
+### Changed
+
+- **Migracao total do runtime para NestJS**: o backend principal agora inicia via Nest (`src/main.ts`) usando `@nestjs/platform-fastify`, substituindo o bootstrap anterior baseado em `Fastify()` direto.
+- **Endpoints migrados integralmente para controllers Nest**: `auth`, `users`, `invoices`, `expenses`, `fixed-expenses` passaram a ser expostos por controllers Nest mantendo o mesmo contrato HTTP.
+- **Autenticacao centralizada com Guard Nest**: rotas protegidas usam `SessionAuthGuard`, preservando validacao de sessao por cookie ou Bearer token.
+
+### Added
+
+- **AppModule e controllers HTTP Nest** para todas as rotas de negocio e saude.
+- **Bootstrap Nest com plugins Fastify existentes**: CORS, Helmet, Multipart e Rate Limit continuam ativos no novo runtime.
+
+### Removed
+
+- **Estrutura paralela de experimento em `nest/`** removida para evitar duas bases de runtime concorrentes.
+
+## [5.2.0] - 2026-05-09
+
+### Added
+
+- **Fase 1 da migracao para NestJS**: novo app isolado em `nest/` com bootstrap em Fastify Adapter, `AppModule`, `HealthController` e modulo `Auth` com o mesmo contrato de rotas (`/auth/login`, `/auth/authenticate`, `/auth/validate`, `/auth/me`, `/auth/logout`).
+- **Scripts de execucao do app Nest**: `pnpm nest:dev` e `pnpm nest:build` no backend principal para facilitar a migracao progressiva.
+
+### Changed
+
+- **Base preparada para strangler pattern**: a estrutura atual continua ativa e o app Nest passa a coexistir para migracao por modulos, sem troca abrupta de runtime.
+
+## [5.1.0] - 2026-05-09
+
+### Added
+
+- **Guard de autenticacao para rotas protegidas**: plugin de auth (`fastify.authenticate`) com validacao de sessao por cookie HttpOnly ou token Bearer.
+- **Tipagem de request autenticada**: `request.authUser` e contrato de autenticacao centralizados para controllers.
+
+### Changed
+
+- **Rotas de negocio protegidas**: `invoices`, `expenses`, `fixed-expenses` e rotas sensiveis de `users` agora exigem sessao valida.
+- **Autorizacao por dono do recurso**: endpoints de `users` e `fixed-expenses` agora restringem leitura/escrita ao usuario autenticado.
+
+## [5.0.0] - 2026-05-09
+
+### Added
+
+- **Autenticacao local no keep-a-budget**: novos endpoints `POST /auth/login`, `POST /auth/authenticate`, `GET /auth/validate`, `GET /auth/me` e `POST /auth/logout` para gerenciar sessao diretamente no backend principal.
+- **Persistencia de sessao no PostgreSQL**: criacao automatica da tabela `user_sessions` com expiracao, revogacao e suporte a cookie HttpOnly + `Authorization: Bearer`.
+
+### Changed
+
+- **Remocao do app-bridge-keeper do fluxo de login**: o backend principal agora centraliza autenticacao e sessao.
+- **Login por email no frontend**: fluxo de autenticacao deixou de depender de token em URL/link magico externo e passou a autenticar diretamente contra `keep-a-budget`.
+
+## [4.0.0] - 2026-05-09
+
+### Changed
+
+- **Migração para Prisma 7**: atualização das dependências `prisma`, `@prisma/client` e `@prisma/adapter-pg` para a linha `7.x`.
+  - Bloco `datasource db` no schema não contém mais `url` — URL gerenciada exclusivamente via `prisma.config.ts`.
+  - Generator alterado de `prisma-client-js` para `prisma-client`; campo `output` agora obrigatório (`src/generated/prisma/client`).
+  - Todos os imports de `@prisma/client` migrados para o caminho gerado (`../generated/prisma/client`).
+  - `PrismaPg` agora aceita `{ connectionString }` diretamente, sem necessidade de instanciar `Pool` do `pg`.
+- **Migração para ESM**: projeto adotou `"type": "module"` e TypeScript configurado com `module: ESNext` e `moduleResolution: bundler`.
+  - Script `start` alterado de `node dist/server.js` para `tsx src/server.ts`.
+  - Script `build` alterado para `tsc --noEmit` (type-check apenas).
+  - `src/generated/` adicionado ao `.gitignore`.
+
 ### Added
 
 - **Infraestrutura PostgreSQL inicial**: adicionado serviço `postgres` no `docker-compose`, com script de bootstrap SQL (`scripts/sql/001_init.sql`) contendo tabelas base (`users`, `card_invoices`, `expenses`, `fixed_expenses`), índices e gatilhos de `updated_at`.
@@ -12,6 +78,7 @@
 ### Changed
 
 - **Remoção definitiva de MongoDB**: backend, serviços, modelos e tratamento de erro foram migrados para PostgreSQL, eliminando uso de Mongoose e variáveis `MONGODB_URI`/`DB_PROVIDER`.
+- **Migração para configuração moderna do Prisma**: removido `url` do bloco `datasource db` no schema. A URL de conexão de Migrate permanece em `prisma.config.ts`, enquanto o `PrismaClient` usa `adapter` para conexão direta.
 - **Camada de dados em SQL**: `ExpenseService`, `InvoiceService`, `FixedExpenseService` e `UserService` passaram a executar queries SQL com transações PostgreSQL.
 - **Documentação de execução**: `README.md` e `.env.example` atualizados para fluxo exclusivo com PostgreSQL.
 
@@ -24,6 +91,7 @@
 ### Technical
 
 - Dependências da camada PostgreSQL: `pg` e `@types/pg`; removida dependência `mongoose`.
+- Dependências Prisma atualizadas para a linha `7.x` (`prisma`, `@prisma/client`, `@prisma/adapter-pg`) para suportar configuração sem `datasource.url` no schema.
 
 - Adicionado o utilitário `runWithTransaction` para centralizar sessões do Mongoose em fluxos multi-etapa.
 

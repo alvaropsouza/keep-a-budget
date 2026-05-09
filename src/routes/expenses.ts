@@ -18,6 +18,7 @@ async function expenseRoutes(
     "/",
     {
       schema: expenseSchemas.getAllExpenses,
+      preHandler: fastify.authenticate,
     },
     getAllExpenses,
   );
@@ -26,6 +27,7 @@ async function expenseRoutes(
     "/:id",
     {
       schema: expenseSchemas.getExpenseById,
+      preHandler: fastify.authenticate,
     },
     getExpenseById,
   );
@@ -35,6 +37,7 @@ async function expenseRoutes(
     {
       schema: expenseSchemas.createExpense,
       attachValidation: true,
+      preHandler: fastify.authenticate,
     },
     createExpense,
   );
@@ -43,6 +46,7 @@ async function expenseRoutes(
     "/:id",
     {
       schema: expenseSchemas.updateExpense,
+      preHandler: fastify.authenticate,
     },
     updateExpense,
   );
@@ -51,6 +55,7 @@ async function expenseRoutes(
     "/:id",
     {
       schema: expenseSchemas.deleteExpense,
+      preHandler: fastify.authenticate,
     },
     deleteExpense,
   );
@@ -59,6 +64,7 @@ async function expenseRoutes(
     "/:id/receipt",
     {
       schema: expenseSchemas.uploadReceipt,
+      preHandler: fastify.authenticate,
     },
     uploadReceipt,
   );
@@ -67,6 +73,7 @@ async function expenseRoutes(
     "/:id/receipt",
     {
       schema: expenseSchemas.deleteReceipt,
+      preHandler: fastify.authenticate,
     },
     deleteReceipt,
   );

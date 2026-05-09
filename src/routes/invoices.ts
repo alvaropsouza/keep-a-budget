@@ -21,6 +21,7 @@ async function invoiceRoutes(
     "/",
     {
       schema: invoiceSchemas.getAllInvoices,
+      preHandler: fastify.authenticate,
     },
     getAllInvoices,
   );
@@ -29,6 +30,7 @@ async function invoiceRoutes(
     "/:id",
     {
       schema: invoiceSchemas.getInvoiceById,
+      preHandler: fastify.authenticate,
     },
     getInvoiceById,
   );
@@ -37,6 +39,7 @@ async function invoiceRoutes(
     "/",
     {
       schema: invoiceSchemas.createInvoice,
+      preHandler: fastify.authenticate,
     },
     createInvoice,
   );
@@ -45,6 +48,7 @@ async function invoiceRoutes(
     "/create-from-csv",
     {
       schema: invoiceSchemas.createFromCsv,
+      preHandler: fastify.authenticate,
     },
     createInvoiceFromCsv,
   );
@@ -53,6 +57,7 @@ async function invoiceRoutes(
     "/:id",
     {
       schema: invoiceSchemas.updateInvoice,
+      preHandler: fastify.authenticate,
     },
     updateInvoice,
   );
@@ -61,6 +66,7 @@ async function invoiceRoutes(
     "/:id",
     {
       schema: invoiceSchemas.deleteInvoice,
+      preHandler: fastify.authenticate,
     },
     deleteInvoice,
   );
@@ -69,6 +75,7 @@ async function invoiceRoutes(
     "/:id/advance",
     {
       schema: invoiceSchemas.advanceInvoice,
+      preHandler: fastify.authenticate,
     },
     advanceInvoice,
   );
@@ -77,6 +84,7 @@ async function invoiceRoutes(
     "/:id/close",
     {
       schema: invoiceSchemas.closeInvoice,
+      preHandler: fastify.authenticate,
     },
     closeInvoice,
   );
@@ -85,6 +93,7 @@ async function invoiceRoutes(
     "/:id/reopen",
     {
       schema: invoiceSchemas.reopenInvoice,
+      preHandler: fastify.authenticate,
     },
     reopenInvoice,
   );
@@ -93,6 +102,7 @@ async function invoiceRoutes(
     "/:id/import-csv",
     {
       schema: invoiceSchemas.importCsv,
+      preHandler: fastify.authenticate,
     },
     importInvoiceCsv,
   );

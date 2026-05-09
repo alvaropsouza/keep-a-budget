@@ -10,12 +10,14 @@ import invoiceRoutes from "./routes/invoices";
 import expenseRoutes from "./routes/expenses";
 import userRoutes from "./routes/users";
 import fixedExpenseRoutes from "./routes/fixedExpenses";
+import authRoutes from "./routes/auth";
 import logger, { fastifyLoggerConfig } from "./config/logger";
 import { errorHandler } from "./config/errorHandler";
 import { setupS3Bucket } from "./utils/s3Setup";
 import { invoiceClosureJob } from "./jobs/invoiceClosureJob";
 import corsPlugin from "./plugins/cors";
 import helmetPlugin from "./plugins/helmet";
+import authGuardPlugin from "./plugins/authGuard";
 
 validateEnv();
 
@@ -23,6 +25,7 @@ const app = Fastify({ logger: fastifyLoggerConfig });
 
 app.register(corsPlugin);
 app.register(helmetPlugin);
+app.register(authGuardPlugin);
 app.setErrorHandler(errorHandler);
 
 app.register(rateLimit, {
@@ -61,6 +64,7 @@ app.register(invoiceRoutes, { prefix: "/invoices" });
 app.register(expenseRoutes, { prefix: "/expenses" });
 app.register(userRoutes, { prefix: "/users" });
 app.register(fixedExpenseRoutes, { prefix: "/fixed-expenses" });
+app.register(authRoutes, { prefix: "/auth" });
 
 app.get("/health", async () => {
   return { status: "ok", timestamp: new Date().toISOString() };

@@ -20,11 +20,12 @@ export class FixedExpenseController extends BaseController {
     reply: FastifyReply,
   ): Promise<void> => {
     try {
+      const authUser = this.requireAuthUser(request.authUser);
       const filter = this.service.buildFilter(
-        "",
+        authUser.userId,
         request.query as FixedExpenseQueryParamsDto,
       );
-      const fixedExpenses = await this.service.getAll("", filter);
+      const fixedExpenses = await this.service.getAll(authUser.userId, filter);
       reply.send(fixedExpenses);
     } catch (error) {
       this.handleError(error, reply);
@@ -36,8 +37,15 @@ export class FixedExpenseController extends BaseController {
     reply: FastifyReply,
   ): Promise<void> => {
     try {
+      const authUser = this.requireAuthUser(request.authUser);
       const { id } = request.params as { id: string };
       const fixedExpense = await this.service.findById(id);
+
+      if (fixedExpense.userId !== authUser.userId) {
+        reply.status(403).send({ error: "Unauthorized to access this fixed expense" });
+        return;
+      }
+
       reply.send(fixedExpense);
     } catch (error) {
       this.handleError(error, reply);
@@ -49,12 +57,13 @@ export class FixedExpenseController extends BaseController {
     reply: FastifyReply,
   ): Promise<void> => {
     try {
+      const authUser = this.requireAuthUser(request.authUser);
       if (!(await this.validate(CreateFixedExpenseDto, request.body, reply))) {
         return;
       }
 
       const fixedExpense = await this.service.createFixedExpense(
-        "",
+        authUser.userId,
         request.body as any,
       );
       reply.status(201).send(fixedExpense);
@@ -68,6 +77,7 @@ export class FixedExpenseController extends BaseController {
     reply: FastifyReply,
   ): Promise<void> => {
     try {
+      const authUser = this.requireAuthUser(request.authUser);
       if (!(await this.validate(UpdateFixedExpenseDto, request.body, reply))) {
         return;
       }
@@ -75,7 +85,7 @@ export class FixedExpenseController extends BaseController {
       const { id } = request.params as { id: string };
       const fixedExpense = await this.service.updateFixedExpense(
         id,
-        "",
+        authUser.userId,
         request.body as any,
       );
       reply.send(fixedExpense);
@@ -89,8 +99,9 @@ export class FixedExpenseController extends BaseController {
     reply: FastifyReply,
   ): Promise<void> => {
     try {
+      const authUser = this.requireAuthUser(request.authUser);
       const { id } = request.params as { id: string };
-      await this.service.deleteFixedExpense(id, "");
+      await this.service.deleteFixedExpense(id, authUser.userId);
       reply.send({ message: "Fixed expense deleted successfully" });
     } catch (error) {
       this.handleError(error, reply);
@@ -98,11 +109,12 @@ export class FixedExpenseController extends BaseController {
   };
 
   getTotalFixedExpenses = async (
-    _request: FastifyRequest,
+    request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> => {
     try {
-      const total = await this.service.getTotalFixedExpenses("");
+      const authUser = this.requireAuthUser(request.authUser);
+      const total = await this.service.getTotalFixedExpenses(authUser.userId);
       reply.send({ total });
     } catch (error) {
       this.handleError(error, reply);

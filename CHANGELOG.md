@@ -2,7 +2,18 @@
 
 ## [Unreleased]
 
-## [6.2.0] - 2026-05-09
+## [7.1.0] - 2026-05-09
+
+### Changed
+
+- **Diretriz de tipagem adicionada**: proibido o uso de `any` em TypeScript — tipos devem ser extraídos das bibliotecas usadas ou modelados internamente. Registrado nas `rules.instructions.md`.
+- **Controllers renomeados**: removido sufixo `-http` e `Http` dos arquivos e classes (`AuthHttpController` → `AuthController`, etc.).
+- **DTOs corrigidos com tipos precisos**: campos `bank` agora tipados como `BanksEnum` (não `string`) em `expense.dto.ts` e `invoice.dto.ts`; campos `closingDate`/`dueDate` transformados de `string` para `Date` via `@Transform` em `invoice.dto.ts`; `lastLogin` transformado de `string` para `Date` via `@Transform` em `user.dto.ts`.
+- **`ICardInvoice.expenses`**: substituído `any[]` por `IExpense[]`.
+- **Plugins Fastify** (`cors.ts`, `helmet.ts`): parâmetro `app` agora explicitamente tipado como `FastifyInstance` para evitar inferência da instância globalmente augmentada.
+- **`main.ts`**: substituídos casts `as any` por `@ts-expect-error` com comentário explicando a incompatibilidade estrutural entre `RawServerBase` e `RawServerDefault` no ecossistema NestJS + Fastify — limitação do TypeScript, seguro em runtime.
+
+## [7.0.0] - 2026-05-09
 
 ### Added
 

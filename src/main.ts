@@ -1,6 +1,6 @@
 import "dotenv/config";
 import "reflect-metadata";
-import { ValidationPipe } from "@nestjs/common";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import multipart from "@fastify/multipart";
@@ -33,23 +33,17 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await app.register(corsPlugin as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await app.register(helmetPlugin as any);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await app.register(rateLimit as any, {
-    max: 100,
-    timeWindow: "1 minute",
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await app.register(multipart as any, {
-    limits: {
-      fileSize: 5 * 1024 * 1024,
-    },
-  });
+  // Fastify's module augmentation causes structural mismatch between plugin
+  // callback types (RawServerBase) and NestFastifyApplication.register()
+  // (RawServerDefault). Safe at runtime — TypeScript limitation only.
+  // @ts-expect-error — see comment above
+  await app.register(corsPlugin);
+  // @ts-expect-error — see comment above
+  await app.register(helmetPlugin);
+  // @ts-expect-error — see comment above
+  await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
+  // @ts-expect-error — see comment above
+  await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 
   await connectDB();
   await setupS3Bucket();
@@ -59,7 +53,9 @@ async function bootstrap(): Promise<void> {
   const port = Number.parseInt(process.env.PORT || "3000", 10);
   const host = process.env.HOST || "0.0.0.0";
 
-  await app.listen(port, host);
+  await app.listen({ port, host });
+  const url = await app.getUrl();
+  new Logger("Bootstrap").log(`Server listening at ${url}`);
 }
 
 void bootstrap();

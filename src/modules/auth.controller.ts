@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Inject,
   Post,
   Body,
   Req,
@@ -36,8 +37,8 @@ const toAuthPayload = (session: AuthSession) => ({
 });
 
 @Controller("auth")
-export class AuthHttpController {
-  constructor(private readonly authService: AuthService) {}
+export class AuthController {
+  constructor(@Inject(AuthService) private readonly authService: AuthService) {}
 
   @Post("login")
   @HttpCode(HttpStatus.OK)

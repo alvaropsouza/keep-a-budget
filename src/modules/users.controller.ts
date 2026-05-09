@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Post,
   Put,
   Body,
@@ -18,8 +19,8 @@ import { SessionAuthGuard } from "./session-auth.guard";
 import { AppError } from "../utils/AppError";
 
 @Controller("users")
-export class UsersHttpController {
-  constructor(private readonly userService: UserService) {}
+export class UsersController {
+  constructor(@Inject(UserService) private readonly userService: UserService) {}
 
   @UseGuards(SessionAuthGuard)
   @Get()
@@ -52,7 +53,7 @@ export class UsersHttpController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() body: CreateUserDto) {
-    return this.userService.createUser(body as any);
+    return this.userService.createUser(body);
   }
 
   @UseGuards(SessionAuthGuard)
@@ -65,7 +66,7 @@ export class UsersHttpController {
     const authUser = req.authUser;
     if (!authUser) throw new AppError("Unauthorized", 401);
     if (id !== authUser.userId) throw new AppError("Unauthorized", 403);
-    return this.userService.update(id, body as any);
+    return this.userService.update(id, body);
   }
 
   @UseGuards(SessionAuthGuard)

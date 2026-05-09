@@ -4,9 +4,13 @@ import {
   IsEmail,
   IsNumber,
   Min,
-  IsDateString,
+  IsDate,
   MinLength,
 } from "class-validator";
+import { Transform } from "class-transformer";
+
+const toDate = (value: unknown): Date | undefined =>
+  value ? new Date(value as string) : undefined;
 
 export class CreateUserDto {
   @IsString()
@@ -35,9 +39,10 @@ export class CreateUserDto {
   @IsOptional()
   avatar?: string;
 
-  @IsDateString()
+  @IsDate()
   @IsOptional()
-  lastLogin?: string;
+  @Transform(({ value }) => toDate(value))
+  lastLogin?: Date;
 }
 
 export class UpdateUserDto {
@@ -71,7 +76,8 @@ export class UpdateUserDto {
   @IsOptional()
   avatar?: string;
 
-  @IsDateString()
+  @IsDate()
   @IsOptional()
-  lastLogin?: string;
+  @Transform(({ value }) => toDate(value))
+  lastLogin?: Date;
 }

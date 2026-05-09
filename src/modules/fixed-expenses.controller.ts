@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Post,
   Put,
@@ -24,8 +25,8 @@ import { AppError } from "../utils/AppError";
 
 @UseGuards(SessionAuthGuard)
 @Controller("fixed-expenses")
-export class FixedExpensesHttpController {
-  constructor(private readonly fixedExpenseService: FixedExpenseService) {}
+export class FixedExpensesController {
+  constructor(@Inject(FixedExpenseService) private readonly fixedExpenseService: FixedExpenseService) {}
 
   @Get()
   async getAll(@Query() query: FixedExpenseQueryParamsDto, @Req() req: FastifyRequest) {

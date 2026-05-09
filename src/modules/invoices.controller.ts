@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Post,
   Put,
@@ -27,8 +28,8 @@ import { AppError } from "../utils/AppError";
 
 @UseGuards(SessionAuthGuard)
 @Controller("invoices")
-export class InvoicesHttpController {
-  constructor(private readonly invoiceService: InvoiceService) {}
+export class InvoicesController {
+  constructor(@Inject(InvoiceService) private readonly invoiceService: InvoiceService) {}
 
   @Get()
   async getAll(@Query() query: InvoiceQueryParamsDto, @Req() req: FastifyRequest) {
@@ -49,7 +50,7 @@ export class InvoicesHttpController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() body: CreateInvoiceDto, @Req() req: FastifyRequest) {
-    return this.invoiceService.createInvoice({ ...body, userId: req.authUser?.userId } as any);
+    return this.invoiceService.createInvoice({ ...body, userId: req.authUser?.userId });
   }
 
   @Post("create-from-csv")
@@ -104,7 +105,7 @@ export class InvoicesHttpController {
 
   @Put(":id")
   async update(@Param("id") id: string, @Body() body: UpdateInvoiceDto) {
-    return this.invoiceService.update(id, body as any);
+    return this.invoiceService.update(id, body);
   }
 
   @Delete(":id")

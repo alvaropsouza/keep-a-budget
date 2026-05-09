@@ -1,4 +1,5 @@
 import { BanksEnum } from "../enums/banks.enum";
+import { IExpense } from "./Expense";
 
 export interface ICardInvoice {
   id: string;
@@ -12,5 +13,5 @@ export interface ICardInvoice {
   isClosed: boolean;
   createdAt: Date;
   updatedAt: Date;
-  expenses?: any[];
+  expenses?: IExpense[];
 }

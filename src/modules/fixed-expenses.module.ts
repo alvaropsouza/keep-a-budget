@@ -1,11 +1,11 @@
 import { Module } from "@nestjs/common";
 import { FixedExpenseService } from "../services/fixedExpense.service";
-import { FixedExpensesHttpController } from "./fixed-expenses-http.controller";
+import { FixedExpensesController } from "./fixed-expenses.controller";
 import { AuthModule } from "./auth.module";
 
 @Module({
   imports: [AuthModule],
-  controllers: [FixedExpensesHttpController],
+  controllers: [FixedExpensesController],
   providers: [FixedExpenseService],
 })
 export class FixedExpensesModule {}

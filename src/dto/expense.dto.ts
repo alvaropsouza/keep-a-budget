@@ -11,7 +11,7 @@ import { BanksEnum } from "../enums/banks.enum";
 
 export class CreateExpenseDto {
   @IsEnum(BanksEnum)
-  bank!: string;
+  bank!: BanksEnum;
 
   @IsString()
   category!: string;
@@ -46,7 +46,7 @@ export class CreateExpenseDto {
 export class UpdateExpenseDto {
   @IsEnum(BanksEnum)
   @IsOptional()
-  bank?: string;
+  bank?: BanksEnum;
 
   @IsString()
   @IsOptional()
@@ -69,7 +69,7 @@ export class UpdateExpenseDto {
 export class ExpenseQueryParamsDto {
   @IsEnum(BanksEnum)
   @IsOptional()
-  bank?: string;
+  bank?: BanksEnum;
 
   @IsString()
   @IsOptional()

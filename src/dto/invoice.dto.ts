@@ -1,23 +1,28 @@
 import {
-  IsString,
   IsDateString,
   IsOptional,
   IsEnum,
   IsNumber,
   Min,
+  IsBoolean,
 } from "class-validator";
+import { Transform } from "class-transformer";
 import { BanksEnum } from "../enums/banks.enum";
 
+const toDate = (value: unknown): Date | undefined =>
+  value ? new Date(value as string) : undefined;
+
 export class CreateInvoiceDto {
-  @IsString()
   @IsEnum(BanksEnum)
-  bank!: string;
+  bank!: BanksEnum;
 
   @IsDateString()
-  closingDate!: string;
+  @Transform(({ value }) => toDate(value))
+  closingDate!: Date;
 
   @IsDateString()
-  dueDate!: string;
+  @Transform(({ value }) => toDate(value))
+  dueDate!: Date;
 
   @IsNumber()
   @IsOptional()
@@ -26,32 +31,34 @@ export class CreateInvoiceDto {
 }
 
 export class UpdateInvoiceDto {
-  @IsString()
   @IsOptional()
   @IsEnum(BanksEnum)
-  bank?: string;
+  bank?: BanksEnum;
 
   @IsDateString()
   @IsOptional()
-  closingDate?: string;
+  @Transform(({ value }) => toDate(value))
+  closingDate?: Date;
 
   @IsDateString()
   @IsOptional()
-  dueDate?: string;
+  @Transform(({ value }) => toDate(value))
+  dueDate?: Date;
 
   @IsNumber()
   @IsOptional()
   @Min(0)
   balance?: number;
 
+  @IsBoolean()
   @IsOptional()
   isClosed?: boolean;
 }
 
 export class InvoiceQueryParamsDto {
-  @IsString()
   @IsOptional()
-  bank?: string;
+  @IsEnum(BanksEnum)
+  bank?: BanksEnum;
 
   @IsDateString()
   @IsOptional()

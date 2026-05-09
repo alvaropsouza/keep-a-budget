@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Post,
   Put,
@@ -25,8 +26,8 @@ import { validateDto } from "../utils/validation";
 
 @UseGuards(SessionAuthGuard)
 @Controller("expenses")
-export class ExpensesHttpController {
-  constructor(private readonly expenseService: ExpenseService) {}
+export class ExpensesController {
+  constructor(@Inject(ExpenseService) private readonly expenseService: ExpenseService) {}
 
   @Get()
   async getAll(@Query() query: ExpenseQueryParamsDto, @Req() req: FastifyRequest) {
@@ -58,7 +59,7 @@ export class ExpensesHttpController {
 
   @Put(":id")
   async update(@Param("id") id: string, @Body() body: UpdateExpenseDto) {
-    return this.expenseService.updateExpense(id, body as any);
+    return this.expenseService.updateExpense(id, body);
   }
 
   @Delete(":id")

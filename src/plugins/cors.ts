@@ -1,7 +1,8 @@
 import fastifyCors, { FastifyCorsOptions } from "@fastify/cors";
+import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 
-const corsPlugin = fp(async (app) => {
+const corsPlugin = fp(async (app: FastifyInstance) => {
   const corsOptions: FastifyCorsOptions = {
     origin: (origin, cb) => {
       if (!origin) {

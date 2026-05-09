@@ -35,6 +35,7 @@ const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
 const mapExpense = (row: any): IExpense => ({
   id: row.id,
   _id: row.id,
+  userId: row.userId ?? undefined,
   bank: row.bank,
   type: row.type,
   category: row.category,

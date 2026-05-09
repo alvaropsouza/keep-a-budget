@@ -4,6 +4,7 @@ import { ExpenseTypeEnum } from "../enums/expenseType.enum";
 export interface IExpense {
   id: string;
   _id: string;
+  userId?: string;
   bank: BanksEnum;
   type: ExpenseTypeEnum;
   category: string;

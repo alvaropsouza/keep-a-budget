@@ -44,8 +44,8 @@ model UserSession {
 
 model CardInvoice {
     id          String    @id @default(uuid()) @db.Uuid
-    userId      String?   @map("user_id") @db.Uuid
-    user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+    userId      String    @map("user_id") @db.Uuid
+    user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
     bank        String
     closingDate DateTime  @map("closing_date") @db.Date
     dueDate     DateTime  @map("due_date") @db.Date
@@ -63,8 +63,8 @@ model CardInvoice {
 
 model Expense {
     id                 String       @id @default(uuid()) @db.Uuid
-    userId             String?      @map("user_id") @db.Uuid
-    user               User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+    userId             String       @map("user_id") @db.Uuid
+    user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
     bank               String
     type               String
     category           String

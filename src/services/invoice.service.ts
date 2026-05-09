@@ -17,6 +17,7 @@ const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
 const mapExpense = (row: any): IExpense => ({
   id: row.id,
   _id: row.id,
+  userId: row.userId ?? undefined,
   bank: row.bank,
   type: row.type,
   category: row.category,
@@ -39,6 +40,7 @@ const mapExpense = (row: any): IExpense => ({
 const mapInvoice = (row: any, expenses?: IExpense[]): ICardInvoice => ({
   id: row.id,
   _id: row.id,
+  userId: row.userId ?? undefined,
   bank: row.bank,
   closingDate: new Date(row.closingDate),
   dueDate: new Date(row.dueDate),
@@ -359,6 +361,7 @@ export class InvoiceService {
           amount,
           description: "Advance payment",
           cardInvoiceId: invoice.id,
+          ...(invoice.userId ? { userId: invoice.userId } : {}),
         },
       });
     });
@@ -576,6 +579,7 @@ export class InvoiceService {
           installmentCurrent: row.installment?.current ?? null,
           installmentTotal: row.installment?.total ?? null,
           cardInvoiceId: invoice.id,
+          ...(userId ? { userId } : {}),
         })),
       });
 
@@ -597,6 +601,62 @@ export class InvoiceService {
     );
 
     return updatedInvoice;
+  }
+
+  async getSummary(userId?: string): Promise<{
+    totalOpen: number;
+    totalClosed: number;
+    countOpen: number;
+    countClosed: number;
+    byBank: Array<{
+      bank: string;
+      totalOpen: number;
+      totalClosed: number;
+      countOpen: number;
+      countClosed: number;
+    }>;
+  }> {
+    const where: Prisma.CardInvoiceWhereInput = userId ? { userId } : {};
+
+    const [openAgg, closedAgg, byBankGroups] = await Promise.all([
+      prisma.cardInvoice.aggregate({
+        where: { ...where, isClosed: false },
+        _sum: { balance: true },
+        _count: { id: true },
+      }),
+      prisma.cardInvoice.aggregate({
+        where: { ...where, isClosed: true },
+        _sum: { balance: true },
+        _count: { id: true },
+      }),
+      prisma.cardInvoice.groupBy({
+        by: ["bank", "isClosed"],
+        where,
+        _sum: { balance: true },
+        _count: { id: true },
+      }),
+    ]);
+
+    const banks = ["NUBANK", "XP"] as const;
+    const byBank = banks.map((bank) => {
+      const openRow = byBankGroups.find((r) => r.bank === bank && !r.isClosed);
+      const closedRow = byBankGroups.find((r) => r.bank === bank && r.isClosed);
+      return {
+        bank,
+        totalOpen: toNumber(openRow?._sum.balance),
+        totalClosed: toNumber(closedRow?._sum.balance),
+        countOpen: openRow?._count.id ?? 0,
+        countClosed: closedRow?._count.id ?? 0,
+      };
+    });
+
+    return {
+      totalOpen: toNumber(openAgg._sum.balance),
+      totalClosed: toNumber(closedAgg._sum.balance),
+      countOpen: openAgg._count.id,
+      countClosed: closedAgg._count.id,
+      byBank,
+    };
   }
 
   async importFromCsv(
@@ -664,6 +724,7 @@ export class InvoiceService {
           installmentCurrent: row.installment?.current ?? null,
           installmentTotal: row.installment?.total ?? null,
           cardInvoiceId: id,
+          ...(invoice.userId ? { userId: invoice.userId } : {}),
         })),
       });
 

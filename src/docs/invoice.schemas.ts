@@ -345,4 +345,34 @@ export const invoiceSchemas = {
       },
     },
   },
+
+  getSummary: {
+    tags: ["Invoices"],
+    description:
+      "Get aggregated invoice totals: open/closed balances and per-bank breakdown.",
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          totalOpen: { type: "number" },
+          totalClosed: { type: "number" },
+          countOpen: { type: "number" },
+          countClosed: { type: "number" },
+          byBank: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                bank: { type: "string" },
+                totalOpen: { type: "number" },
+                totalClosed: { type: "number" },
+                countOpen: { type: "number" },
+                countClosed: { type: "number" },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 };

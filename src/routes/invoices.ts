@@ -10,6 +10,7 @@ import {
   reopenInvoice,
   importInvoiceCsv,
   createInvoiceFromCsv,
+  getInvoiceSummary,
 } from "../controllers/invoice.controller";
 import { invoiceSchemas } from "../docs/invoice.schemas";
 
@@ -105,6 +106,15 @@ async function invoiceRoutes(
       preHandler: fastify.authenticate,
     },
     importInvoiceCsv,
+  );
+
+  fastify.get(
+    "/summary",
+    {
+      schema: invoiceSchemas.getSummary,
+      preHandler: fastify.authenticate,
+    },
+    getInvoiceSummary,
   );
 }
 

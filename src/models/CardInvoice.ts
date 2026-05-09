@@ -3,6 +3,7 @@ import { BanksEnum } from "../enums/banks.enum";
 export interface ICardInvoice {
   id: string;
   _id: string;
+  userId?: string;
   bank: BanksEnum;
   closingDate: Date;
   dueDate: Date;

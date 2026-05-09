@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [6.2.0] - 2026-05-09
+
+### Added
+
+- **`GET /invoices/summary`**: novo endpoint autenticado que retorna totais agregados de faturas — `totalOpen`, `totalClosed`, `countOpen`, `countClosed`, `byBank[]` (por banco). Usa `prisma.cardInvoice.aggregate` e `groupBy` em paralelo com `Promise.all`.
+- **`invoiceSchemas.getSummary`**: schema Fastify/Swagger para o novo endpoint.
+- **`queryKeys.invoiceSummary`** e **`queryKeys.expenses.filtered`** adicionados ao `query-client.ts` do frontend.
+
+### Changed
+
+- **`userId` obrigatório em `Expense` e `CardInvoice`** (schema Prisma): campos alterados de `String?` para `String` com `onDelete: Cascade`. Todos os code paths que criam expenses/invoices propagam `userId`: `createFromCsv`, `importFromCsv`, `advancePayment`.
+- **`mapExpense` e `mapInvoice`**: incluem `userId` no objeto mapeado.
+- **`ICardInvoice` e `IExpense`**: adicionados campos `userId?: string`.
+- **Pending migration**: rodar `pnpm prisma migrate dev --name require_user_id_on_expense_invoice` com backfill ou remoção de registros sem `userId`.
+
 ## [6.1.0] - 2026-05-09
 
 ### Added

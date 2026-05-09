@@ -268,6 +268,19 @@ export class InvoiceController extends BaseController {
       this.handleError(error, reply);
     }
   };
+
+  getSummary = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> => {
+    try {
+      const userId = request.authUser?.userId;
+      const summary = await this.service.getSummary(userId);
+      reply.send(summary);
+    } catch (error) {
+      this.handleError(error, reply);
+    }
+  };
 }
 
 // Export singleton instance
@@ -283,4 +296,5 @@ export const {
   reopen: reopenInvoice,
   importCsv: importInvoiceCsv,
   createFromCsv: createInvoiceFromCsv,
+  getSummary: getInvoiceSummary,
 } = invoiceController;

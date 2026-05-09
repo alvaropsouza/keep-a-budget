@@ -41,8 +41,8 @@ export class AuthController extends BaseController {
         return;
       }
 
-      const { email } = request.body as LoginDto;
-      const session = await this.service.loginWithEmail(email);
+      const { email, password } = request.body as LoginDto;
+      const session = await this.service.loginWithEmail(email, password);
 
       reply.header("Set-Cookie", buildCookie(session.sessionToken, session.expiresAt));
       reply.send({

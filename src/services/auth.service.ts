@@ -1,4 +1,24 @@
-import { randomBytes, createHash, randomUUID } from "node:crypto";
+import { randomBytes, createHash, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+
+const scryptAsync = promisify(scrypt);
+const SALT_LENGTH = 32;
+const KEY_LENGTH = 64;
+
+export const hashPassword = async (password: string): Promise<string> => {
+  const salt = randomBytes(SALT_LENGTH).toString("hex");
+  const derivedKey = await scryptAsync(password, salt, KEY_LENGTH) as Buffer;
+  return `${salt}:${derivedKey.toString("hex")}`;
+};
+
+export const verifyPassword = async (password: string, stored: string): Promise<boolean> => {
+  const [salt, storedHash] = stored.split(":");
+  if (!salt || !storedHash) return false;
+  const derivedKey = await scryptAsync(password, salt, KEY_LENGTH) as Buffer;
+  const storedBuffer = Buffer.from(storedHash, "hex");
+  if (derivedKey.length !== storedBuffer.length) return false;
+  return timingSafeEqual(derivedKey, storedBuffer);
+};
 import { prisma } from "../lib/prisma";
 import { AppError } from "../utils/AppError";
 
@@ -81,14 +101,23 @@ const ensureSessionTable = async (): Promise<void> => {
 };
 
 export class AuthService {
-  async loginWithEmail(email: string): Promise<AuthSession> {
+  async loginWithEmail(email: string, password: string): Promise<AuthSession> {
     await ensureSessionTable();
 
     const normalizedEmail = normalizeEmail(email);
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
     if (!user) {
-      throw new AppError("Email nao cadastrado. Crie sua conta antes de entrar.", 404);
+      throw new AppError("Email ou senha invalidos.", 401);
+    }
+
+    if (!user.passwordHash) {
+      throw new AppError("Conta sem senha configurada. Contate o administrador.", 403);
+    }
+
+    const passwordValid = await verifyPassword(password, user.passwordHash);
+    if (!passwordValid) {
+      throw new AppError("Email ou senha invalidos.", 401);
     }
 
     await prisma.user.update({

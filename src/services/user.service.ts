@@ -2,6 +2,7 @@ import { IUser } from "../models/User";
 import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { prisma } from "../lib/prisma";
+import { hashPassword } from "./auth.service";
 
 const mapUser = (row: any): IUser => ({
   id: row.id,
@@ -39,7 +40,7 @@ export class UserService {
     return mapUser(row);
   }
 
-  async update(id: string, data: Partial<IUser>): Promise<IUser> {
+  async update(id: string, data: Partial<IUser> & { password?: string }): Promise<IUser> {
     const updateData: Record<string, unknown> = {};
 
     if (data.name !== undefined) updateData.name = data.name;
@@ -49,6 +50,7 @@ export class UserService {
     if (data.salary !== undefined) updateData.salary = data.salary;
     if (data.avatar !== undefined) updateData.avatar = data.avatar;
     if (data.lastLogin !== undefined) updateData.lastLogin = data.lastLogin;
+    if (data.password) updateData.passwordHash = await hashPassword(data.password);
 
     const row = await prisma.user.update({
       where: { id },
@@ -95,18 +97,21 @@ export class UserService {
     return mapUser(row);
   }
 
-  async createUser(data: Partial<IUser>): Promise<IUser> {
+  async createUser(data: Partial<IUser> & { password?: string }): Promise<IUser> {
     const payload = {
       ...data,
       email: data.email?.trim().toLowerCase(),
       lastLogin: data.lastLogin ?? new Date(),
     };
 
+    const passwordHash = data.password ? await hashPassword(data.password) : null;
+
     const row = await prisma.user.create({
       data: {
         name: payload.name!,
         lastName: payload.lastName!,
         email: payload.email!,
+        passwordHash,
         phone: payload.phone ?? null,
         salary: payload.salary ?? null,
         avatar: payload.avatar ?? null,

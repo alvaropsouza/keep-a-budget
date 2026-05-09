@@ -26,7 +26,8 @@ export class InvoiceController extends BaseController {
       const filter = this.service.buildFilter(
         request.query as InvoiceQueryParamsDto,
       );
-      const invoices = await this.service.getAllWithExpenses(filter);
+      const userId = request.authUser?.userId;
+      const invoices = await this.service.getAllWithExpenses(filter, userId);
       reply.send(invoices);
     } catch (error) {
       this.handleError(error, reply);
@@ -39,7 +40,8 @@ export class InvoiceController extends BaseController {
   ): Promise<void> => {
     try {
       const { id } = request.params as { id: string };
-      const invoice = await this.service.getByIdWithExpenses(id);
+      const userId = request.authUser?.userId;
+      const invoice = await this.service.getByIdWithExpenses(id, userId);
       reply.send(invoice);
     } catch (error) {
       this.handleError(error, reply);
@@ -55,7 +57,11 @@ export class InvoiceController extends BaseController {
         return;
       }
 
-      const invoice = await this.service.createInvoice(request.body as any);
+      const userId = request.authUser?.userId;
+      const invoice = await this.service.createInvoice({
+        ...(request.body as any),
+        userId,
+      });
       reply.status(201).send(invoice);
     } catch (error) {
       this.handleError(error, reply);
@@ -255,6 +261,7 @@ export class InvoiceController extends BaseController {
         dueDate,
         csvContent,
         excludeIndexes,
+        request.authUser?.userId,
       );
       reply.status(201).send(invoice);
     } catch (error) {

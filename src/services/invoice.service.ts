@@ -93,11 +93,12 @@ export class InvoiceService {
 
   private async getLatestInvoice(
     bank: string,
+    userId?: string,
     client?: TxClient,
   ): Promise<ICardInvoice | null> {
     const db = this.getDb(client);
     const row = await db.cardInvoice.findFirst({
-      where: { bank },
+      where: { bank, ...(userId ? { userId } : {}) },
       orderBy: { closingDate: "desc" },
     });
 
@@ -166,6 +167,7 @@ export class InvoiceService {
 
   async getAllWithExpenses(
     filter: Record<string, unknown>,
+    userId?: string,
   ): Promise<ICardInvoice[]> {
     const bankFilter =
       typeof filter.bank === "string" ? filter.bank : undefined;
@@ -224,6 +226,10 @@ export class InvoiceService {
       };
     }
 
+    if (userId) {
+      where.userId = userId;
+    }
+
     const rows = await prisma.cardInvoice.findMany({
       where,
       include: {
@@ -239,9 +245,9 @@ export class InvoiceService {
     );
   }
 
-  async getByIdWithExpenses(id: string): Promise<ICardInvoice> {
+  async getByIdWithExpenses(id: string, userId?: string): Promise<ICardInvoice> {
     const row = await prisma.cardInvoice.findUnique({
-      where: { id },
+      where: { id, ...(userId ? { userId } : {}) },
       include: {
         expenses: {
           orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -259,6 +265,7 @@ export class InvoiceService {
   async checkDuplicate(
     bank: string,
     closingDate: string,
+    userId?: string,
     client?: TxClient,
   ): Promise<boolean> {
     const db = this.getDb(client);
@@ -266,6 +273,7 @@ export class InvoiceService {
       where: {
         bank,
         closingDate: new Date(closingDate),
+        ...(userId ? { userId } : {}),
       },
       select: { id: true },
     });
@@ -274,13 +282,14 @@ export class InvoiceService {
   }
 
   async createInvoice(
-    data: Partial<ICardInvoice>,
+    data: Partial<ICardInvoice> & { userId?: string },
     client?: TxClient,
   ): Promise<ICardInvoice> {
     if (
       await this.checkDuplicate(
         data.bank!,
         data.closingDate!.toString(),
+        data.userId,
         client,
       )
     ) {
@@ -297,6 +306,7 @@ export class InvoiceService {
         balance: data.balance ?? 0,
         advance: data.advance ?? 0,
         isClosed: data.isClosed ?? false,
+        ...(data.userId ? { userId: data.userId } : {}),
       },
     });
 
@@ -382,6 +392,7 @@ export class InvoiceService {
   async findForExpenseDate(
     bank: string,
     date: Date,
+    userId?: string,
     client?: TxClient,
   ): Promise<ICardInvoice | null> {
     const queryDate = new Date(
@@ -392,9 +403,8 @@ export class InvoiceService {
     const row = await db.cardInvoice.findFirst({
       where: {
         bank,
-        closingDate: {
-          gte: queryDate,
-        },
+        closingDate: { gte: queryDate },
+        ...(userId ? { userId } : {}),
       },
       orderBy: { closingDate: "asc" },
     });
@@ -405,18 +415,19 @@ export class InvoiceService {
   async ensureInvoiceForDate(
     bank: string,
     date: Date,
+    userId?: string,
     client?: TxClient,
   ): Promise<ICardInvoice> {
     const targetDate = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
     );
 
-    const existingInvoice = await this.findForExpenseDate(bank, targetDate, client);
+    const existingInvoice = await this.findForExpenseDate(bank, targetDate, userId, client);
     if (existingInvoice) {
       return existingInvoice;
     }
 
-    const latestInvoice = await this.getLatestInvoice(bank, client);
+    const latestInvoice = await this.getLatestInvoice(bank, userId, client);
     if (!latestInvoice) {
       throw new AppError(
         `Nenhuma fatura cadastrada para o banco ${bank}. Crie a primeira fatura manualmente para definirmos o ciclo.`,
@@ -438,6 +449,7 @@ export class InvoiceService {
           closingDate: nextClosingDate,
           dueDate: nextDueDate,
           balance: 0,
+          userId,
         },
         client,
       );
@@ -528,6 +540,7 @@ export class InvoiceService {
     dueDate: string,
     csvContent: string,
     excludeIndexes?: number[],
+    userId?: string,
   ): Promise<ICardInvoice> {
     const rows = parseInvoiceCsv(
       bank,
@@ -542,6 +555,7 @@ export class InvoiceService {
           closingDate: new Date(closingDate),
           dueDate: new Date(dueDate),
           balance: 0,
+          userId,
         },
         tx,
       );

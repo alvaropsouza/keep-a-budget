@@ -23,8 +23,8 @@ export class ExpenseController extends BaseController {
       const filter = this.service.buildFilter(
         request.query as ExpenseQueryParamsDto,
       );
-      // Use the new method that returns signed URLs for receipts
-      const expenses = await this.service.getAllWithSignedReceipts(filter);
+      const userId = request.authUser?.userId;
+      const expenses = await this.service.getAllWithSignedReceipts(filter, userId);
       reply.send(expenses);
     } catch (error) {
       this.handleError(error, reply);
@@ -91,7 +91,10 @@ export class ExpenseController extends BaseController {
         return;
       }
 
-      const expense = await this.service.createExpense(body, file);
+      const expense = await this.service.createExpense(
+        { ...body, userId: request.authUser?.userId },
+        file,
+      );
       reply.status(201).send(expense);
     } catch (error) {
       this.handleError(error, reply);

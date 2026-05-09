@@ -19,6 +19,7 @@ interface CreateExpenseData {
   installmentStartNumber?: number;
   installmentStartDate?: string;
   receipt?: string;
+  userId?: string;
 }
 
 interface FileData {
@@ -95,7 +96,7 @@ export class ExpenseService {
   }
 
   private async create(
-    data: Partial<IExpense>,
+    data: Partial<IExpense> & { userId?: string },
     tx?: Prisma.TransactionClient,
   ): Promise<IExpense> {
     const db = tx ?? prisma;
@@ -111,6 +112,7 @@ export class ExpenseService {
         installmentCurrent: data.installment?.current ?? null,
         installmentTotal: data.installment?.total ?? null,
         cardInvoiceId: data.cardInvoiceId ?? null,
+        ...(data.userId ? { userId: data.userId } : {}),
       },
     });
 
@@ -157,13 +159,14 @@ export class ExpenseService {
     return mapExpense(row);
   }
 
-  async getAll(filter: Record<string, unknown>): Promise<IExpense[]> {
+  async getAll(filter: Record<string, unknown>, userId?: string): Promise<IExpense[]> {
     const amountRange = filter.amount as { $gte?: number; $lte?: number } | undefined;
     const createdRange = filter.createdAt as { $gte?: Date; $lte?: Date } | undefined;
     const updatedRange = filter.updatedAt as { $gte?: Date; $lte?: Date } | undefined;
 
     const rows = await prisma.expense.findMany({
       where: {
+        ...(userId ? { userId } : {}),
         ...(filter.bank !== undefined ? { bank: String(filter.bank) } : {}),
         ...(filter.category !== undefined ? { category: String(filter.category) } : {}),
         ...(filter.cardInvoiceId !== undefined
@@ -262,6 +265,7 @@ export class ExpenseService {
         const cardInvoice = await this.invoiceService.findForExpenseDate(
           data.bank,
           expenseDate,
+          data.userId,
           tx,
         );
 
@@ -278,6 +282,7 @@ export class ExpenseService {
             type: ExpenseTypeEnum.EXPENSE,
             date: expenseDate,
             cardInvoiceId: cardInvoice?.id ?? null,
+            userId: data.userId,
           },
           tx,
         );
@@ -412,6 +417,7 @@ export class ExpenseService {
       const cardInvoice = await this.invoiceService.ensureInvoiceForDate(
         baseData.bank,
         targetDate,
+        baseData.userId,
         tx,
       );
 
@@ -555,8 +561,9 @@ export class ExpenseService {
 
   async getAllWithSignedReceipts(
     filter: Record<string, unknown>,
+    userId?: string,
   ): Promise<IExpense[]> {
-    const expenses = await this.getAll(filter);
+    const expenses = await this.getAll(filter, userId);
 
     const expensesWithSignedUrls = await Promise.all(
       expenses.map(async (expense) => {

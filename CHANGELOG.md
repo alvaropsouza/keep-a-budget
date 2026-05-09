@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [6.1.0] - 2026-05-09
+
+### Added
+
+- **`UserSession` model no Prisma schema**: tabela `user_sessions` migrada de raw SQL para Prisma ORM — relacao `User → UserSession[]`, indices em `userId` e `expiresAt`.
+- **`userId` em `Expense` e `CardInvoice`**: suporte a multi-usuario — cada despesa e fatura agora e associada ao usuario autenticado. Unique constraint de `CardInvoice` atualizada para `[userId, bank, closingDate]`.
+- **Indice `expenses_user_id_idx` e `card_invoices_user_id_idx`**: indices para filtragem eficiente por usuario.
+
+### Changed
+
+- **`AuthService`**: removido `ensureSessionTable` (raw SQL em runtime); substituido por `prisma.userSession.create/findUnique/updateMany`. `lastLogin` e criacao de sessao agora atomicos em `$transaction`.
+- **`InvoiceService`**: `getAllWithExpenses`, `getByIdWithExpenses`, `createInvoice`, `checkDuplicate`, `findForExpenseDate`, `ensureInvoiceForDate`, `getLatestInvoice`, `createFromCsv` aceitam `userId` opcional para isolamento por usuario.
+- **`ExpenseService`**: `getAll`, `getAllWithSignedReceipts`, `createExpense`, `create` aceitam e propagam `userId`.
+- **`InvoiceController`**: `getAll`, `getById`, `create`, `createFromCsv` extraem `request.authUser?.userId` e passam para os services.
+- **`ExpenseController`**: `getAll`, `create` extraem `request.authUser?.userId` e passam para os services.
+
 ## [6.0.0] - 2026-05-09
 
 ### Changed

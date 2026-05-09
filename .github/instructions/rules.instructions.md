@@ -26,7 +26,7 @@ Adicione novas diretrizes nas seções correspondentes conforme necessário.
 
 ## Stack e Arquitetura
 
-<!-- Adicione aqui regras sobre como a stack deve ser usada -->
+- **Nunca use `any` em TypeScript.** Sempre extraia o tipo correto da biblioteca utilizada (ex.: tipos do Prisma, NestJS, Fastify) ou crie interfaces/types internos. O uso de `any` como escape hatch é proibido — prefira `unknown` com type guard, ou modele o tipo adequado.
 
 ---
 

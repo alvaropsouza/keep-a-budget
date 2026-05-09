@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import { Prisma, PrismaClient } from "../generated/prisma/client/client";
 import { ICardInvoice } from "../models/CardInvoice";
 import { IExpense } from "../models/Expense";
@@ -61,6 +62,7 @@ const notFound = (): never => {
 type TxClient = Prisma.TransactionClient;
 type DbClient = PrismaClient | TxClient;
 
+@Injectable()
 export class InvoiceService {
   private getDb(client?: TxClient): DbClient {
     return client ?? prisma;
@@ -261,7 +263,7 @@ export class InvoiceService {
       notFound();
     }
 
-    return mapInvoice(row, row.expenses.map(mapExpense));
+    return mapInvoice(row!, row!.expenses.map(mapExpense));
   }
 
   async checkDuplicate(

@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import { Prisma } from "../generated/prisma/client/client";
 import { IExpense } from "../models/Expense";
 import { InvoiceService } from "./invoice.service";
@@ -61,12 +62,9 @@ const notFound = (): never => {
   throw error;
 };
 
+@Injectable()
 export class ExpenseService {
-  private invoiceService: InvoiceService;
-
-  constructor() {
-    this.invoiceService = new InvoiceService();
-  }
+  constructor(private readonly invoiceService: InvoiceService) {}
 
   buildFilter(queryParams: ExpenseQueryParamsDto): Record<string, unknown> {
     return new FilterBuilder()

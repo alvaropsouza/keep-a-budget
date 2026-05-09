@@ -5,77 +5,148 @@ import {
   Param,
   Post,
   Put,
+  Body,
+  Query,
+  HttpCode,
+  HttpStatus,
   Req,
-  Res,
   UseGuards,
 } from "@nestjs/common";
-import { FastifyReply, FastifyRequest } from "fastify";
+import { FastifyRequest } from "fastify";
+import { ExpenseService } from "../services/expense.service";
 import {
-  getAllExpenses,
-  getExpenseById,
-  createExpense,
-  updateExpense,
-  deleteExpense,
-  uploadReceipt,
-  deleteReceipt,
-} from "../controllers/expense.controller";
+  CreateExpenseDto,
+  UpdateExpenseDto,
+  ExpenseQueryParamsDto,
+} from "../dto/expense.dto";
 import { SessionAuthGuard } from "./session-auth.guard";
+import { AppError } from "../utils/AppError";
+import { validateDto } from "../utils/validation";
 
 @UseGuards(SessionAuthGuard)
 @Controller("expenses")
 export class ExpensesHttpController {
+  constructor(private readonly expenseService: ExpenseService) {}
+
   @Get()
-  async getAll(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
-    await getAllExpenses(req, reply);
+  async getAll(@Query() query: ExpenseQueryParamsDto, @Req() req: FastifyRequest) {
+    const filter = this.expenseService.buildFilter(query);
+    return this.expenseService.getAllWithSignedReceipts(filter, req.authUser?.userId);
   }
 
   @Get(":id")
-  async getById(
-    @Param("id") _id: string,
-    @Req() req: FastifyRequest,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
-    await getExpenseById(req, reply);
+  async getById(@Param("id") id: string) {
+    const expense = await this.expenseService.findById(id);
+    if (expense.receipt) {
+      const signedUrl = await this.expenseService.getReceiptUrl(expense.receipt);
+      return { ...expense, receipt: signedUrl };
+    }
+    return expense;
   }
 
   @Post()
-  async create(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
-    await createExpense(req, reply);
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Req() req: FastifyRequest) {
+    const { body, file } = await this.parseMultipartOrJson(req);
+    const { valid, errors } = await validateDto(CreateExpenseDto, body);
+    if (!valid) throw new AppError("Validation failed", 400, errors);
+    return this.expenseService.createExpense(
+      { ...body, userId: req.authUser?.userId },
+      file,
+    );
   }
 
   @Put(":id")
-  async update(
-    @Param("id") _id: string,
-    @Req() req: FastifyRequest,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
-    await updateExpense(req, reply);
+  async update(@Param("id") id: string, @Body() body: UpdateExpenseDto) {
+    return this.expenseService.updateExpense(id, body as any);
   }
 
   @Delete(":id")
-  async delete(
-    @Param("id") _id: string,
-    @Req() req: FastifyRequest,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
-    await deleteExpense(req, reply);
+  async delete(@Param("id") id: string) {
+    await this.expenseService.deleteExpense(id);
+    return { message: "Expense deleted successfully" };
   }
 
   @Post(":id/receipt")
-  async uploadReceipt(
-    @Param("id") _id: string,
-    @Req() req: FastifyRequest,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
-    await uploadReceipt(req, reply);
+  async uploadReceipt(@Param("id") id: string, @Req() req: FastifyRequest) {
+    let fileBuffer: Buffer | undefined;
+    let filename: string | undefined;
+    let mimetype: string | undefined;
+    let userEmail: string | undefined;
+
+    const parts = req.parts();
+    for await (const part of parts) {
+      if (part.type === "field" && part.fieldname === "userEmail") {
+        userEmail = part.value as string;
+      } else if (part.type === "file") {
+        fileBuffer = await part.toBuffer();
+        filename = part.filename;
+        mimetype = part.mimetype;
+      }
+    }
+
+    if (!fileBuffer || !filename || !mimetype) {
+      throw new AppError("No file uploaded", 400);
+    }
+
+    await this.expenseService.uploadReceipt(id, {
+      buffer: fileBuffer,
+      filename,
+      mimetype,
+      userEmail,
+    });
+
+    const expense = await this.expenseService.findById(id);
+    if (expense.receipt) {
+      const signedUrl = await this.expenseService.getReceiptUrl(expense.receipt);
+      return { ...expense, receipt: signedUrl };
+    }
+    return expense;
   }
 
   @Delete(":id/receipt")
-  async deleteReceipt(
-    @Param("id") _id: string,
-    @Req() req: FastifyRequest,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
-    await deleteReceipt(req, reply);
+  async deleteReceipt(@Param("id") id: string) {
+    await this.expenseService.deleteReceipt(id);
+    return { message: "Receipt removed successfully" };
+  }
+
+  private async parseMultipartOrJson(req: FastifyRequest): Promise<{
+    body: CreateExpenseDto;
+    file?: { buffer: Buffer; filename: string; mimetype: string };
+  }> {
+    const contentType = req.headers["content-type"];
+    if (contentType?.includes("multipart/form-data")) {
+      const formFields: Record<string, string> = {};
+      let file: { buffer: Buffer; filename: string; mimetype: string } | undefined;
+
+      const parts = req.parts();
+      for await (const part of parts) {
+        if (part.type === "field") {
+          formFields[part.fieldname] = part.value as string;
+        } else if (part.type === "file") {
+          const buffer = await part.toBuffer();
+          file = { buffer, filename: part.filename, mimetype: part.mimetype };
+        }
+      }
+
+      const body: CreateExpenseDto = {
+        bank: formFields.bank as any,
+        category: formFields.category,
+        amount: Number.parseFloat(formFields.amount),
+        description: formFields.description,
+        installmentTotal: formFields.installmentTotal
+          ? Number.parseInt(formFields.installmentTotal)
+          : undefined,
+        installmentStartNumber: formFields.installmentStartNumber
+          ? Number.parseInt(formFields.installmentStartNumber)
+          : undefined,
+        installmentStartDate: formFields.installmentStartDate,
+        receipt: formFields.receipt,
+      };
+
+      return { body, file };
+    }
+
+    return { body: req.body as CreateExpenseDto };
   }
 }

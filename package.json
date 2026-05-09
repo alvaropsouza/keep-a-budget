@@ -1,13 +1,12 @@
 {
   "name": "keep-a-budget",
-  "version": "6.2.0",
-  "type": "module",
+  "version": "7.0.0",
   "description": "Backend app responsible for keeping track of credit card invoice expenses",
-  "main": "dist/server.js",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc --noEmit",
-    "start": "tsx src/main.ts",
-    "dev": "tsx watch src/main.ts",
+    "start": "ts-node src/main.ts",
+    "dev": "ts-node --watch src/main.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test": "echo \"Error: no test specified\" && exit 1"

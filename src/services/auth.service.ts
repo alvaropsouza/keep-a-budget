@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { prisma } from "../lib/prisma";
@@ -57,6 +58,7 @@ const unauthorized = (): never => {
   throw new AppError("Unauthorized", 401);
 };
 
+@Injectable()
 export class AuthService {
   async loginWithEmail(email: string, password: string): Promise<AuthSession> {
     const normalizedEmail = normalizeEmail(email);
@@ -119,26 +121,28 @@ export class AuthService {
       unauthorized();
     }
 
-    if (session.revokedAt) {
+    const validSession = session!;
+
+    if (validSession.revokedAt) {
       unauthorized();
     }
 
-    if (session.expiresAt.getTime() <= Date.now()) {
+    if (validSession.expiresAt.getTime() <= Date.now()) {
       unauthorized();
     }
 
     await prisma.userSession.update({
-      where: { id: session.id },
+      where: { id: validSession.id },
       data: { updatedAt: new Date() },
     });
 
     return {
       user: {
-        userId: session.user.id,
-        email: session.user.email,
-        name: buildUserName(session.user.name, session.user.lastName),
+        userId: validSession.user.id,
+        email: validSession.user.email,
+        name: buildUserName(validSession.user.name, validSession.user.lastName),
       },
-      expiresAt: session.expiresAt,
+      expiresAt: validSession.expiresAt,
       sessionToken: token,
     };
   }

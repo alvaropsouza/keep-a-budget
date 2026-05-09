@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import { IFixedExpense } from "../models/FixedExpense";
 import { FilterBuilder } from "../utils/filterBuilder";
 import { FixedExpenseQueryParamsDto } from "../dto/fixedExpense.dto";
@@ -40,6 +41,7 @@ const notFound = (): never => {
   throw error;
 };
 
+@Injectable()
 export class FixedExpenseService {
   buildFilter(
     userId: string,

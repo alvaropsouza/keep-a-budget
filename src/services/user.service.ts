@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import { IUser } from "../models/User";
 import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
@@ -24,6 +25,7 @@ const notFound = (): never => {
   throw error;
 };
 
+@Injectable()
 export class UserService {
   async getAll(): Promise<IUser[]> {
     const rows = await prisma.user.findMany({

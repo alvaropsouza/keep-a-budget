@@ -10,7 +10,7 @@ import { resolveSessionToken } from "../utils/sessionToken";
 
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
-  private readonly authService = new AuthService();
+  constructor(private readonly authService: AuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<FastifyRequest>();

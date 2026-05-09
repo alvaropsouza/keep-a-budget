@@ -1,65 +1,80 @@
-import { Controller, Delete, Get, Param, Post, Put, Req, Res, UseGuards } from "@nestjs/common";
-import { FastifyReply, FastifyRequest } from "fastify";
 import {
-  getAllUsers,
-  getUserByEmail,
-  getUserById,
-  createUser,
-  updateUser,
-  deleteUser,
-} from "../controllers/user.controller";
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Req,
+} from "@nestjs/common";
+import { FastifyRequest } from "fastify";
+import { UserService } from "../services/user.service";
+import { CreateUserDto, UpdateUserDto } from "../dto/user.dto";
 import { SessionAuthGuard } from "./session-auth.guard";
+import { AppError } from "../utils/AppError";
 
 @Controller("users")
 export class UsersHttpController {
+  constructor(private readonly userService: UserService) {}
+
   @UseGuards(SessionAuthGuard)
   @Get()
-  async getAll(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
-    await getAllUsers(req, reply);
+  async getAll(@Req() req: FastifyRequest) {
+    const authUser = req.authUser;
+    if (!authUser) throw new AppError("Unauthorized", 401);
+    const user = await this.userService.findById(authUser.userId);
+    return [user];
   }
 
   @UseGuards(SessionAuthGuard)
   @Get("by-email/:email")
-  async getByEmail(
-    @Param("email") _email: string,
-    @Req() req: FastifyRequest,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
-    await getUserByEmail(req, reply);
+  async getByEmail(@Param("email") email: string, @Req() req: FastifyRequest) {
+    const authUser = req.authUser;
+    if (!authUser) throw new AppError("Unauthorized", 401);
+    const normalized = email.trim().toLowerCase();
+    if (normalized !== authUser.email) throw new AppError("Unauthorized", 403);
+    return this.userService.findByEmail(email, true);
   }
 
   @UseGuards(SessionAuthGuard)
   @Get(":id")
-  async getById(
-    @Param("id") _id: string,
-    @Req() req: FastifyRequest,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
-    await getUserById(req, reply);
+  async getById(@Param("id") id: string, @Req() req: FastifyRequest) {
+    const authUser = req.authUser;
+    if (!authUser) throw new AppError("Unauthorized", 401);
+    if (id !== authUser.userId) throw new AppError("Unauthorized", 403);
+    return this.userService.findById(id);
   }
 
   @Post()
-  async create(@Req() req: FastifyRequest, @Res() reply: FastifyReply): Promise<void> {
-    await createUser(req, reply);
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Body() body: CreateUserDto) {
+    return this.userService.createUser(body as any);
   }
 
   @UseGuards(SessionAuthGuard)
   @Put(":id")
   async update(
-    @Param("id") _id: string,
+    @Param("id") id: string,
+    @Body() body: UpdateUserDto,
     @Req() req: FastifyRequest,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
-    await updateUser(req, reply);
+  ) {
+    const authUser = req.authUser;
+    if (!authUser) throw new AppError("Unauthorized", 401);
+    if (id !== authUser.userId) throw new AppError("Unauthorized", 403);
+    return this.userService.update(id, body as any);
   }
 
   @UseGuards(SessionAuthGuard)
   @Delete(":id")
-  async delete(
-    @Param("id") _id: string,
-    @Req() req: FastifyRequest,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
-    await deleteUser(req, reply);
+  async delete(@Param("id") id: string, @Req() req: FastifyRequest) {
+    const authUser = req.authUser;
+    if (!authUser) throw new AppError("Unauthorized", 401);
+    if (id !== authUser.userId) throw new AppError("Unauthorized", 403);
+    await this.userService.delete(id);
+    return { message: "User deleted successfully" };
   }
 }

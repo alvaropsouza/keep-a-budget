@@ -13,6 +13,7 @@ import { setupS3Bucket } from "./utils/s3Setup";
 import { invoiceClosureJob } from "./jobs/invoiceClosureJob";
 import corsPlugin from "./plugins/cors";
 import helmetPlugin from "./plugins/helmet";
+import { AppErrorFilter } from "./filters/app-error.filter";
 
 async function bootstrap(): Promise<void> {
   validateEnv();
@@ -22,6 +23,8 @@ async function bootstrap(): Promise<void> {
     new FastifyAdapter({ logger: fastifyLoggerConfig }),
   );
 
+  app.useGlobalFilters(new AppErrorFilter());
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -30,15 +33,19 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  await app.register(corsPlugin);
-  await app.register(helmetPlugin);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await app.register(corsPlugin as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await app.register(helmetPlugin as any);
 
-  await app.register(rateLimit, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await app.register(rateLimit as any, {
     max: 100,
     timeWindow: "1 minute",
   });
 
-  await app.register(multipart, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await app.register(multipart as any, {
     limits: {
       fileSize: 5 * 1024 * 1024,
     },

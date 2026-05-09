@@ -1,5 +1,5 @@
-import { BaseService } from "./base.service";
-import Expense, { IExpense } from "../models/Expense";
+import { Prisma } from "@prisma/client";
+import { IExpense } from "../models/Expense";
 import { InvoiceService } from "./invoice.service";
 import { ExpenseTypeEnum } from "../enums/expenseType.enum";
 import { FilterBuilder } from "../utils/filterBuilder";
@@ -8,7 +8,7 @@ import { uploadToS3, getSignedS3Url } from "../utils/s3Upload";
 import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { runWithTransaction } from "../utils/runWithTransaction";
-import { ClientSession } from "mongoose";
+import { prisma } from "../lib/prisma";
 
 interface CreateExpenseData {
   bank: string;
@@ -28,11 +28,41 @@ interface FileData {
   userEmail?: string;
 }
 
-export class ExpenseService extends BaseService<IExpense> {
+const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
+  value == null ? 0 : Number(value);
+
+const mapExpense = (row: any): IExpense => ({
+  id: row.id,
+  _id: row.id,
+  bank: row.bank,
+  type: row.type,
+  category: row.category,
+  date: new Date(row.date),
+  amount: toNumber(row.amount),
+  description: row.description ?? "",
+  receipt: row.receipt ?? undefined,
+  installment:
+    row.installmentCurrent || row.installmentTotal
+      ? {
+          current: row.installmentCurrent ?? undefined,
+          total: row.installmentTotal ?? undefined,
+        }
+      : undefined,
+  cardInvoiceId: row.cardInvoiceId,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+const notFound = (): never => {
+  const error = new AppError("Resource not found", 404);
+  (error as Error).name = "DocumentNotFoundError";
+  throw error;
+};
+
+export class ExpenseService {
   private invoiceService: InvoiceService;
 
   constructor() {
-    super(Expense);
     this.invoiceService = new InvoiceService();
   }
 
@@ -55,8 +85,119 @@ export class ExpenseService extends BaseService<IExpense> {
       .build();
   }
 
+  async findById(id: string, tx?: Prisma.TransactionClient): Promise<IExpense> {
+    const db = tx ?? prisma;
+    const row = await db.expense.findUnique({ where: { id } });
+    if (!row) {
+      notFound();
+    }
+    return mapExpense(row);
+  }
+
+  private async create(
+    data: Partial<IExpense>,
+    tx?: Prisma.TransactionClient,
+  ): Promise<IExpense> {
+    const db = tx ?? prisma;
+    const row = await db.expense.create({
+      data: {
+        bank: data.bank!,
+        type: data.type!,
+        category: data.category!,
+        date: data.date!,
+        amount: data.amount!,
+        description: data.description ?? "",
+        receipt: data.receipt ?? null,
+        installmentCurrent: data.installment?.current ?? null,
+        installmentTotal: data.installment?.total ?? null,
+        cardInvoiceId: data.cardInvoiceId ?? null,
+      },
+    });
+
+    return mapExpense(row);
+  }
+
+  async update(
+    id: string,
+    data: Partial<IExpense>,
+    tx?: Prisma.TransactionClient,
+  ): Promise<IExpense> {
+    const db = tx ?? prisma;
+    const row = await db.expense
+      .update({
+        where: { id },
+        data: {
+          ...(data.bank !== undefined ? { bank: data.bank } : {}),
+          ...(data.type !== undefined ? { type: data.type } : {}),
+          ...(data.category !== undefined ? { category: data.category } : {}),
+          ...(data.date !== undefined ? { date: data.date } : {}),
+          ...(data.amount !== undefined ? { amount: data.amount } : {}),
+          ...(data.description !== undefined ? { description: data.description } : {}),
+          ...(data.receipt !== undefined ? { receipt: data.receipt } : {}),
+          ...(data.cardInvoiceId !== undefined
+            ? { cardInvoiceId: data.cardInvoiceId }
+            : {}),
+        },
+      })
+      .catch(() => null);
+
+    if (!row) {
+      notFound();
+    }
+
+    return mapExpense(row);
+  }
+
+  async delete(id: string, tx?: Prisma.TransactionClient): Promise<IExpense> {
+    const db = tx ?? prisma;
+    const row = await db.expense.delete({ where: { id } }).catch(() => null);
+    if (!row) {
+      notFound();
+    }
+    return mapExpense(row);
+  }
+
   async getAll(filter: Record<string, unknown>): Promise<IExpense[]> {
-    return this.findAll(filter, { date: -1 });
+    const amountRange = filter.amount as { $gte?: number; $lte?: number } | undefined;
+    const createdRange = filter.createdAt as { $gte?: Date; $lte?: Date } | undefined;
+    const updatedRange = filter.updatedAt as { $gte?: Date; $lte?: Date } | undefined;
+
+    const rows = await prisma.expense.findMany({
+      where: {
+        ...(filter.bank !== undefined ? { bank: String(filter.bank) } : {}),
+        ...(filter.category !== undefined ? { category: String(filter.category) } : {}),
+        ...(filter.cardInvoiceId !== undefined
+          ? { cardInvoiceId: String(filter.cardInvoiceId) }
+          : {}),
+        ...(amountRange
+          ? {
+              amount: {
+                gte: amountRange.$gte,
+                lte: amountRange.$lte,
+              },
+            }
+          : {}),
+        ...(createdRange
+          ? {
+              createdAt: {
+                gte: createdRange.$gte,
+                lte: createdRange.$lte,
+              },
+            }
+          : {}),
+        ...(updatedRange
+          ? {
+              updatedAt: {
+                gte: updatedRange.$gte,
+                lte: updatedRange.$lte,
+              },
+            }
+          : {}),
+      },
+      orderBy: { date: "desc" },
+    });
+
+    return rows.map(mapExpense);
   }
 
   async createExpense(
@@ -75,8 +216,7 @@ export class ExpenseService extends BaseService<IExpense> {
       "Starting expense creation",
     );
 
-    const { installmentTotal, installmentStartDate, installmentStartNumber } =
-      data;
+    const { installmentTotal, installmentStartDate, installmentStartNumber } = data;
 
     if (
       installmentStartNumber &&
@@ -109,12 +249,12 @@ export class ExpenseService extends BaseService<IExpense> {
       : new Date();
 
     const expense = await runWithTransaction(
-      async (session) => {
+      async (tx) => {
         logger.debug(
           {
             bank: data.bank,
             expenseDate,
-            hasSession: Boolean(session),
+            hasSession: Boolean(tx),
           },
           "Resolving invoice for single expense",
         );
@@ -122,7 +262,7 @@ export class ExpenseService extends BaseService<IExpense> {
         const cardInvoice = await this.invoiceService.findForExpenseDate(
           data.bank,
           expenseDate,
-          session,
+          tx,
         );
 
         if (cardInvoice?.isClosed) {
@@ -137,23 +277,23 @@ export class ExpenseService extends BaseService<IExpense> {
             ...(data as any),
             type: ExpenseTypeEnum.EXPENSE,
             date: expenseDate,
-            cardInvoiceId: cardInvoice?._id,
+            cardInvoiceId: cardInvoice?.id ?? null,
           },
-          session,
+          tx,
         );
 
         if (cardInvoice) {
           logger.debug(
             {
-              invoiceId: cardInvoice._id,
+              invoiceId: cardInvoice.id,
               amount: createdExpense.amount,
             },
             "Updating invoice balance after expense creation",
           );
           await this.invoiceService.updateBalance(
-            cardInvoice._id,
+            cardInvoice.id,
             createdExpense.amount,
-            session,
+            tx,
           );
         }
 
@@ -170,16 +310,13 @@ export class ExpenseService extends BaseService<IExpense> {
     );
 
     if (file) {
-      const receiptUrl = await this.uploadReceipt(expense._id, file);
+      const receiptUrl = await this.uploadReceipt(expense.id, file);
       if (receiptUrl) {
         expense.receipt = receiptUrl;
       }
     }
 
-    logger.info(
-      { expenseId: expense._id, amount: expense.amount },
-      "Expense created",
-    );
+    logger.info({ expenseId: expense.id, amount: expense.amount }, "Expense created");
     return expense;
   }
 
@@ -199,13 +336,13 @@ export class ExpenseService extends BaseService<IExpense> {
     }
 
     const savedExpenses = await runWithTransaction(
-      async (session) => {
+      async (tx) => {
         logger.debug(
           {
             bank: data.bank,
             installmentTotal,
             firstInstallment,
-            hasSession: Boolean(session),
+            hasSession: Boolean(tx),
           },
           "Building installment expenses",
         );
@@ -215,30 +352,32 @@ export class ExpenseService extends BaseService<IExpense> {
           installmentTotal,
           startDate,
           firstInstallment,
-          session,
+          tx,
         );
-        const insertedExpenses = await Expense.insertMany(expenses, {
-          session,
-        });
 
+        const insertedExpenses: IExpense[] = [];
         const balancesByInvoice = new Map<string, number>();
-        for (const expense of insertedExpenses) {
-          if (!expense.cardInvoiceId) {
+
+        for (const expense of expenses) {
+          const inserted = await this.create(expense, tx);
+          insertedExpenses.push(inserted);
+
+          if (!inserted.cardInvoiceId) {
             continue;
           }
 
-          const invoiceId = expense.cardInvoiceId.toString();
+          const invoiceId = inserted.cardInvoiceId.toString();
           balancesByInvoice.set(
             invoiceId,
-            (balancesByInvoice.get(invoiceId) ?? 0) + expense.amount,
+            (balancesByInvoice.get(invoiceId) ?? 0) + inserted.amount,
           );
         }
 
         for (const [invoiceId, amount] of balancesByInvoice) {
-          await this.invoiceService.updateBalance(invoiceId, amount, session);
+          await this.invoiceService.updateBalance(invoiceId, amount, tx);
         }
 
-        return insertedExpenses as IExpense[];
+        return insertedExpenses;
       },
       {
         operationName: "expense.createInstallments",
@@ -262,21 +401,18 @@ export class ExpenseService extends BaseService<IExpense> {
     installmentTotal: number,
     startDate?: string,
     installmentStartNumber: number = 1,
-    session?: ClientSession,
-  ): Promise<IExpense[]> {
-    const expenses: IExpense[] = [];
+    tx?: Prisma.TransactionClient,
+  ): Promise<Partial<IExpense>[]> {
+    const expenses: Partial<IExpense>[] = [];
     const baseDate = startDate ? new Date(startDate) : new Date();
     const firstInstallment = installmentStartNumber ?? 1;
 
     for (let i = firstInstallment; i <= installmentTotal; i++) {
-      const targetDate = this.calculateInstallmentDate(
-        baseDate,
-        i - firstInstallment,
-      );
+      const targetDate = this.calculateInstallmentDate(baseDate, i - firstInstallment);
       const cardInvoice = await this.invoiceService.ensureInvoiceForDate(
         baseData.bank,
         targetDate,
-        session,
+        tx,
       );
 
       if (cardInvoice?.isClosed) {
@@ -286,7 +422,7 @@ export class ExpenseService extends BaseService<IExpense> {
         );
       }
 
-      const expense = new Expense({
+      expenses.push({
         ...(baseData as any),
         type: ExpenseTypeEnum.EXPENSE,
         description: `${baseData.description || baseData.category} (${i}/${installmentTotal})`,
@@ -295,10 +431,8 @@ export class ExpenseService extends BaseService<IExpense> {
           current: i,
           total: installmentTotal,
         },
-        cardInvoiceId: cardInvoice?._id,
+        cardInvoiceId: cardInvoice?.id ?? null,
       });
-
-      expenses.push(expense);
     }
 
     return expenses;
@@ -312,27 +446,23 @@ export class ExpenseService extends BaseService<IExpense> {
     const targetMonth = month + monthsToAdd;
     const targetDate = new Date(Date.UTC(year, targetMonth, day));
 
-    // Handle day overflow (e.g., Jan 31 -> Feb 31 = Feb 28/29)
     if (targetDate.getUTCDate() !== day) {
-      targetDate.setUTCDate(0); // Set to last day of previous month
+      targetDate.setUTCDate(0);
     }
 
     return targetDate;
   }
 
-  async updateExpense(
-    id: string,
-    updateData: Partial<IExpense>,
-  ): Promise<IExpense> {
+  async updateExpense(id: string, updateData: Partial<IExpense>): Promise<IExpense> {
     return runWithTransaction(
-      async (session) => {
-        const oldExpense = await this.findById(id, undefined, session);
+      async (tx) => {
+        const oldExpense = await this.findById(id, tx);
 
         if (oldExpense.cardInvoiceId) {
           const invoice = await this.invoiceService.findById(
             oldExpense.cardInvoiceId.toString(),
             undefined,
-            session,
+            tx,
           );
           if (invoice?.isClosed) {
             throw new AppError(
@@ -342,7 +472,7 @@ export class ExpenseService extends BaseService<IExpense> {
           }
         }
 
-        const expense = await this.update(id, updateData, session);
+        const expense = await this.update(id, updateData, tx);
 
         if (
           updateData.amount !== undefined &&
@@ -350,11 +480,7 @@ export class ExpenseService extends BaseService<IExpense> {
           expense.cardInvoiceId
         ) {
           const delta = updateData.amount - oldExpense.amount;
-          await this.invoiceService.updateBalance(
-            expense.cardInvoiceId,
-            delta,
-            session,
-          );
+          await this.invoiceService.updateBalance(expense.cardInvoiceId, delta, tx);
         }
 
         return expense;
@@ -371,14 +497,14 @@ export class ExpenseService extends BaseService<IExpense> {
 
   async deleteExpense(id: string): Promise<void> {
     await runWithTransaction(
-      async (session) => {
-        const expense = await this.findById(id, undefined, session);
+      async (tx) => {
+        const expense = await this.findById(id, tx);
 
         if (expense.cardInvoiceId) {
           const invoice = await this.invoiceService.findById(
             expense.cardInvoiceId.toString(),
             undefined,
-            session,
+            tx,
           );
           if (invoice?.isClosed) {
             throw new AppError(
@@ -388,13 +514,13 @@ export class ExpenseService extends BaseService<IExpense> {
           }
         }
 
-        await this.delete(id, session);
+        await this.delete(id, tx);
 
         if (expense.cardInvoiceId) {
           await this.invoiceService.updateBalance(
             expense.cardInvoiceId,
             -expense.amount,
-            session,
+            tx,
           );
         }
       },
@@ -409,17 +535,11 @@ export class ExpenseService extends BaseService<IExpense> {
     logger.info({ expenseId: id }, "Expense deleted");
   }
 
-  async uploadReceipt(expenseId: any, file: FileData): Promise<string | null> {
+  async uploadReceipt(expenseId: string, file: FileData): Promise<string | null> {
     try {
-      // Upload to S3 and store the key (not public URL)
-      const s3Key = await uploadToS3(
-        file.buffer,
-        file.filename,
-        file.mimetype,
-        {
-          userEmail: file.userEmail,
-        },
-      );
+      const s3Key = await uploadToS3(file.buffer, file.filename, file.mimetype, {
+        userEmail: file.userEmail,
+      });
       await this.update(expenseId, { receipt: s3Key } as any);
       logger.info({ expenseId }, "Receipt uploaded (private)");
       return s3Key;
@@ -429,39 +549,24 @@ export class ExpenseService extends BaseService<IExpense> {
     }
   }
 
-  /**
-   * Generate a temporary signed URL for accessing a receipt
-   * @param s3Key - The S3 key stored in the receipt field
-   * @param expiresIn - URL expiration time in seconds (default: 1 hour)
-   * @returns Pre-signed URL with temporary access
-   */
-  async getReceiptUrl(
-    s3Key: string,
-    expiresIn: number = 3600,
-  ): Promise<string> {
+  async getReceiptUrl(s3Key: string, expiresIn: number = 3600): Promise<string> {
     return getSignedS3Url(s3Key, expiresIn);
   }
 
-  /**
-   * Get expenses with signed receipt URLs
-   * @param filter - Query filter
-   * @returns Expenses with temporary receipt URLs
-   */
   async getAllWithSignedReceipts(
     filter: Record<string, unknown>,
   ): Promise<IExpense[]> {
     const expenses = await this.getAll(filter);
 
-    // Generate signed URLs for receipts
     const expensesWithSignedUrls = await Promise.all(
       expenses.map(async (expense) => {
         if (expense.receipt) {
           try {
             const signedUrl = await this.getReceiptUrl(expense.receipt);
-            return { ...expense.toObject(), receipt: signedUrl };
+            return { ...expense, receipt: signedUrl };
           } catch (error) {
             logger.error(
-              { expenseId: expense._id, error },
+              { expenseId: expense.id, error },
               "Failed to generate signed URL for receipt",
             );
             return expense;
@@ -475,11 +580,7 @@ export class ExpenseService extends BaseService<IExpense> {
   }
 
   async deleteReceipt(id: string): Promise<IExpense> {
-    const expense = await Expense.findByIdAndUpdate(
-      id,
-      { $unset: { receipt: 1 } },
-      { new: true },
-    ).orFail();
+    const expense = await this.update(id, { receipt: null as any });
 
     logger.info({ expenseId: id }, "Receipt removed");
     return expense;

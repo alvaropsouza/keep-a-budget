@@ -1,21 +1,21 @@
 version: "3.8"
 
 services:
-  mongo:
-    image: mongo:7.0
-    container_name: keep-a-budget-mongo
+  postgres:
+    image: postgres:16-alpine
+    container_name: keep-a-budget-postgres
     restart: unless-stopped
     environment:
-      MONGO_INITDB_DATABASE: keep-a-budget
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
+      POSTGRES_DB: keep-a-budget
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
     ports:
-      - "27017:27017"
+      - "5432:5432"
     volumes:
-      - mongo_data:/data/db
-      - mongo_config:/data/configdb
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test: ["CMD-SHELL", "pg_isready -U admin -d keep-a-budget"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,9 +44,7 @@ services:
       - keep-a-budget-network
 
 volumes:
-  mongo_data:
-    driver: local
-  mongo_config:
+  postgres_data:
     driver: local
   minio_data:
     driver: local

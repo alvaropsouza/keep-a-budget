@@ -1,6 +1,11 @@
 import { FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import { AppError } from "../utils/AppError";
-import mongoose from "mongoose";
+
+type PgError = {
+  code?: string;
+  detail?: string;
+  constraint?: string;
+};
 
 export const errorHandler = (
   error: FastifyError | Error,
@@ -30,34 +35,34 @@ export const errorHandler = (
     });
   }
 
-  if (error instanceof mongoose.Error.DocumentNotFoundError) {
+  if ((error as Error).name === "DocumentNotFoundError") {
     return reply.status(404).send({
       error: "Resource not found",
     });
   }
 
-  if (error instanceof mongoose.Error.CastError) {
+  const pgError = error as PgError;
+
+  if (pgError?.code === "22P02") {
     return reply.status(400).send({
-      error: `Invalid ${error.path}: ${error.value}`,
+      error: "Invalid identifier format",
     });
   }
 
-  if (error instanceof mongoose.Error.ValidationError) {
-    const errors = Object.values(error.errors).map((el) => el.message);
+  if (pgError?.code === "23514") {
     return reply.status(400).send({
-      error: `Invalid input data. ${errors.join(". ")}`,
+      error: "Invalid input data",
+      details: pgError.detail,
     });
   }
 
-  const mongoError = error as mongoose.mongo.MongoServerError;
-  if (mongoError?.code === 11000) {
-    const duplicateFields = mongoError.keyValue || {};
-    const message = duplicateFields.email
+  if (pgError?.code === "23505") {
+    const message = pgError.constraint?.includes("email")
       ? "User already exists with this email"
       : "Duplicate key error";
     return reply.status(409).send({
       error: message,
-      details: duplicateFields,
+      details: pgError.detail,
     });
   }
 

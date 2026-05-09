@@ -1,10 +1,9 @@
-import { BaseService } from "./base.service";
-import FixedExpense, { IFixedExpense } from "../models/FixedExpense";
+import { IFixedExpense } from "../models/FixedExpense";
 import { FilterBuilder } from "../utils/filterBuilder";
 import { FixedExpenseQueryParamsDto } from "../dto/fixedExpense.dto";
 import logger from "../config/logger";
-import mongoose from "mongoose";
 import { AppError } from "../utils/AppError";
+import { prisma } from "../lib/prisma";
 
 interface CreateFixedExpenseData {
   name: string;
@@ -22,11 +21,26 @@ interface UpdateFixedExpenseData {
   isActive?: boolean;
 }
 
-export class FixedExpenseService extends BaseService<IFixedExpense> {
-  constructor() {
-    super(FixedExpense);
-  }
+const mapFixedExpense = (row: any): IFixedExpense => ({
+  id: row.id,
+  _id: row.id,
+  userId: row.userId,
+  name: row.name,
+  amount: Number(row.amount),
+  description: row.description ?? "",
+  dueDay: row.dueDay,
+  isActive: row.isActive,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
 
+const notFound = (): never => {
+  const error = new AppError("Resource not found", 404);
+  (error as Error).name = "DocumentNotFoundError";
+  throw error;
+};
+
+export class FixedExpenseService {
   buildFilter(
     userId: string,
     queryParams: FixedExpenseQueryParamsDto,
@@ -35,7 +49,6 @@ export class FixedExpenseService extends BaseService<IFixedExpense> {
       .addEquals("isActive", queryParams.isActive?.toString())
       .build();
 
-    // Só adiciona userId ao filtro se ele existir
     if (userId) {
       filter.userId = userId;
     }
@@ -47,28 +60,78 @@ export class FixedExpenseService extends BaseService<IFixedExpense> {
     userId: string,
     filter: Record<string, unknown>,
   ): Promise<IFixedExpense[]> {
-    const finalFilter = userId ? { ...filter, userId } : filter;
-    return this.findAll(finalFilter, { createdAt: -1 });
+    const rows = await prisma.fixedExpense.findMany({
+      where: {
+        ...(userId ? { userId } : {}),
+        ...(filter.isActive !== undefined
+          ? {
+              isActive:
+                typeof filter.isActive === "boolean"
+                  ? filter.isActive
+                  : filter.isActive === "true",
+            }
+          : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return rows.map(mapFixedExpense);
+  }
+
+  async findById(id: string): Promise<IFixedExpense> {
+    const row = await prisma.fixedExpense.findUnique({ where: { id } });
+    if (!row) {
+      notFound();
+    }
+    return mapFixedExpense(row);
+  }
+
+  async update(id: string, data: UpdateFixedExpenseData): Promise<IFixedExpense> {
+    const row = await prisma.fixedExpense.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.amount !== undefined ? { amount: data.amount } : {}),
+        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.dueDay !== undefined ? { dueDay: data.dueDay } : {}),
+        ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+      },
+    }).catch(() => null);
+
+    if (!row) {
+      notFound();
+    }
+
+    return mapFixedExpense(row);
+  }
+
+  async delete(id: string): Promise<IFixedExpense> {
+    const row = await prisma.fixedExpense.delete({ where: { id } }).catch(() => null);
+    if (!row) {
+      notFound();
+    }
+    return mapFixedExpense(row);
   }
 
   async createFixedExpense(
     userId: string,
     data: CreateFixedExpenseData,
   ): Promise<IFixedExpense> {
-    const fixedExpenseData: any = {
-      ...data,
-      isActive: data.isActive ?? true,
-    };
+    const row = await prisma.fixedExpense.create({
+      data: {
+        userId: userId || null,
+        name: data.name,
+        amount: data.amount,
+        description: data.description ?? "",
+        dueDay: data.dueDay ?? null,
+        isActive: data.isActive ?? true,
+      },
+    });
 
-    // Só adiciona userId se ele existir
-    if (userId) {
-      fixedExpenseData.userId = new mongoose.Types.ObjectId(userId);
-    }
-
-    const fixedExpense = await this.create(fixedExpenseData);
+    const fixedExpense = mapFixedExpense(row);
 
     logger.info(
-      { fixedExpenseId: fixedExpense._id, amount: fixedExpense.amount },
+      { fixedExpenseId: fixedExpense.id, amount: fixedExpense.amount },
       "Fixed expense created",
     );
     return fixedExpense;
@@ -79,7 +142,6 @@ export class FixedExpenseService extends BaseService<IFixedExpense> {
     userId: string,
     data: UpdateFixedExpenseData,
   ): Promise<IFixedExpense> {
-    // Verificar se a despesa fixa pertence ao usuário (se userId existir)
     if (userId) {
       const existingFixedExpense = await this.findById(id);
       if (
@@ -99,7 +161,6 @@ export class FixedExpenseService extends BaseService<IFixedExpense> {
   }
 
   async deleteFixedExpense(id: string, userId: string): Promise<void> {
-    // Verificar se a despesa fixa pertence ao usuário (se userId existir)
     if (userId) {
       const existingFixedExpense = await this.findById(id);
       if (
@@ -115,12 +176,7 @@ export class FixedExpenseService extends BaseService<IFixedExpense> {
   }
 
   async getTotalFixedExpenses(userId: string): Promise<number> {
-    const filter: any = { isActive: true };
-    if (userId) {
-      filter.userId = userId;
-    }
-
-    const activeFixedExpenses = await this.findAll(filter, {});
+    const activeFixedExpenses = await this.getAll(userId, { isActive: true });
     return activeFixedExpenses.reduce(
       (total, expense) => total + expense.amount,
       0,

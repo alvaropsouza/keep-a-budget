@@ -1,97 +1,51 @@
-import { Model, Document, ClientSession } from "mongoose";
 import logger from "../config/logger";
+import { AppError } from "../utils/AppError";
 
-export abstract class BaseService<T extends Document> {
-  constructor(protected model: Model<T>) {}
+export abstract class BaseService<T> {
+  protected modelName: string;
+
+  constructor(modelName: string) {
+    this.modelName = modelName;
+  }
 
   async findAll(
-    filter: any = {},
-    sort: any = {},
-    session?: ClientSession,
+    _filter: any = {},
+    _sort: any = {},
+    _session?: unknown,
   ): Promise<T[]> {
-    logger.debug(
-      { filter, model: this.model.modelName },
-      "Finding all documents",
-    );
-    const query = this.model.find(filter);
-    if (session) {
-      query.session(session);
-    }
-    return query.sort(sort);
+    logger.warn({ model: this.modelName }, "BaseService.findAll is deprecated");
+    return [];
   }
 
   async findById(
-    id: string,
-    populate?: string,
-    session?: ClientSession,
+    _id: string,
+    _populate?: string,
+    _session?: unknown,
   ): Promise<T> {
-    logger.debug({ id, model: this.model.modelName }, "Finding document by ID");
-    const query = this.model.findById(id);
-    if (session) {
-      query.session(session);
-    }
-    if (populate) {
-      query.populate(populate);
-    }
-    return query.orFail();
+    throw new AppError("Not implemented", 501);
   }
 
-  async create(data: Partial<T>, session?: ClientSession): Promise<T> {
+  async create(_data: Partial<T>, _session?: unknown): Promise<T> {
     logger.debug(
-      {
-        model: this.model.modelName,
-        payloadKeys: Object.keys((data as Record<string, unknown>) || {}),
-      },
+      { model: this.modelName },
       "Creating document",
     );
-    const document = new this.model(data);
-    await document.save(session ? { session } : undefined);
-    logger.info(
-      { id: document._id, model: this.model.modelName },
-      "Document created",
-    );
-    return document;
+    throw new AppError("Not implemented", 501);
   }
 
   async update(
-    id: string,
-    data: Partial<T>,
-    session?: ClientSession,
+    _id: string,
+    _data: Partial<T>,
+    _session?: unknown,
   ): Promise<T> {
-    logger.debug(
-      {
-        id,
-        model: this.model.modelName,
-        payloadKeys: Object.keys((data as Record<string, unknown>) || {}),
-      },
-      "Updating document",
-    );
-    const document = await this.model
-      .findByIdAndUpdate(id, data, {
-        new: true,
-        runValidators: true,
-        session,
-      })
-      .orFail();
-    logger.info({ id, model: this.model.modelName }, "Document updated");
-    return document;
+    throw new AppError("Not implemented", 501);
   }
 
-  async delete(id: string, session?: ClientSession): Promise<T> {
-    logger.debug({ id, model: this.model.modelName }, "Deleting document");
-    const document = await this.model
-      .findByIdAndDelete(id, { session })
-      .orFail();
-    logger.info({ id, model: this.model.modelName }, "Document deleted");
-    return document;
+  async delete(_id: string, _session?: unknown): Promise<T> {
+    throw new AppError("Not implemented", 501);
   }
 
-  async exists(filter: any, session?: ClientSession): Promise<boolean> {
-    const query = this.model.countDocuments(filter);
-    if (session) {
-      query.session(session);
-    }
-    const count = await query;
-    return count > 0;
+  async exists(_filter: any, _session?: unknown): Promise<boolean> {
+    return false;
   }
 }

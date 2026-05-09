@@ -2,7 +2,7 @@ import {
   IsString,
   IsNumber,
   IsOptional,
-  IsMongoId,
+  IsUUID,
   Min,
   IsDateString,
   IsEnum,
@@ -61,7 +61,7 @@ export class UpdateExpenseDto {
   @IsOptional()
   description?: string;
 
-  @IsMongoId()
+  @IsUUID()
   @IsOptional()
   cardInvoiceId?: string;
 }
@@ -75,7 +75,7 @@ export class ExpenseQueryParamsDto {
   @IsOptional()
   category?: string;
 
-  @IsMongoId()
+  @IsUUID()
   @IsOptional()
   cardInvoiceId?: string;
 

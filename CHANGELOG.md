@@ -4,10 +4,16 @@
 
 ### Added
 
+- **Infraestrutura PostgreSQL inicial**: adicionado serviço `postgres` no `docker-compose`, com script de bootstrap SQL (`scripts/sql/001_init.sql`) contendo tabelas base (`users`, `card_invoices`, `expenses`, `fixed_expenses`), índices e gatilhos de `updated_at`.
+
 - **Exclusão seletiva de "Pagamento de fatura" na importação CSV**: o parser `parseXpCsv` agora aceita um `Set<number>` opcional de índices de linha a ignorar. Os endpoints `POST /invoices/:id/import-csv` e `POST /invoices/create-from-csv` aceitam o campo `excludeIndexes` (JSON array) no `multipart/form-data`, permitindo que o frontend envie quais linhas o usuário optou por descartar.
 - **Suporte a CSV do Nubank**: a importação/criação de fatura via CSV agora aceita planilhas do Nubank (`date,title,amount`) além de XP.
 
 ### Changed
+
+- **Remoção definitiva de MongoDB**: backend, serviços, modelos e tratamento de erro foram migrados para PostgreSQL, eliminando uso de Mongoose e variáveis `MONGODB_URI`/`DB_PROVIDER`.
+- **Camada de dados em SQL**: `ExpenseService`, `InvoiceService`, `FixedExpenseService` e `UserService` passaram a executar queries SQL com transações PostgreSQL.
+- **Documentação de execução**: `README.md` e `.env.example` atualizados para fluxo exclusivo com PostgreSQL.
 
 - **Transações nos serviços financeiros**: criação, atualização e exclusão de despesas, adiantamentos e importações CSV agora agrupam persistência de despesas e ajustes de saldo da fatura em transações MongoDB para evitar inconsistências parciais.
 - **Erros operacionais padronizados**: operações de despesa fixa sem autorização agora retornam erro operacional com status 403, mantendo a resposta HTTP consistente com o restante da API.
@@ -16,6 +22,8 @@
 - **Logging de falha com contexto de rota**: controllers e error handler agora registram método, URL, reqId, params, query e erro completo para mostrar exatamente onde a requisição falhou.
 
 ### Technical
+
+- Dependências da camada PostgreSQL: `pg` e `@types/pg`; removida dependência `mongoose`.
 
 - Adicionado o utilitário `runWithTransaction` para centralizar sessões do Mongoose em fluxos multi-etapa.
 

@@ -1,6 +1,6 @@
-import { BaseService } from "./base.service";
-import CardInvoice, { ICardInvoice } from "../models/CardInvoice";
-import Expense from "../models/Expense";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { ICardInvoice } from "../models/CardInvoice";
+import { IExpense } from "../models/Expense";
 import { ExpenseTypeEnum } from "../enums/expenseType.enum";
 import { FilterBuilder } from "../utils/filterBuilder";
 import logger from "../config/logger";
@@ -8,12 +8,74 @@ import { AppError } from "../utils/AppError";
 import { InvoiceQueryParamsDto } from "../dto/invoice.dto";
 import { BanksEnum } from "../enums/banks.enum";
 import { parseInvoiceCsv } from "../utils/xpCsvParser";
-import { ClientSession } from "mongoose";
 import { runWithTransaction } from "../utils/runWithTransaction";
+import { prisma } from "../lib/prisma";
 
-export class InvoiceService extends BaseService<ICardInvoice> {
-  constructor() {
-    super(CardInvoice);
+const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
+  value == null ? 0 : Number(value);
+
+const mapExpense = (row: any): IExpense => ({
+  id: row.id,
+  _id: row.id,
+  bank: row.bank,
+  type: row.type,
+  category: row.category,
+  date: new Date(row.date),
+  amount: toNumber(row.amount),
+  description: row.description ?? "",
+  receipt: row.receipt ?? undefined,
+  installment:
+    row.installmentCurrent || row.installmentTotal
+      ? {
+          current: row.installmentCurrent ?? undefined,
+          total: row.installmentTotal ?? undefined,
+        }
+      : undefined,
+  cardInvoiceId: row.cardInvoiceId,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+const mapInvoice = (row: any, expenses?: IExpense[]): ICardInvoice => ({
+  id: row.id,
+  _id: row.id,
+  bank: row.bank,
+  closingDate: new Date(row.closingDate),
+  dueDate: new Date(row.dueDate),
+  balance: toNumber(row.balance),
+  advance: toNumber(row.advance),
+  isClosed: row.isClosed,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+  expenses,
+});
+
+const notFound = (): never => {
+  const error = new AppError("Resource not found", 404);
+  (error as Error).name = "DocumentNotFoundError";
+  throw error;
+};
+
+type TxClient = Prisma.TransactionClient;
+type DbClient = PrismaClient | TxClient;
+
+export class InvoiceService {
+  private getDb(client?: TxClient): DbClient {
+    return client ?? prisma;
+  }
+
+  private async findInvoiceById(
+    id: string,
+    client?: TxClient,
+  ): Promise<ICardInvoice> {
+    const db = this.getDb(client);
+    const row = await db.cardInvoice.findUnique({ where: { id } });
+
+    if (!row) {
+      notFound();
+    }
+
+    return mapInvoice(row);
   }
 
   private addMonthsClamped(date: Date, months: number): Date {
@@ -31,48 +93,15 @@ export class InvoiceService extends BaseService<ICardInvoice> {
 
   private async getLatestInvoice(
     bank: string,
-    session?: ClientSession,
+    client?: TxClient,
   ): Promise<ICardInvoice | null> {
-    const query = CardInvoice.findOne({ bank }).sort({ closingDate: -1 });
-    if (session) {
-      query.session(session);
-    }
-    return query.exec();
-  }
+    const db = this.getDb(client);
+    const row = await db.cardInvoice.findFirst({
+      where: { bank },
+      orderBy: { closingDate: "desc" },
+    });
 
-  private async safeCreateInvoice(
-    bank: string,
-    closingDate: Date,
-    dueDate: Date,
-    session?: ClientSession,
-  ): Promise<ICardInvoice> {
-    try {
-      return await this.createInvoice(
-        {
-          bank: bank as BanksEnum,
-          closingDate,
-          dueDate,
-          balance: 0,
-        },
-        session,
-      );
-    } catch (error) {
-      const isConflict =
-        (error instanceof AppError && error.statusCode === 409) ||
-        (error as { code?: number })?.code === 11000;
-
-      if (isConflict) {
-        const query = CardInvoice.findOne({ bank, closingDate });
-        if (session) {
-          query.session(session);
-        }
-        const existing = await query.exec();
-        if (existing) {
-          return existing;
-        }
-      }
-      throw error;
-    }
+    return row ? mapInvoice(row) : null;
   }
 
   buildFilter(queryParams: InvoiceQueryParamsDto): Record<string, unknown> {
@@ -94,95 +123,234 @@ export class InvoiceService extends BaseService<ICardInvoice> {
       .build();
   }
 
+  async findById(
+    id: string,
+    _populate?: string,
+    client?: TxClient,
+  ): Promise<ICardInvoice> {
+    return this.findInvoiceById(id, client);
+  }
+
+  async update(id: string, data: Partial<ICardInvoice>): Promise<ICardInvoice> {
+    const updateData: Prisma.CardInvoiceUpdateInput = {};
+
+    if (data.bank != null) {
+      updateData.bank = data.bank;
+    }
+    if (data.closingDate != null) {
+      updateData.closingDate = data.closingDate;
+    }
+    if (data.dueDate != null) {
+      updateData.dueDate = data.dueDate;
+    }
+    if (data.balance != null) {
+      updateData.balance = data.balance;
+    }
+    if (data.isClosed != null) {
+      updateData.isClosed = data.isClosed;
+    }
+
+    const row = await prisma.cardInvoice
+      .update({
+        where: { id },
+        data: updateData,
+      })
+      .catch(() => null);
+
+    if (!row) {
+      notFound();
+    }
+
+    return mapInvoice(row);
+  }
+
   async getAllWithExpenses(
     filter: Record<string, unknown>,
   ): Promise<ICardInvoice[]> {
-    return CardInvoice.find(filter).sort({ dueDate: -1 }).populate("expenses");
+    const bankFilter =
+      typeof filter.bank === "string" ? filter.bank : undefined;
+    const closingDateFilter = filter.closingDate as
+      | Date
+      | { $gte?: Date; $lte?: Date }
+      | undefined;
+    const dueDateFilter = filter.dueDate as Date | undefined;
+    const createdAtFilter = filter.createdAt as
+      | { $gte?: Date; $lte?: Date }
+      | undefined;
+    const updatedAtFilter = filter.updatedAt as
+      | { $gte?: Date; $lte?: Date }
+      | undefined;
+
+    const where: Prisma.CardInvoiceWhereInput = {};
+
+    if (bankFilter == null) {
+      // no-op
+    } else {
+      where.bank = bankFilter;
+    }
+
+    if (closingDateFilter == null) {
+      // no-op
+    } else if ((closingDateFilter as any).$gte) {
+      where.closingDate = {
+        gte: (closingDateFilter as any).$gte,
+        lte: (closingDateFilter as any).$lte,
+      };
+    } else {
+      where.closingDate = closingDateFilter as Date;
+    }
+
+    if (dueDateFilter == null) {
+      // no-op
+    } else {
+      where.dueDate = dueDateFilter;
+    }
+
+    if (createdAtFilter == null) {
+      // no-op
+    } else {
+      where.createdAt = {
+        gte: createdAtFilter.$gte,
+        lte: createdAtFilter.$lte,
+      };
+    }
+
+    if (updatedAtFilter == null) {
+      // no-op
+    } else {
+      where.updatedAt = {
+        gte: updatedAtFilter.$gte,
+        lte: updatedAtFilter.$lte,
+      };
+    }
+
+    const rows = await prisma.cardInvoice.findMany({
+      where,
+      include: {
+        expenses: {
+          orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+        },
+      },
+      orderBy: { dueDate: "desc" },
+    });
+
+    return rows.map((row: any) =>
+      mapInvoice(row, row.expenses.map(mapExpense)),
+    );
   }
 
   async getByIdWithExpenses(id: string): Promise<ICardInvoice> {
-    return this.findById(id, "expenses");
+    const row = await prisma.cardInvoice.findUnique({
+      where: { id },
+      include: {
+        expenses: {
+          orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+        },
+      },
+    });
+
+    if (!row) {
+      notFound();
+    }
+
+    return mapInvoice(row, row.expenses.map(mapExpense));
   }
 
   async checkDuplicate(
     bank: string,
     closingDate: string,
-    session?: ClientSession,
+    client?: TxClient,
   ): Promise<boolean> {
-    return this.exists(
-      {
+    const db = this.getDb(client);
+    const row = await db.cardInvoice.findFirst({
+      where: {
         bank,
         closingDate: new Date(closingDate),
       },
-      session,
-    );
+      select: { id: true },
+    });
+
+    return Boolean(row);
   }
 
   async createInvoice(
     data: Partial<ICardInvoice>,
-    session?: ClientSession,
+    client?: TxClient,
   ): Promise<ICardInvoice> {
     if (
       await this.checkDuplicate(
         data.bank!,
         data.closingDate!.toString(),
-        session,
+        client,
       )
     ) {
-      throw new AppError(
-        "Invoice already exists for this bank and period",
-        409,
-      );
+      throw new AppError("Invoice already exists for this bank and period", 409);
     }
-    return this.create(data, session);
+
+    const db = this.getDb(client);
+
+    const row = await db.cardInvoice.create({
+      data: {
+        bank: data.bank!,
+        closingDate: data.closingDate!,
+        dueDate: data.dueDate!,
+        balance: data.balance ?? 0,
+        advance: data.advance ?? 0,
+        isClosed: data.isClosed ?? false,
+      },
+    });
+
+    return mapInvoice(row);
   }
 
   async deleteWithExpenses(id: string): Promise<void> {
-    await runWithTransaction(async (session) => {
-      await Expense.deleteMany({ cardInvoiceId: id }, { session });
-      await this.delete(id, session);
+    await runWithTransaction(async (tx) => {
+      await tx.expense.deleteMany({ where: { cardInvoiceId: id } });
+      const deleted = await tx.cardInvoice.delete({ where: { id } }).catch(() => null);
+      if (!deleted) {
+        notFound();
+      }
     });
+
     logger.info({ invoiceId: id }, "Invoice and associated expenses deleted");
   }
 
   async advancePayment(id: string, amount: number): Promise<ICardInvoice> {
-    await runWithTransaction(async (session) => {
-      const invoice = await this.findById(id, undefined, session);
+    await runWithTransaction(async (tx) => {
+      const invoice = await this.findById(id, undefined, tx);
 
       const currentBalance = invoice.balance ?? 0;
       const advancedAmount = invoice.advance ?? 0;
       const availableBalance = currentBalance - advancedAmount;
 
       if (amount > availableBalance) {
-        throw new AppError(
-          "Advance amount cannot exceed available balance",
-          400,
-          {
-            currentBalance,
-            advancedAmount,
-            availableBalance,
-            requestedAmount: amount,
-          },
-        );
+        throw new AppError("Advance amount cannot exceed available balance", 400, {
+          currentBalance,
+          advancedAmount,
+          availableBalance,
+          requestedAmount: amount,
+        });
       }
 
-      await CardInvoice.findByIdAndUpdate(
-        id,
-        { $inc: { advance: amount, balance: -amount } },
-        { new: true, runValidators: true, session },
-      ).orFail();
-
-      const advanceExpense = new Expense({
-        bank: invoice.bank,
-        type: ExpenseTypeEnum.ADVANCE,
-        category: "Advance",
-        amount,
-        description: "Advance payment",
-        date: new Date(),
-        cardInvoiceId: invoice._id,
+      await tx.cardInvoice.update({
+        where: { id },
+        data: {
+          advance: { increment: amount },
+          balance: { decrement: amount },
+        },
       });
 
-      await advanceExpense.save({ session });
+      await tx.expense.create({
+        data: {
+          bank: invoice.bank,
+          type: ExpenseTypeEnum.ADVANCE,
+          category: "Advance",
+          date: new Date(),
+          amount,
+          description: "Advance payment",
+          cardInvoiceId: invoice.id,
+        },
+      });
     });
 
     logger.info({ invoiceId: id, amount }, "Advance payment processed");
@@ -190,60 +358,65 @@ export class InvoiceService extends BaseService<ICardInvoice> {
   }
 
   async updateBalance(
-    invoiceId: any,
+    invoiceId: string,
     delta: number,
-    session?: ClientSession,
+    client?: TxClient,
   ): Promise<void> {
-    await CardInvoice.findByIdAndUpdate(
-      invoiceId,
-      {
-        $inc: { balance: delta },
-      },
-      { session },
-    ).orFail();
+    const db = this.getDb(client);
+
+    const updated = await db.cardInvoice
+      .update({
+        where: { id: invoiceId },
+        data: { balance: { increment: delta } },
+        select: { id: true },
+      })
+      .catch(() => null);
+
+    if (!updated) {
+      notFound();
+    }
+
     logger.debug({ invoiceId, delta }, "Invoice balance updated");
   }
 
   async findForExpenseDate(
     bank: string,
     date: Date,
-    session?: ClientSession,
+    client?: TxClient,
   ): Promise<ICardInvoice | null> {
     const queryDate = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
     );
 
-    const query = CardInvoice.findOne({
-      bank,
-      closingDate: { $gte: queryDate },
-    }).sort({ closingDate: 1 });
+    const db = this.getDb(client);
+    const row = await db.cardInvoice.findFirst({
+      where: {
+        bank,
+        closingDate: {
+          gte: queryDate,
+        },
+      },
+      orderBy: { closingDate: "asc" },
+    });
 
-    if (session) {
-      query.session(session);
-    }
-
-    return query.exec();
+    return row ? mapInvoice(row) : null;
   }
 
   async ensureInvoiceForDate(
     bank: string,
     date: Date,
-    session?: ClientSession,
+    client?: TxClient,
   ): Promise<ICardInvoice> {
     const targetDate = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
     );
 
-    const existingInvoice = await this.findForExpenseDate(
-      bank,
-      targetDate,
-      session,
-    );
+    const existingInvoice = await this.findForExpenseDate(bank, targetDate, client);
     if (existingInvoice) {
       return existingInvoice;
     }
 
-    const latestInvoice = await this.getLatestInvoice(bank, session);
+    const latestInvoice = await this.getLatestInvoice(bank, client);
     if (!latestInvoice) {
       throw new AppError(
         `Nenhuma fatura cadastrada para o banco ${bank}. Crie a primeira fatura manualmente para definirmos o ciclo.`,
@@ -259,11 +432,14 @@ export class InvoiceService extends BaseService<ICardInvoice> {
       const nextClosingDate = this.addMonthsClamped(currentClosingDate, 1);
       const nextDueDate = this.addMonthsClamped(currentDueDate, 1);
 
-      createdInvoice = await this.safeCreateInvoice(
-        bank,
-        nextClosingDate,
-        nextDueDate,
-        session,
+      createdInvoice = await this.createInvoice(
+        {
+          bank: bank as BanksEnum,
+          closingDate: nextClosingDate,
+          dueDate: nextDueDate,
+          balance: 0,
+        },
+        client,
       );
 
       currentClosingDate = createdInvoice.closingDate;
@@ -273,30 +449,21 @@ export class InvoiceService extends BaseService<ICardInvoice> {
     return createdInvoice;
   }
 
-  async closeInvoice(
-    id: string,
-    manualBalance?: number,
-  ): Promise<ICardInvoice> {
+  async closeInvoice(id: string, manualBalance?: number): Promise<ICardInvoice> {
     const invoice = await this.findById(id);
 
     if (invoice.isClosed) {
       throw new AppError("Invoice is already closed", 400);
     }
 
-    const updateData: Partial<ICardInvoice> = {
-      isClosed: true,
-    };
-
-    if (manualBalance) {
+    const updateData: Partial<ICardInvoice> = { isClosed: true };
+    if (manualBalance != null) {
       updateData.balance = manualBalance;
     }
 
-    const updatedInvoice = await CardInvoice.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    })
-      .populate("expenses")
-      .orFail();
+    await this.update(id, updateData);
+
+    const updatedInvoice = await this.getByIdWithExpenses(id);
 
     logger.info(
       { invoiceId: id, finalBalance: updatedInvoice.balance },
@@ -312,29 +479,28 @@ export class InvoiceService extends BaseService<ICardInvoice> {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
 
-    const expiredInvoices = await CardInvoice.find({
-      isClosed: false,
-      closingDate: { $lt: today },
+    const expiredRows = await prisma.cardInvoice.findMany({
+      where: {
+        isClosed: false,
+        closingDate: { lt: today },
+      },
     });
 
     const closedInvoices: ICardInvoice[] = [];
 
-    for (const invoice of expiredInvoices) {
+    for (const invoice of expiredRows) {
       try {
-        const closed = await this.closeInvoice(invoice._id.toString());
+        const closed = await this.closeInvoice(invoice.id);
         closedInvoices.push(closed);
       } catch (error) {
         logger.error(
-          { invoiceId: invoice._id, error },
+          { invoiceId: invoice.id, error },
           "Failed to auto-close expired invoice",
         );
       }
     }
 
-    logger.info(
-      { total: closedInvoices.length },
-      "Auto-closed expired invoices",
-    );
+    logger.info({ total: closedInvoices.length }, "Auto-closed expired invoices");
 
     return {
       closed: closedInvoices.length,
@@ -349,16 +515,8 @@ export class InvoiceService extends BaseService<ICardInvoice> {
       throw new AppError("Invoice is not closed", 400);
     }
 
-    const updatedInvoice = await CardInvoice.findByIdAndUpdate(
-      id,
-      { isClosed: false },
-      {
-        new: true,
-        runValidators: true,
-      },
-    )
-      .populate("expenses")
-      .orFail();
+    await this.update(id, { isClosed: false });
+    const updatedInvoice = await this.getByIdWithExpenses(id);
 
     logger.info({ invoiceId: id }, "Invoice reopened");
     return updatedInvoice;
@@ -377,7 +535,7 @@ export class InvoiceService extends BaseService<ICardInvoice> {
       excludeIndexes ? new Set(excludeIndexes) : undefined,
     );
 
-    const invoiceId = await runWithTransaction(async (session) => {
+    const invoiceId = await runWithTransaction(async (tx) => {
       const invoice = await this.createInvoice(
         {
           bank,
@@ -385,42 +543,42 @@ export class InvoiceService extends BaseService<ICardInvoice> {
           dueDate: new Date(dueDate),
           balance: 0,
         },
-        session,
+        tx,
       );
 
       if (rows.length === 0) {
         logger.warn({ closingDate }, "CSV create produced no valid expenses");
-        return invoice._id.toString();
+        return invoice.id;
       }
 
-      const newExpenses = rows.map((row) => ({
-        bank,
-        type: ExpenseTypeEnum.EXPENSE,
-        category: "Importado",
-        date: row.date,
-        amount: row.amount,
-        description: row.description,
-        installment: row.installment ?? undefined,
-        cardInvoiceId: invoice._id,
-      }));
-
-      await Expense.insertMany(newExpenses, { session });
+      await tx.expense.createMany({
+        data: rows.map((row) => ({
+          bank,
+          type: ExpenseTypeEnum.EXPENSE,
+          category: "Importado",
+          date: row.date,
+          amount: row.amount,
+          description: row.description,
+          installmentCurrent: row.installment?.current ?? null,
+          installmentTotal: row.installment?.total ?? null,
+          cardInvoiceId: invoice.id,
+        })),
+      });
 
       const newTotal = rows.reduce((sum, r) => sum + r.amount, 0);
 
-      await CardInvoice.findByIdAndUpdate(
-        invoice._id,
-        { $inc: { balance: newTotal } },
-        { new: true, runValidators: true, session },
-      ).orFail();
+      await tx.cardInvoice.update({
+        where: { id: invoice.id },
+        data: { balance: { increment: newTotal } },
+      });
 
-      return invoice._id.toString();
+      return invoice.id;
     });
 
     const updatedInvoice = await this.getByIdWithExpenses(invoiceId);
 
     logger.info(
-      { invoiceId: updatedInvoice._id, imported: rows.length },
+      { invoiceId: updatedInvoice.id, imported: rows.length },
       "Invoice created from CSV",
     );
 
@@ -447,72 +605,67 @@ export class InvoiceService extends BaseService<ICardInvoice> {
       excludeIndexes ? new Set(excludeIndexes) : undefined,
     );
 
-    await runWithTransaction(async (session) => {
-      const existingExpenses = await Expense.find(
-        {
+    await runWithTransaction(async (tx) => {
+      const existing = await tx.expense.findMany({
+        where: {
           cardInvoiceId: id,
           type: ExpenseTypeEnum.EXPENSE,
         },
-        null,
-        { session },
-      );
+        select: { amount: true },
+      });
 
-      const existingExpensesTotal = existingExpenses.reduce(
-        (sum, expense) => sum + expense.amount,
+      const existingExpensesTotal = existing.reduce(
+        (sum: number, expense: { amount: Prisma.Decimal | number }) =>
+          sum + toNumber(expense.amount),
         0,
       );
 
-      await Expense.deleteMany(
-        {
+      await tx.expense.deleteMany({
+        where: {
           cardInvoiceId: id,
           type: ExpenseTypeEnum.EXPENSE,
         },
-        { session },
-      );
+      });
 
-      await CardInvoice.findByIdAndUpdate(
-        id,
-        {
-          $inc: { balance: -existingExpensesTotal },
+      await tx.cardInvoice.update({
+        where: { id },
+        data: {
+          balance: { decrement: existingExpensesTotal },
         },
-        { session },
-      ).orFail();
+      });
 
       if (rows.length === 0) {
         logger.warn({ invoiceId: id }, "CSV import produced no valid expenses");
-        return id;
+        return;
       }
 
-      const newExpenses = rows.map((row) => ({
-        bank: invoice.bank,
-        type: ExpenseTypeEnum.EXPENSE,
-        category: "Importado",
-        date: row.date,
-        amount: row.amount,
-        description: row.description,
-        installment: row.installment ?? undefined,
-        cardInvoiceId: invoice._id,
-      }));
-
-      await Expense.insertMany(newExpenses, { session });
+      await tx.expense.createMany({
+        data: rows.map((row) => ({
+          bank: invoice.bank,
+          type: ExpenseTypeEnum.EXPENSE,
+          category: "Importado",
+          date: row.date,
+          amount: row.amount,
+          description: row.description,
+          installmentCurrent: row.installment?.current ?? null,
+          installmentTotal: row.installment?.total ?? null,
+          cardInvoiceId: id,
+        })),
+      });
 
       const newTotal = rows.reduce((sum, row) => sum + row.amount, 0);
 
-      await CardInvoice.findByIdAndUpdate(
-        id,
-        { $inc: { balance: newTotal } },
-        { new: true, runValidators: true, session },
-      ).orFail();
-
-      return id;
+      await tx.cardInvoice.update({
+        where: { id },
+        data: {
+          balance: { increment: newTotal },
+        },
+      });
     });
 
     const updatedInvoice = await this.getByIdWithExpenses(id);
 
-    logger.info(
-      { invoiceId: id, imported: rows.length },
-      "CSV imported into invoice",
-    );
+    logger.info({ invoiceId: id, imported: rows.length }, "CSV imported into invoice");
 
     return updatedInvoice;
   }

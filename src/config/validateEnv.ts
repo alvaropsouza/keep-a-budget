@@ -1,6 +1,6 @@
 const validateEnv = (): void => {
   const required = [
-    "MONGODB_URI",
+    "DATABASE_URL",
     "AWS_REGION",
     "AWS_ACCESS_KEY_ID",
     "AWS_SECRET_ACCESS_KEY",

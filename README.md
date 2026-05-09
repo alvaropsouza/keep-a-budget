@@ -2,7 +2,7 @@
 
 > **✨ Projeto Recentemente Refatorado!** Esta aplicação passou por uma refatoração completa focada em clean code, reutilização de componentes e redução de complexidade. Veja [REFACTORING.md](./REFACTORING.md) para detalhes.
 
-Backend application for managing credit card invoices and expenses. Built with Node.js, Fastify, MongoDB, and AWS S3 (compatible with MinIO).
+Backend application for managing credit card invoices and expenses. Built with Node.js, Fastify, PostgreSQL, and AWS S3 (compatible with MinIO).
 
 ## 🚀 Features
 
@@ -46,7 +46,7 @@ The application requires the following environment variables:
 
 ```env
 PORT=3000
-MONGODB_URI=mongodb://admin:password@localhost:27017/keep-a-budget?authSource=admin
+DATABASE_URL=postgresql://admin:password@localhost:5432/keep-a-budget
 
 # AWS S3 / MinIO Configuration
 AWS_REGION=us-east-1
@@ -67,7 +67,7 @@ ALLOWED_ORIGIN_PATTERNS=
 
 ### 1. Start Infrastructure
 
-Start MongoDB and MinIO using Docker Compose:
+Start PostgreSQL and MinIO using Docker Compose:
 
 ```bash
 docker-compose up -d
@@ -97,7 +97,7 @@ src/
 ├── config/           # Configuration (database, S3, logger, error handling)
 ├── controllers/      # Request handlers (thin layer)
 ├── services/         # Business logic (reusable, testable)
-├── models/           # Mongoose models
+├── models/           # Domain model interfaces
 ├── dto/              # Data Transfer Objects with validation
 ├── routes/           # Route definitions
 ├── docs/             # Swagger schemas
@@ -111,7 +111,7 @@ src/
 - **Services Layer**: All business logic is in services, making it reusable and testable
 - **BaseService**: Generic CRUD operations inherited by all services
 - **BaseController**: Standard error handling and validation
-- **FilterBuilder**: Fluent API for building MongoDB queries
+- **FilterBuilder**: Fluent API for building dynamic query filters
 - **DTOs**: Centralized validation using class-validator
 
 See [REFACTORING.md](./REFACTORING.md) for detailed architecture information.
@@ -125,7 +125,7 @@ The API provides a Swagger UI documentation available at:
 
 The `docker-compose.yml` file provides:
 
-- **MongoDB**: Database service running on port `27017`.
+- **PostgreSQL**: Database service running on port `5432`.
 - **MinIO**: S3-compatible object storage running on ports `9000` (API) and `9001` (Console).
 
 Access MinIO Console at `http://localhost:9001` (User: `minioadmin`, Password: `minioadmin`).

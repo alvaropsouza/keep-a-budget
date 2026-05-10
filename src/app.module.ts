@@ -6,6 +6,7 @@ import { InvoicesModule } from "./modules/invoices.module";
 import { ExpensesModule } from "./modules/expenses.module";
 import { FixedExpensesModule } from "./modules/fixed-expenses.module";
 import { FreelanceInvoiceModule } from "./modules/freelance-invoice.module";
+import { FinancialGoalModule } from "./modules/financial-goal.module";
 import { CacheModule } from "./modules/cache.module";
 
 @Module({
@@ -17,6 +18,7 @@ import { CacheModule } from "./modules/cache.module";
     ExpensesModule,
     FixedExpensesModule,
     FreelanceInvoiceModule,
+    FinancialGoalModule,
   ],
   controllers: [HealthController],
 })

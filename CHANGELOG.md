@@ -4,7 +4,11 @@
 
 ### Added
 
-- **Cache inteligente em memória** (`CacheService`): sistema de cache baseado em `Map` com invalidação granular por **tags**. Suporta TTL opcional e estatísticas de memória.
+- **Módulo Metas Financeiras**: novo model `FinancialGoal` no Prisma com campos `name`, `description`, `targetAmount`, `currentAmount`, `deadline`, `category`, `status`.
+- **Migração** `20260510190235_add_financial_goals`: cria tabela `financial_goals` com índices por `user_id` e `status`.
+- **`FinancialGoalService`**: CRUD completo com formatação tipada de resposta.
+- **`FinancialGoalController`**: rotas `POST /financial-goals`, `GET /financial-goals`, `GET /financial-goals/:id`, `PUT /financial-goals/:id`, `DELETE /financial-goals/:id`, todas protegidas por `SessionAuthGuard`.
+- **`FinancialGoalModule`**: registrado no `AppModule`. (`CacheService`): sistema de cache baseado em `Map` com invalidação granular por **tags**. Suporta TTL opcional e estatísticas de memória.
 - **Middleware automático de cache invalidation** (`setupCacheInvalidationMiddleware`): middleware Prisma que invalida cache automaticamente ao detectar operações de `create`, `update`, `delete`. Sem lógica manual em cada service.
 - **CacheModule**: módulo NestJS que provê `CacheService` para todos os services.
 - **Cache integrado em `UserService`**: métodos `getAll()`, `findById()`, `findByEmail()` agora usam cache com tags `user`, `user:{id}`, `user:email:{email}`.

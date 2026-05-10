@@ -1,6 +1,6 @@
 {
   "name": "keep-a-budget",
-  "version": "7.3.0",
+  "version": "7.4.0",
   "description": "Backend app responsible for keeping track of credit card invoice expenses",
   "main": "dist/main.js",
   "scripts": {

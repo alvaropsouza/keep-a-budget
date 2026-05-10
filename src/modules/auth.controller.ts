@@ -99,7 +99,7 @@ export class AuthController {
 
     return this.authService.verifyPasskeyRegistration(
       authUser.userId,
-      body.response as RegistrationResponseJSON,
+      body.response as unknown as RegistrationResponseJSON,
     );
   }
 
@@ -115,7 +115,7 @@ export class AuthController {
   ) {
     const session = await this.authService.verifyPasskeyAuthentication(
       body.email,
-      body.response as AuthenticationResponseJSON,
+      body.response as unknown as AuthenticationResponseJSON,
     );
     reply.header("Set-Cookie", buildCookie(session.sessionToken, session.expiresAt));
     return toAuthPayload(session);

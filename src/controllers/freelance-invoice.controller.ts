@@ -35,7 +35,7 @@ export class FreelanceInvoiceController {
   }
 
   @Get()
-  async list(@Query("status") status?: string, @Request() req: FastifyRequest) {
+  async list(@Request() req: FastifyRequest, @Query("status") status?: string) {
     const authUser = req.authUser;
     if (!authUser) throw new AppError("Unauthorized", 401);
     return this.invoiceService.listByUser(authUser.userId, status);

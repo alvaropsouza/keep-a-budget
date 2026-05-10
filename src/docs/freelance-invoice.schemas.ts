@@ -1,4 +1,4 @@
-import { getSchemaPath } from "@nestjs/swagger";
+const getSchemaPath = (schemaName: string): string => `#/components/schemas/${schemaName}`;
 
 export const freelanceInvoiceSchemas = {
   InvoiceItem: {

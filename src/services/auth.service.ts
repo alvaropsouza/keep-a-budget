@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../utils/AppError";
 import {
+  type AuthenticatorTransportFuture,
   generateAuthenticationOptions,
   generateRegistrationOptions,
   type AuthenticationResponseJSON,
@@ -85,11 +86,35 @@ type PasskeyChallengePurpose = "registration" | "authentication";
 type StoredPasskey = {
   id: string;
   credentialId: string;
-  publicKey: Buffer;
+  publicKey: Uint8Array;
   counter: number;
   transports: string[];
   deviceType: string;
   backedUp: boolean;
+};
+
+const allowedAuthenticatorTransports = new Set<AuthenticatorTransportFuture>([
+  "ble",
+  "hybrid",
+  "internal",
+  "nfc",
+  "smart-card",
+  "usb",
+]);
+
+const toAuthenticatorTransports = (
+  transports: string[] | null | undefined,
+): AuthenticatorTransportFuture[] | undefined => {
+  if (!transports || transports.length === 0) {
+    return undefined;
+  }
+
+  const filtered = transports.filter(
+    (transport): transport is AuthenticatorTransportFuture =>
+      allowedAuthenticatorTransports.has(transport as AuthenticatorTransportFuture),
+  );
+
+  return filtered.length > 0 ? filtered : undefined;
 };
 
 @Injectable()
@@ -314,7 +339,11 @@ export class AuthService {
       include: { passkeys: true },
     });
 
-    if (!user || user.passkeys.length === 0) {
+    if (!user) {
+      unauthorized();
+    }
+
+    if (user.passkeys.length === 0) {
       unauthorized();
     }
 
@@ -342,9 +371,9 @@ export class AuthService {
       expectedRPID: WEBAUTHN_RP_ID,
       credential: {
         id: credential.id,
-        publicKey: new Uint8Array(credential.publicKey),
+        publicKey: credential.publicKey,
         counter: credential.counter,
-        transports: credential.transports,
+        transports: toAuthenticatorTransports(credential.transports),
       },
     });
 

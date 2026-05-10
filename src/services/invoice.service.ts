@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma, PrismaClient } from "../generated/prisma/client/client";
+import { Prisma } from "../generated/prisma/client/client";
 import { ICardInvoice } from "../models/CardInvoice";
 import { IExpense } from "../models/Expense";
 import { ExpenseTypeEnum } from "../enums/expenseType.enum";
@@ -60,12 +60,12 @@ const notFound = (): never => {
 };
 
 type TxClient = Prisma.TransactionClient;
-type DbClient = PrismaClient | TxClient;
+type DbClient = TxClient;
 
 @Injectable()
 export class InvoiceService {
   private getDb(client?: TxClient): DbClient {
-    return client ?? prisma;
+    return (client ?? prisma) as TxClient;
   }
 
   private async findInvoiceById(
@@ -310,7 +310,7 @@ export class InvoiceService {
         balance: data.balance ?? 0,
         advance: data.advance ?? 0,
         isClosed: data.isClosed ?? false,
-        ...(data.userId ? { userId: data.userId } : {}),
+        userId: data.userId!,
       },
     });
 
@@ -363,7 +363,7 @@ export class InvoiceService {
           amount,
           description: "Advance payment",
           cardInvoiceId: invoice.id,
-          ...(invoice.userId ? { userId: invoice.userId } : {}),
+          userId: invoice.userId!,
         },
       });
     });
@@ -581,7 +581,7 @@ export class InvoiceService {
           installmentCurrent: row.installment?.current ?? null,
           installmentTotal: row.installment?.total ?? null,
           cardInvoiceId: invoice.id,
-          ...(userId ? { userId } : {}),
+          userId: userId!,
         })),
       });
 
@@ -726,7 +726,7 @@ export class InvoiceService {
           installmentCurrent: row.installment?.current ?? null,
           installmentTotal: row.installment?.total ?? null,
           cardInvoiceId: id,
-          ...(invoice.userId ? { userId: invoice.userId } : {}),
+          userId: invoice.userId!,
         })),
       });
 

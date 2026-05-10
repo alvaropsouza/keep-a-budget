@@ -111,7 +111,7 @@ export class ExpenseService {
         installmentCurrent: data.installment?.current ?? null,
         installmentTotal: data.installment?.total ?? null,
         cardInvoiceId: data.cardInvoiceId ?? null,
-        ...(data.userId ? { userId: data.userId } : {}),
+        userId: data.userId!,
       },
     });
 

@@ -340,18 +340,18 @@ export class AuthService {
     });
 
     if (!user) {
-      unauthorized();
+      return unauthorized();
     }
 
     if (user.passkeys.length === 0) {
-      unauthorized();
+      return unauthorized();
     }
 
     const challenge = await this.getChallenge(user.id, "authentication");
     const storedPasskey = user.passkeys.find((passkey) => passkey.credentialId === response.id);
 
     if (!storedPasskey) {
-      unauthorized();
+      return unauthorized();
     }
 
     const credential: StoredPasskey = {
@@ -371,14 +371,14 @@ export class AuthService {
       expectedRPID: WEBAUTHN_RP_ID,
       credential: {
         id: credential.id,
-        publicKey: credential.publicKey,
+        publicKey: Buffer.from(credential.publicKey),
         counter: credential.counter,
         transports: toAuthenticatorTransports(credential.transports),
       },
     });
 
     if (!verification.verified || !verification.authenticationInfo) {
-      unauthorized();
+      return unauthorized();
     }
 
     const { newCounter } = verification.authenticationInfo;

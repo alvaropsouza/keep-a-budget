@@ -4,9 +4,9 @@
   "description": "Backend app responsible for keeping track of credit card invoice expenses",
   "main": "dist/main.js",
   "scripts": {
-    "build": "prisma generate && tsc --noEmit",
-    "start": "tsx src/main.ts",
-    "dev": "tsx watch src/main.ts",
+    "build": "prisma generate && nest build",
+    "start": "nest start --prod",
+    "dev": "nest start --watch",
     "data:migrate-to-prod": "tsx scripts/migrate-to-prod.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -49,6 +49,7 @@
     "@types/node": "^20.19.32",
     "@types/node-cron": "^3.0.11",
     "prisma": "^7.8.0",
+    "@nestjs/cli": "^11.0.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

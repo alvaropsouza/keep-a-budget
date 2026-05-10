@@ -1,13 +1,8 @@
-import { Prisma } from "../generated/prisma/client/client";
+import type { Prisma } from "../generated/prisma/client/client";
 import logger from "../config/logger";
 import { prisma } from "../lib/prisma";
 
-type TransactionCallback = Extract<
-  Parameters<typeof prisma.$transaction>[0],
-  (tx: unknown) => Promise<unknown>
->;
-
-export type TxClient = Parameters<TransactionCallback>[0];
+export type TxClient = Prisma.TransactionClient;
 
 interface TransactionOptions {
   operationName?: string;
@@ -21,7 +16,7 @@ export const runWithTransaction = async <T>(
   const { operationName = "unnamed-transaction", metadata = {} } = options;
 
   try {
-    return await prisma.$transaction(async (tx) => operation(tx));
+    return await prisma.$transaction(async (tx) => operation(tx as TxClient));
   } catch (error) {
     logger.error(
       {

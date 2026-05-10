@@ -4,6 +4,18 @@
 
 ### Added
 
+- **NestJS CLI como ferramenta de desenvolvimento**: adicionado `@nestjs/cli` nas `devDependencies` e `nest-cli.json`. Scripts `dev`, `build` e `start` agora usam `nest start --watch`, `nest build` e `nest start --prod` respectivamente, garantindo type-checking completo em dev via `tsc --watch`.
+
+### Fixed
+
+- **Scripts Nest no Windows**: `dev`, `build` e `start` passaram a executar `node ./node_modules/@nestjs/cli/bin/nest.js ...` em vez do launcher `.CMD` do pnpm, evitando o erro `The input line is too long` causado pelo `NODE_PATH` gerado pelo shim no Windows.
+
+- **`runWithTransaction.ts`**: `TxClient` era extraído de `Parameters<typeof prisma.$transaction>[0]` com `Extract`, que resolvia para `never` no cliente estendido (extended client). Corrigido usando `Prisma.TransactionClient` diretamente.
+- **`invoice.service.ts`**: `DbClient = PrismaClient | TxClient` causava erro pois o extended prisma não é atribuível a `PrismaClient`. Alterado para `DbClient = TxClient` com cast explícito em `getDb`. Padrões `...(userId ? { userId } : {})` substituídos por `userId: data.userId!` pois `userId` é campo obrigatório no schema.
+- **`auth.service.ts`**: adicionado `return` em chamadas `unauthorized()` para que o TypeScript estreite tipos de `user` e `storedPasskey` corretamente. Cast de `credential.publicKey` para `Buffer.from(...)` para compatibilidade com `Uint8Array<ArrayBuffer>`.
+- **`expense.service.ts`**: substituído spread condicional de `userId` por `userId: data.userId!` pois o campo é obrigatório no schema.
+- **`freelance-invoice.service.ts`**: imports de `Invoice`, `InvoiceItem`, `Prisma` corrigidos de `@prisma/client` para o client gerado em `../generated/prisma/client/client`. Campo `total` tipado como `number` ao invés de `Decimal` para compatibilidade com resultado do `reduce`.
+
 - **Módulo Metas Financeiras**: novo model `FinancialGoal` no Prisma com campos `name`, `description`, `targetAmount`, `currentAmount`, `deadline`, `category`, `status`.
 - **Migração** `20260510190235_add_financial_goals`: cria tabela `financial_goals` com índices por `user_id` e `status`.
 - **`FinancialGoalService`**: CRUD completo com formatação tipada de resposta.

@@ -4,7 +4,7 @@ import {
   CreateFreelanceInvoiceDto,
   UpdateFreelanceInvoiceDto,
 } from "../dto/freelance-invoice.dto";
-import { Invoice, InvoiceItem, Prisma } from "@prisma/client";
+import { Invoice, InvoiceItem, Prisma } from "../generated/prisma/client/client";
 
 @Injectable()
 export class FreelanceInvoiceService {
@@ -121,7 +121,7 @@ export class FreelanceInvoiceService {
       throw new NotFoundException("Invoice não encontrada");
     }
 
-    let total = invoice.total;
+    let total: number = Number(invoice.total);
 
     // Se items são atualizados, recalcula total
     if (dto.items && dto.items.length > 0) {

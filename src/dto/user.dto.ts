@@ -6,11 +6,15 @@ import {
   Min,
   IsDate,
   MinLength,
+  Matches,
 } from "class-validator";
 import { Transform } from "class-transformer";
 
 const toDate = (value: unknown): Date | undefined =>
   value ? new Date(value as string) : undefined;
+
+const CPF_PATTERN = /^\d{11}$/;
+const RG_PATTERN = /^[0-9A-Za-z]{5,20}$/;
 
 export class CreateUserDto {
   @IsString()
@@ -24,11 +28,24 @@ export class CreateUserDto {
 
   @IsString()
   @MinLength(8)
-  password!: string;
+  @IsOptional()
+  password?: string;
 
   @IsString()
   @IsOptional()
   phone?: string;
+
+  @IsString()
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === "string" ? value.replace(/\D/g, "") : value))
+  @Matches(CPF_PATTERN, { message: "cpf must contain exactly 11 digits" })
+  cpf?: string;
+
+  @IsString()
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === "string" ? value.replace(/[^0-9A-Za-z]/g, "").toUpperCase() : value))
+  @Matches(RG_PATTERN, { message: "rg must contain 5 to 20 alphanumeric characters" })
+  rg?: string;
 
   @IsNumber()
   @Min(0)
@@ -66,6 +83,18 @@ export class UpdateUserDto {
   @IsString()
   @IsOptional()
   phone?: string;
+
+  @IsString()
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === "string" ? value.replace(/\D/g, "") : value))
+  @Matches(CPF_PATTERN, { message: "cpf must contain exactly 11 digits" })
+  cpf?: string;
+
+  @IsString()
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === "string" ? value.replace(/[^0-9A-Za-z]/g, "").toUpperCase() : value))
+  @Matches(RG_PATTERN, { message: "rg must contain 5 to 20 alphanumeric characters" })
+  rg?: string;
 
   @IsNumber()
   @Min(0)

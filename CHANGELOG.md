@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [7.2.0] - 2026-05-10
+
+### Added
+
+- Campos opcionais de identificação do usuário: `cpf` e `rg` no modelo `User` (Prisma) com índices únicos.
+- Migração `20260510123000_add_cpf_rg_to_users` para criação das colunas e índices no PostgreSQL.
+- Utilitário `src/utils/brDocuments.ts` com normalização e validação de documentos brasileiros (`CPF` com dígitos verificadores e `RG` alfanumérico).
+
+### Changed
+
+- `user.dto.ts`: suporte a `cpf` e `rg` com transformação/sanitização de entrada.
+- `user.service.ts`: mapeamento, persistência e atualização de `cpf`/`rg` com validação de domínio e tratamento de conflito (`409`) para documentos já cadastrados.
+- `IUser` agora expõe `cpf?` e `rg?`.
+
 ## [7.1.0] - 2026-05-09
 
 ### Changed

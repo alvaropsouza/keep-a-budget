@@ -12,6 +12,8 @@ model User {
     name         String
     lastName     String         @map("last_name")
     email        String         @unique
+    cpf          String?        @unique @db.VarChar(11)
+    rg           String?        @unique @db.VarChar(20)
     passwordHash String?        @map("password_hash")
     phone        String?
     salary       Decimal?       @db.Decimal(12, 2)

@@ -52,7 +52,7 @@ export const extractS3Key = (urlOrKey: string): string => {
     const pathname = url.pathname;
 
     // Remove leading slash and bucket name if present
-    // Example: /keep-a-budget-receipts/receipts/file.jpg -> receipts/file.jpg
+    // Example: /road-of-life-receipts/receipts/file.jpg -> receipts/file.jpg
     const parts = pathname.split("/").filter(Boolean);
 
     // If first part is bucket name, remove it

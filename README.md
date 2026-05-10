@@ -1,4 +1,4 @@
-# Keep a Budget API
+# Road of Life API
 
 > **✨ Projeto Recentemente Refatorado!** Esta aplicação passou por uma refatoração completa focada em clean code, reutilização de componentes e redução de complexidade. Veja [REFACTORING.md](./REFACTORING.md) para detalhes.
 
@@ -24,8 +24,8 @@ Backend application for managing credit card invoices and expenses. Built with N
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/alvaropsouza/keep-a-budget.git
-   cd keep-a-budget
+   git clone https://github.com/alvaropsouza/road-of-life.git
+   cd road-of-life
    ```
 
 2. Install dependencies:
@@ -46,18 +46,18 @@ The application requires the following environment variables:
 
 ```env
 PORT=3000
-DATABASE_URL=postgresql://admin:password@localhost:5432/keep-a-budget
+DATABASE_URL=postgresql://admin:password@localhost:5432/road_of_life
 
 # AWS S3 / MinIO Configuration
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=minioadmin
 AWS_SECRET_ACCESS_KEY=minioadmin
-S3_BUCKET_NAME=keep-a-budget-receipts
+S3_BUCKET_NAME=road-of-life-receipts
 S3_ENDPOINT=http://localhost:9000
 
 # CORS (optional overrides)
-FRONTEND_URL=https://keep-a-budget.up.railway.app
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,https://keep-a-budget.up.railway.app
+FRONTEND_URL=https://road-of-life.up.railway.app
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,https://road-of-life.up.railway.app
 ALLOWED_ORIGIN_PATTERNS=
 ```
 

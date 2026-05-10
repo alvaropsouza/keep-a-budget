@@ -40,11 +40,11 @@ export const getS3UrlConfig = (): S3UrlConfig => {
  * @example
  * // MinIO/Local (path-style):
  * getS3Url("receipts/file.jpg")
- * // => "http://localhost:9000/keep-a-budget-receipts/receipts/file.jpg"
+ * // => "http://localhost:9000/road-of-life-receipts/receipts/file.jpg"
  *
  * // AWS S3 (virtual-hosted):
  * getS3Url("receipts/file.jpg")
- * // => "https://keep-a-budget-receipts.s3.us-east-1.amazonaws.com/receipts/file.jpg"
+ * // => "https://road-of-life-receipts.s3.us-east-1.amazonaws.com/receipts/file.jpg"
  */
 export const getS3Url = (key: string, config?: S3UrlConfig): string => {
   const cfg = config || getS3UrlConfig();

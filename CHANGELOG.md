@@ -23,6 +23,7 @@
 
 ### Changed
 
+- **Rebranding da aplicação**: nome e referências públicas atualizados para Road of Life em configurações, env, documentação e defaults de autenticação WebAuthn.
 - **Compatibilidade do cache com Prisma Client atual**: `setupCacheMiddleware` deixou de usar `$use` (API removida no client gerado) e passou a usar `prisma.$extends` com interceptação de queries para invalidar cache em `create`, `update`, `upsert`, `delete` e `deleteMany`, eliminando o erro `TypeError: prisma.$use is not a function` no bootstrap.
 - **Resiliência da injeção de cache no `UserService`**: construtor passou a usar `@Inject(CacheService)` explícito com fallback defensivo para evitar `TypeError: Cannot read properties of undefined (reading 'invalidate')` em `findByEmail` quando o provider de cache não é resolvido em runtime.
 - **Prefixo global `/api` adicionado**: todos os endpoints agora respondem sob o prefixo `/api` (ex.: `/api/freelance-invoices`, `/api/auth/login`). A rota `/health` continua sem prefixo. Isso evita conflito entre rotas da SPA do frontend e endpoints da API quando ambos são servidos pelo mesmo domínio/ngrok.
@@ -127,13 +128,13 @@
 
 ### Added
 
-- **Autenticacao local no keep-a-budget**: novos endpoints `POST /auth/login`, `POST /auth/authenticate`, `GET /auth/validate`, `GET /auth/me` e `POST /auth/logout` para gerenciar sessao diretamente no backend principal.
+- **Autenticacao local no Road of Life**: novos endpoints `POST /auth/login`, `POST /auth/authenticate`, `GET /auth/validate`, `GET /auth/me` e `POST /auth/logout` para gerenciar sessao diretamente no backend principal.
 - **Persistencia de sessao no PostgreSQL**: criacao automatica da tabela `user_sessions` com expiracao, revogacao e suporte a cookie HttpOnly + `Authorization: Bearer`.
 
 ### Changed
 
 - **Remocao do app-bridge-keeper do fluxo de login**: o backend principal agora centraliza autenticacao e sessao.
-- **Login por email no frontend**: fluxo de autenticacao deixou de depender de token em URL/link magico externo e passou a autenticar diretamente contra `keep-a-budget`.
+- **Login por email no frontend**: fluxo de autenticacao deixou de depender de token em URL/link magico externo e passou a autenticar diretamente contra `Road of Life`.
 
 ## [4.0.0] - 2026-05-09
 

@@ -1,6 +1,6 @@
 {
-  "name": "keep-a-budget",
-  "version": "7.4.0",
+  "name": "road-of-life",
+  "version": "7.5.0",
   "description": "Backend app responsible for keeping track of credit card invoice expenses",
   "main": "dist/main.js",
   "scripts": {

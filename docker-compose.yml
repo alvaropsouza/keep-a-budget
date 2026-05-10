@@ -3,10 +3,10 @@ version: "3.8"
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: keep-a-budget-postgres
+    container_name: road-of-life-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: keep-a-budget
+      POSTGRES_DB: road_of_life
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
     ports:
@@ -15,16 +15,16 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d keep-a-budget"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d road_of_life"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - keep-a-budget-network
+      - road-of-life-network
 
   minio:
     image: minio/minio:latest
-    container_name: keep-a-budget-minio
+    container_name: road-of-life-minio
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -41,7 +41,7 @@ services:
       timeout: 20s
       retries: 3
     networks:
-      - keep-a-budget-network
+      - road-of-life-network
 
 volumes:
   postgres_data:
@@ -50,5 +50,5 @@ volumes:
     driver: local
 
 networks:
-  keep-a-budget-network:
+  road-of-life-network:
     driver: bridge

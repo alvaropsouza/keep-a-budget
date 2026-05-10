@@ -15,7 +15,7 @@ const corsPlugin = fp(async (app: FastifyInstance) => {
         ? process.env.CORS_EXTRA_ORIGINS.split(",").map((o) => o.trim())
         : [];
       const allowedOrigins = isProd
-        ? ["https://keep-a-budget.up.railway.app", ...extraOrigins]
+        ? ["https://road-of-life.up.railway.app", ...extraOrigins]
         : ["http://localhost:8080", ...extraOrigins];
 
       cb(null, allowedOrigins.includes(origin));

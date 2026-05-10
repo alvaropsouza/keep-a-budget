@@ -2,7 +2,7 @@
 applyTo: "**"
 ---
 
-# Diretrizes do Projeto — keep-a-budget
+# Diretrizes do Projeto — road-of-life
 
 Este arquivo centraliza as regras que o agente deve seguir ao trabalhar neste projeto.
 Adicione novas diretrizes nas seções correspondentes conforme necessário.

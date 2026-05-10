@@ -1,12 +1,12 @@
 ---
 name: prisma-typescript
-description: "Expert knowledge in Prisma ORM, TypeScript, and the keep-a-budget backend stack (Fastify + Prisma + PostgreSQL). Use when: creating or modifying services, controllers, routes, DTOs, Prisma models, migrations, or applying TypeScript best practices in this codebase."
+description: "Expert knowledge in Prisma ORM, TypeScript, and the Road of Life backend stack (Fastify + Prisma + PostgreSQL). Use when: creating or modifying services, controllers, routes, DTOs, Prisma models, migrations, or applying TypeScript best practices in this codebase."
 argument-hint: "Describe the feature or entity to implement (e.g., 'create a Category entity with CRUD')"
 ---
 
 # Prisma + TypeScript + Fastify Stack Expert
 
-Skill de referência para desenvolvimento no `keep-a-budget` backend. Contém as melhores práticas da stack, padrões de código estabelecidos no projeto e links para documentação oficial.
+Skill de referência para desenvolvimento no backend Road of Life. Contém as melhores práticas da stack, padrões de código estabelecidos no projeto e links para documentação oficial.
 
 ## Stack
 

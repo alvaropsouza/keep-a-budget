@@ -4,9 +4,10 @@
   "description": "Backend app responsible for keeping track of credit card invoice expenses",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "prisma generate && tsc --noEmit",
     "start": "tsx src/main.ts",
     "dev": "tsx watch src/main.ts",
+    "data:migrate-to-prod": "tsx scripts/migrate-to-prod.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test": "echo \"Error: no test specified\" && exit 1"

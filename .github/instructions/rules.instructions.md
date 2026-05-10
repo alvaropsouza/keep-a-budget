@@ -32,13 +32,17 @@ Adicione novas diretrizes nas seções correspondentes conforme necessário.
 
 ## Banco de Dados / Prisma
 
-<!-- Adicione aqui regras sobre migrações, schema e uso do Prisma -->
+- Sempre que houver alteração em `prisma/schema.prisma` ou em tipos usados de Prisma, valide localmente com `pnpm prisma:generate` antes de concluir a tarefa.
+- Não misture fontes de tipo do Prisma: neste projeto, imports de `Prisma`, `PrismaClient` e tipos de model devem vir de `src/generated/prisma/client` (output do generator), não de `@prisma/client`.
+- O build de validação deve considerar a geração do client Prisma. Em CI/deploy, o comando de build precisa executar `prisma generate` antes do `tsc`.
 
 ---
 
 ## Testes
 
-<!-- Adicione aqui regras sobre cobertura, organização e execução de testes -->
+- Antes de abrir PR ou fazer deploy do backend, execute obrigatoriamente `pnpm run build` para validar type-check completo do projeto.
+- Não considerar apenas `pnpm run dev`/`tsx watch` como validação de qualidade: o modo dev não garante checagem de tipos de todos os arquivos.
+- Qualquer novo import de biblioteca (ex.: Swagger/Nest plugins) deve ser acompanhado da entrada correspondente em `dependencies`/`devDependencies` no `package.json`.
 
 ---
 

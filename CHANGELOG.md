@@ -20,6 +20,7 @@
 - **Service `FreelanceInvoiceService`**: métodos para CRUD de invoices — `create()`, `listByUser()`, `getById()`, `update()`, `delete()`, `changeStatus()`. Gera número de invoice sequencial automaticamente, calcula totais de itens automaticamente.
 - **Controller `FreelanceInvoiceController`**: endpoints autenticados em `/freelance-invoices` — `GET` (listar), `POST` (criar), `GET /:id` (detalhe), `PUT /:id` (atualizar), `PUT /:id/status` (mudar status), `DELETE /:id` (deletar).
 - **Migration `20260510151143_add_invoices`**: cria tabelas `invoices` e `invoice_items` no PostgreSQL com índices e foreign keys.
+- **Script de migracao de dados para producao**: `scripts/migrate-to-prod.ts` copia todas as tabelas do schema `public` (exceto `_prisma_migrations`) da origem para o banco de destino em transacao unica, com truncation + insercao em lotes e ordenacao por dependencias de chaves estrangeiras.
 
 ### Changed
 
@@ -27,6 +28,10 @@
 - **Compatibilidade do cache com Prisma Client atual**: `setupCacheMiddleware` deixou de usar `$use` (API removida no client gerado) e passou a usar `prisma.$extends` com interceptação de queries para invalidar cache em `create`, `update`, `upsert`, `delete` e `deleteMany`, eliminando o erro `TypeError: prisma.$use is not a function` no bootstrap.
 - **Resiliência da injeção de cache no `UserService`**: construtor passou a usar `@Inject(CacheService)` explícito com fallback defensivo para evitar `TypeError: Cannot read properties of undefined (reading 'invalidate')` em `findByEmail` quando o provider de cache não é resolvido em runtime.
 - **Prefixo global `/api` adicionado**: todos os endpoints agora respondem sob o prefixo `/api` (ex.: `/api/freelance-invoices`, `/api/auth/login`). A rota `/health` continua sem prefixo. Isso evita conflito entre rotas da SPA do frontend e endpoints da API quando ambos são servidos pelo mesmo domínio/ngrok.
+- **Script de build reforçado**: `pnpm run build` agora executa `prisma generate` antes de `tsc --noEmit`, evitando falhas por client Prisma não gerado em ambientes de CI/deploy.
+- **Diretrizes de pré-deploy atualizadas**: adicionado checklist obrigatório de validação com `pnpm run build` e regras para evitar inconsistências de tipagem/dependências entre ambiente dev e deploy.
+- **Novo comando de execucao**: `pnpm run data:migrate-to-prod` para disparar a migracao de dados entre bancos com confirmacao explicita (`--yes`).
+- **Script de migração ajustado para compatibilidade de tipos**: `scripts/migrate-to-prod.ts` passou a usar `Client` do `pg` e tipagens explícitas internas, eliminando erros de compilação no ambiente de desenvolvimento.
 
 ## [7.2.0] - 2026-05-10
 

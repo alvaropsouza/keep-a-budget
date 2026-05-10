@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MinLength } from "class-validator";
+import { IsEmail, IsObject, IsOptional, IsString, MinLength } from "class-validator";
 
 export class LoginDto {
   @IsEmail()
@@ -17,4 +17,22 @@ export class AuthenticateDto {
   @IsString()
   @MinLength(16)
   token!: string;
+}
+
+export class BeginPasskeyAuthenticationDto {
+  @IsEmail()
+  email!: string;
+}
+
+export class VerifyPasskeyAuthenticationDto {
+  @IsEmail()
+  email!: string;
+
+  @IsObject()
+  response!: Record<string, unknown>;
+}
+
+export class VerifyPasskeyRegistrationDto {
+  @IsObject()
+  response!: Record<string, unknown>;
 }

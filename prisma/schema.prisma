@@ -8,23 +8,26 @@ datasource db {
 }
 
 model User {
-    id           String         @id @default(uuid()) @db.Uuid
-    name         String
-    lastName     String         @map("last_name")
-    email        String         @unique
-    cpf          String?        @unique @db.VarChar(11)
-    rg           String?        @unique @db.VarChar(20)
-    passwordHash String?        @map("password_hash")
-    phone        String?
-    salary       Decimal?       @db.Decimal(12, 2)
-    avatar       String?
-    lastLogin    DateTime?      @map("last_login")
-    createdAt    DateTime       @default(now()) @map("created_at")
-    updatedAt    DateTime       @updatedAt @map("updated_at")
-    fixedExpense FixedExpense[]
-    sessions     UserSession[]
-    expenses     Expense[]
-    cardInvoices CardInvoice[]
+    id                 String              @id @default(uuid()) @db.Uuid
+    name               String
+    lastName           String              @map("last_name")
+    email              String              @unique
+    cpf                String?             @unique @db.VarChar(11)
+    rg                 String?             @unique @db.VarChar(20)
+    passwordHash       String?             @map("password_hash")
+    phone              String?
+    salary             Decimal?            @db.Decimal(12, 2)
+    avatar             String?
+    lastLogin          DateTime?           @map("last_login")
+    createdAt          DateTime            @default(now()) @map("created_at")
+    updatedAt          DateTime            @updatedAt @map("updated_at")
+    fixedExpense       FixedExpense[]
+    sessions           UserSession[]
+    expenses           Expense[]
+    cardInvoices       CardInvoice[]
+    invoices           Invoice[]
+    passkeys           PasskeyCredential[]
+    webauthnChallenges WebAuthnChallenge[]
 
     @@map("users")
 }
@@ -99,4 +102,78 @@ model FixedExpense {
 
     @@index([userId, isActive], map: "fixed_expenses_user_id_is_active_idx")
     @@map("fixed_expenses")
+}
+
+model Invoice {
+    id            String        @id @default(uuid()) @db.Uuid
+    userId        String        @map("user_id") @db.Uuid
+    user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    invoiceNumber String        @unique @map("invoice_number")
+    clientName    String        @map("client_name")
+    clientEmail   String?       @map("client_email")
+    issueDate     DateTime      @map("issue_date") @db.Date
+    dueDate       DateTime?     @map("due_date") @db.Date
+    status        String        @default("draft") // draft, sent, paid
+    total         Decimal       @default(0) @db.Decimal(12, 2)
+    notes         String?
+    createdAt     DateTime      @default(now()) @map("created_at")
+    updatedAt     DateTime      @updatedAt @map("updated_at")
+    items         InvoiceItem[]
+
+    @@index([userId], map: "invoices_user_id_idx")
+    @@index([status], map: "invoices_status_idx")
+    @@map("invoices")
+}
+
+model InvoiceItem {
+    id          String   @id @default(uuid()) @db.Uuid
+    invoiceId   String   @map("invoice_id") @db.Uuid
+    invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+    description String
+    quantity    Decimal  @default(1) @db.Decimal(12, 2)
+    unitPrice   Decimal  @map("unit_price") @db.Decimal(12, 2)
+    total       Decimal  @db.Decimal(12, 2) // quantity * unitPrice
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @updatedAt @map("updated_at")
+
+    @@index([invoiceId], map: "invoice_items_invoice_id_idx")
+    @@map("invoice_items")
+}
+
+enum WebAuthnChallengePurpose {
+    registration
+    authentication
+}
+
+model PasskeyCredential {
+    id           String   @id @default(uuid()) @db.Uuid
+    userId       String   @map("user_id") @db.Uuid
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    credentialId String   @unique @map("credential_id")
+    publicKey    Bytes    @map("public_key")
+    counter      Int      @default(0)
+    transports   String[] @default([])
+    deviceType   String   @map("device_type")
+    backedUp     Boolean  @default(false) @map("backed_up")
+    createdAt    DateTime @default(now()) @map("created_at")
+    updatedAt    DateTime @updatedAt @map("updated_at")
+
+    @@index([userId], map: "passkeys_user_id_idx")
+    @@map("passkeys")
+}
+
+model WebAuthnChallenge {
+    id        String                   @id @default(uuid()) @db.Uuid
+    userId    String                   @map("user_id") @db.Uuid
+    user      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    purpose   WebAuthnChallengePurpose
+    challenge String                   @unique
+    expiresAt DateTime                 @map("expires_at")
+    createdAt DateTime                 @default(now()) @map("created_at")
+    updatedAt DateTime                 @updatedAt @map("updated_at")
+
+    @@unique([userId, purpose], map: "webauthn_challenges_user_id_purpose_unique")
+    @@index([purpose], map: "webauthn_challenges_purpose_idx")
+    @@index([expiresAt], map: "webauthn_challenges_expires_at_idx")
+    @@map("webauthn_challenges")
 }

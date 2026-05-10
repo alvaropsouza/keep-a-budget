@@ -5,9 +5,10 @@ import { UsersModule } from "./modules/users.module";
 import { InvoicesModule } from "./modules/invoices.module";
 import { ExpensesModule } from "./modules/expenses.module";
 import { FixedExpensesModule } from "./modules/fixed-expenses.module";
+import { FreelanceInvoiceModule } from "./modules/freelance-invoice.module";
 
 @Module({
-  imports: [AuthModule, UsersModule, InvoicesModule, ExpensesModule, FixedExpensesModule],
+  imports: [AuthModule, UsersModule, InvoicesModule, ExpensesModule, FixedExpensesModule, FreelanceInvoiceModule],
   controllers: [HealthController],
 })
 export class AppModule {}

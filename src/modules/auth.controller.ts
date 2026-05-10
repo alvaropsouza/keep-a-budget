@@ -8,11 +8,24 @@ import {
   Res,
   HttpCode,
   HttpStatus,
+  UseGuards,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
-import { LoginDto, AuthenticateDto } from "../dto/auth.dto";
+import {
+  LoginDto,
+  AuthenticateDto,
+  BeginPasskeyAuthenticationDto,
+  VerifyPasskeyAuthenticationDto,
+  VerifyPasskeyRegistrationDto,
+} from "../dto/auth.dto";
 import { AuthService, AuthSession } from "../services/auth.service";
 import { resolveSessionToken } from "../utils/sessionToken";
+import { SessionAuthGuard } from "./session-auth.guard";
+import type {
+  AuthenticationResponseJSON,
+  RegistrationResponseJSON,
+} from "@simplewebauthn/server";
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? "kab_session";
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -58,6 +71,52 @@ export class AuthController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const session = await this.authService.authenticateToken(body.token);
+    reply.header("Set-Cookie", buildCookie(session.sessionToken, session.expiresAt));
+    return toAuthPayload(session);
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Post("webauthn/register/options")
+  async beginPasskeyRegistration(@Req() req: FastifyRequest) {
+    const authUser = req.authUser;
+    if (!authUser) {
+      throw new UnauthorizedException();
+    }
+
+    return this.authService.beginPasskeyRegistration(authUser.userId);
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Post("webauthn/register/verify")
+  async verifyPasskeyRegistration(
+    @Req() req: FastifyRequest,
+    @Body() body: VerifyPasskeyRegistrationDto,
+  ) {
+    const authUser = req.authUser;
+    if (!authUser) {
+      throw new UnauthorizedException();
+    }
+
+    return this.authService.verifyPasskeyRegistration(
+      authUser.userId,
+      body.response as RegistrationResponseJSON,
+    );
+  }
+
+  @Post("webauthn/login/options")
+  async beginPasskeyAuthentication(@Body() body: BeginPasskeyAuthenticationDto) {
+    return this.authService.beginPasskeyAuthentication(body.email);
+  }
+
+  @Post("webauthn/login/verify")
+  async verifyPasskeyAuthentication(
+    @Body() body: VerifyPasskeyAuthenticationDto,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const session = await this.authService.verifyPasskeyAuthentication(
+      body.email,
+      body.response as AuthenticationResponseJSON,
+    );
     reply.header("Set-Cookie", buildCookie(session.sessionToken, session.expiresAt));
     return toAuthPayload(session);
   }

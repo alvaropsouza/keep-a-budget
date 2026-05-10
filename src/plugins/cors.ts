@@ -11,9 +11,12 @@ const corsPlugin = fp(async (app: FastifyInstance) => {
       }
 
       const isProd = process.env.NODE_ENV === "production";
+      const extraOrigins = process.env.CORS_EXTRA_ORIGINS
+        ? process.env.CORS_EXTRA_ORIGINS.split(",").map((o) => o.trim())
+        : [];
       const allowedOrigins = isProd
-        ? ["https://keep-a-budget.up.railway.app"]
-        : ["http://localhost:8080"];
+        ? ["https://keep-a-budget.up.railway.app", ...extraOrigins]
+        : ["http://localhost:8080", ...extraOrigins];
 
       cb(null, allowedOrigins.includes(origin));
     },

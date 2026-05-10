@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Módulo `FreelanceInvoiceModule`**: novo módulo NestJS para gerenciar recibos/invoices de clientes freelancer.
+- **Models Prisma `Invoice` e `InvoiceItem`**: tabelas para armazenar recibos com suporte a múltiplos itens de serviço por recibo. Cada invoice possui `invoiceNumber` único com formato sequencial `INV-XXXXXX`, cliente, data de emissão, vencimento opcional e status (`draft`, `sent`, `paid`).
+- **DTO `freelance-invoice.dto.ts`**: `CreateFreelanceInvoiceDto`, `UpdateFreelanceInvoiceDto` com validação de dados usando `class-validator`.
+- **Service `FreelanceInvoiceService`**: métodos para CRUD de invoices — `create()`, `listByUser()`, `getById()`, `update()`, `delete()`, `changeStatus()`. Gera número de invoice sequencial automaticamente, calcula totais de itens automaticamente.
+- **Controller `FreelanceInvoiceController`**: endpoints autenticados em `/freelance-invoices` — `GET` (listar), `POST` (criar), `GET /:id` (detalhe), `PUT /:id` (atualizar), `PUT /:id/status` (mudar status), `DELETE /:id` (deletar).
+- **Migration `20260510151143_add_invoices`**: cria tabelas `invoices` e `invoice_items` no PostgreSQL com índices e foreign keys.
+
 ## [7.2.0] - 2026-05-10
 
 ### Added

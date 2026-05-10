@@ -8,7 +8,7 @@
 
 ### Fixed
 
-- **Scripts Nest no Windows**: `dev`, `build` e `start` passaram a executar `node ./node_modules/@nestjs/cli/bin/nest.js ...` em vez do launcher `.CMD` do pnpm, evitando o erro `The input line is too long` causado pelo `NODE_PATH` gerado pelo shim no Windows.
+- **Filtro `isActive` em `GET /fixed-expenses`**: `FixedExpenseQueryParamsDto` agora transforma os valores de query string `true` e `false` em boolean antes da validação, evitando resposta `400` para chamadas como `/api/fixed-expenses?isActive=true`.
 
 - **`runWithTransaction.ts`**: `TxClient` era extraído de `Parameters<typeof prisma.$transaction>[0]` com `Extract`, que resolvia para `never` no cliente estendido (extended client). Corrigido usando `Prisma.TransactionClient` diretamente.
 - **`invoice.service.ts`**: `DbClient = PrismaClient | TxClient` causava erro pois o extended prisma não é atribuível a `PrismaClient`. Alterado para `DbClient = TxClient` com cast explícito em `getDb`. Padrões `...(userId ? { userId } : {})` substituídos por `userId: data.userId!` pois `userId` é campo obrigatório no schema.

@@ -6,6 +6,29 @@ import {
   Min,
   Max,
 } from "class-validator";
+import { Transform } from "class-transformer";
+
+const toOptionalBoolean = ({ value }: { value: unknown }): boolean | undefined => {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    if (value === "true") {
+      return true;
+    }
+
+    if (value === "false") {
+      return false;
+    }
+  }
+
+  return undefined;
+};
 
 export class CreateFixedExpenseDto {
   @IsString()
@@ -56,6 +79,7 @@ export class UpdateFixedExpenseDto {
 }
 
 export class FixedExpenseQueryParamsDto {
+  @Transform(toOptionalBoolean)
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

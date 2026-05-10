@@ -14,6 +14,8 @@ import { invoiceClosureJob } from "./jobs/invoiceClosureJob";
 import corsPlugin from "./plugins/cors";
 import helmetPlugin from "./plugins/helmet";
 import { AppErrorFilter } from "./filters/app-error.filter";
+import { CacheService } from "./services/cache.service";
+import { setupCacheMiddleware } from "./lib/prisma";
 
 async function bootstrap(): Promise<void> {
   validateEnv();
@@ -46,6 +48,11 @@ async function bootstrap(): Promise<void> {
   await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 
   await connectDB();
+  
+  // Configurar middleware de cache invalidation
+  const cacheService = app.get(CacheService);
+  setupCacheMiddleware(cacheService);
+  
   await setupS3Bucket();
 
   invoiceClosureJob.start();

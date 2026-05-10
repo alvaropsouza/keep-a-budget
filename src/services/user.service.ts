@@ -1,13 +1,28 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { IUser } from "../models/User";
 import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { prisma } from "../lib/prisma";
 import { hashPassword } from "./auth.service";
 import { isValidCpf, isValidRg, normalizeCpf, normalizeRg } from "../utils/brDocuments";
-import type { User } from "../generated/prisma/client";
+import { CacheService } from "./cache.service";
 
-const mapUser = (row: User): IUser => ({
+interface UserRecord {
+  id: string;
+  name: string;
+  lastName: string;
+  email: string;
+  cpf: string | null;
+  rg: string | null;
+  phone: string | null;
+  salary: any;
+  avatar: string | null;
+  lastLogin: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const mapUser = (row: UserRecord): IUser => ({
   id: row.id,
   _id: row.id,
   name: row.name,
@@ -55,19 +70,42 @@ const throwIfDocumentConflict = (error: unknown): void => {
 
 @Injectable()
 export class UserService {
+  private readonly cacheService: CacheService;
+
+  constructor(@Optional() @Inject(CacheService) cacheService?: CacheService) {
+    // Fallback defensivo para evitar falhas de runtime caso DI não resolva o provider.
+    this.cacheService = cacheService ?? new CacheService();
+  }
+
   async getAll(): Promise<IUser[]> {
+    const cacheKey = "users:all";
+    const cached = this.cacheService.get<IUser[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const rows = await prisma.user.findMany({
       orderBy: { createdAt: "desc" },
     });
-    return rows.map(mapUser);
+    const users = rows.map(mapUser);
+    this.cacheService.set(cacheKey, users, ["user", "users:all"]);
+    return users;
   }
 
   async findById(id: string): Promise<IUser> {
+    const cacheKey = `user:${id}`;
+    const cached = this.cacheService.get<IUser>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const row = await prisma.user.findUnique({ where: { id } });
     if (!row) {
       notFound();
     }
-    return mapUser(row);
+    const user = mapUser(row as UserRecord);
+    this.cacheService.set(cacheKey, user, ["user", `user:${id}`]);
+    return user;
   }
 
   async update(id: string, data: Partial<IUser> & { password?: string }): Promise<IUser> {
@@ -85,7 +123,7 @@ export class UserService {
     if (data.lastLogin !== undefined) updateData.lastLogin = data.lastLogin;
     if (data.password) updateData.passwordHash = await hashPassword(data.password);
 
-    let row: User | null = null;
+    let row: UserRecord | null = null;
     try {
       row = await prisma.user.update({
         where: { id },
@@ -100,7 +138,7 @@ export class UserService {
       notFound();
     }
 
-    return mapUser(row);
+    return mapUser(row as UserRecord);
   }
 
   async delete(id: string): Promise<IUser> {
@@ -110,11 +148,20 @@ export class UserService {
       notFound();
     }
 
-    return mapUser(row);
+    return mapUser(row as UserRecord);
   }
 
   async findByEmail(email: string, updateLastLogin = false): Promise<IUser> {
     const normalized = email.trim().toLowerCase();
+    const cacheKey = `user:email:${normalized}`;
+
+    // Se não é atualização, tenta cache
+    if (!updateLastLogin) {
+      const cached = this.cacheService.get<IUser>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
 
     if (updateLastLogin) {
       const row = await prisma.user.update({
@@ -123,17 +170,22 @@ export class UserService {
       }).catch(() => null);
 
       if (!row) {
-        notFound();
+        return notFound();
       }
 
-      return mapUser(row);
+      const user = mapUser(row as UserRecord);
+      // Invalidar cache ao atualizar lastLogin — será recriado na próxima leitura
+      this.cacheService.invalidate([`user:${(row as UserRecord).id}`, `user:email:${normalized}`]);
+      return user;
     }
 
     const row = await prisma.user.findUnique({ where: { email: normalized } });
     if (!row) {
-      notFound();
+      return notFound();
     }
-    return mapUser(row);
+    const user = mapUser(row as UserRecord);
+    this.cacheService.set(cacheKey, user, ["user", `user:email:${normalized}`, `user:${(row as UserRecord).id}`]);
+    return user;
   }
 
   async createUser(data: Partial<IUser> & { password?: string }): Promise<IUser> {
@@ -148,7 +200,7 @@ export class UserService {
 
     const passwordHash = data.password ? await hashPassword(data.password) : null;
 
-    let row: User;
+    let row: UserRecord;
     try {
       row = await prisma.user.create({
         data: {

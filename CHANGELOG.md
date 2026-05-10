@@ -4,12 +4,23 @@
 
 ### Added
 
+- **Cache inteligente em memória** (`CacheService`): sistema de cache baseado em `Map` com invalidação granular por **tags**. Suporta TTL opcional e estatísticas de memória.
+- **Middleware automático de cache invalidation** (`setupCacheInvalidationMiddleware`): middleware Prisma que invalida cache automaticamente ao detectar operações de `create`, `update`, `delete`. Sem lógica manual em cada service.
+- **CacheModule**: módulo NestJS que provê `CacheService` para todos os services.
+- **Cache integrado em `UserService`**: métodos `getAll()`, `findById()`, `findByEmail()` agora usam cache com tags `user`, `user:{id}`, `user:email:{email}`.
+- **Documentação**: `docs/CACHE_IMPLEMENTATION.md` com guia completo de como usar e integrar cache nos demais services.
+
 - **Módulo `FreelanceInvoiceModule`**: novo módulo NestJS para gerenciar recibos/invoices de clientes freelancer.
 - **Models Prisma `Invoice` e `InvoiceItem`**: tabelas para armazenar recibos com suporte a múltiplos itens de serviço por recibo. Cada invoice possui `invoiceNumber` único com formato sequencial `INV-XXXXXX`, cliente, data de emissão, vencimento opcional e status (`draft`, `sent`, `paid`).
 - **DTO `freelance-invoice.dto.ts`**: `CreateFreelanceInvoiceDto`, `UpdateFreelanceInvoiceDto` com validação de dados usando `class-validator`.
 - **Service `FreelanceInvoiceService`**: métodos para CRUD de invoices — `create()`, `listByUser()`, `getById()`, `update()`, `delete()`, `changeStatus()`. Gera número de invoice sequencial automaticamente, calcula totais de itens automaticamente.
 - **Controller `FreelanceInvoiceController`**: endpoints autenticados em `/freelance-invoices` — `GET` (listar), `POST` (criar), `GET /:id` (detalhe), `PUT /:id` (atualizar), `PUT /:id/status` (mudar status), `DELETE /:id` (deletar).
 - **Migration `20260510151143_add_invoices`**: cria tabelas `invoices` e `invoice_items` no PostgreSQL com índices e foreign keys.
+
+### Changed
+
+- **Compatibilidade do cache com Prisma Client atual**: `setupCacheMiddleware` deixou de usar `$use` (API removida no client gerado) e passou a usar `prisma.$extends` com interceptação de queries para invalidar cache em `create`, `update`, `upsert`, `delete` e `deleteMany`, eliminando o erro `TypeError: prisma.$use is not a function` no bootstrap.
+- **Resiliência da injeção de cache no `UserService`**: construtor passou a usar `@Inject(CacheService)` explícito com fallback defensivo para evitar `TypeError: Cannot read properties of undefined (reading 'invalidate')` em `findByEmail` quando o provider de cache não é resolvido em runtime.
 
 ## [7.2.0] - 2026-05-10
 

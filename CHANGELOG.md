@@ -21,6 +21,7 @@
 
 - **Compatibilidade do cache com Prisma Client atual**: `setupCacheMiddleware` deixou de usar `$use` (API removida no client gerado) e passou a usar `prisma.$extends` com interceptação de queries para invalidar cache em `create`, `update`, `upsert`, `delete` e `deleteMany`, eliminando o erro `TypeError: prisma.$use is not a function` no bootstrap.
 - **Resiliência da injeção de cache no `UserService`**: construtor passou a usar `@Inject(CacheService)` explícito com fallback defensivo para evitar `TypeError: Cannot read properties of undefined (reading 'invalidate')` em `findByEmail` quando o provider de cache não é resolvido em runtime.
+- **Prefixo global `/api` adicionado**: todos os endpoints agora respondem sob o prefixo `/api` (ex.: `/api/freelance-invoices`, `/api/auth/login`). A rota `/health` continua sem prefixo. Isso evita conflito entre rotas da SPA do frontend e endpoints da API quando ambos são servidos pelo mesmo domínio/ngrok.
 
 ## [7.2.0] - 2026-05-10
 

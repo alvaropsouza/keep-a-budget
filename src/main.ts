@@ -25,6 +25,8 @@ async function bootstrap(): Promise<void> {
     new FastifyAdapter({ logger: fastifyLoggerConfig }),
   );
 
+  app.setGlobalPrefix("api", { exclude: ["health", "health/(.*)"] });
+
   app.useGlobalFilters(new AppErrorFilter());
 
   app.useGlobalPipes(

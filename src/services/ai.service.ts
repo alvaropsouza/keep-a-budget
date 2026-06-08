@@ -5,18 +5,9 @@ import type { ParsedExpenseResponse } from "../dto/parse-expense.dto";
 const CATEGORIES = ["Alimentação", "Transporte", "Lazer", "Compras", "Saúde", "Educação", "Contas", "Eletrônicos", "Viagem", "Outros"];
 const BANKS = ["NUBANK", "XP"];
 
-const SYSTEM_PROMPT = `Você é um assistente que extrai dados de despesas financeiras a partir de texto livre em português.
-Dado um texto descrevendo uma despesa, extraia os campos abaixo e retorne SOMENTE um objeto JSON válido, sem markdown.
-
-Campos a extrair:
-- bank: banco do cartão. Valores válidos: ${BANKS.join(", ")}. null se não identificado.
-- amount: valor numérico em reais (ex: "50 reais" → 50, "R$ 1.200,50" → 1200.50). null se não identificado.
-- date: data no formato ISO YYYY-MM-DD. Resolva datas relativas com a data atual fornecida. null se não identificada.
-- category: uma das categorias válidas: ${CATEGORIES.join(", ")}. null se não identificada ou não corresponder.
-- description: descrição da despesa. null se não houver.
-- installmentTotal: número total de parcelas (ex: "em 3x" → 3). null se não parcelado ou não informado.
-
-Retorne APENAS o JSON, sem explicações.`;
+const SYSTEM_PROMPT = `Extrai despesa de texto PT-BR. Retorne JSON puro, sem markdown, sem explicações.
+Schema: {"bank":"${BANKS.join("|")}|null","amount":number|null,"date":"YYYY-MM-DD|null","category":"${CATEGORIES.join("|")}|null","description":"string|null","installmentTotal":number|null}
+Datas relativas: resolver com a data fornecida. Valores em reais: "R$ 1.200,50"→1200.50.`;
 
 function parseJsonResponse(raw: string): ParsedExpenseResponse {
   const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
@@ -41,7 +32,7 @@ export class AiService {
 
     const message = await this.client.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 400,
+      max_tokens: 250,
       system: SYSTEM_PROMPT,
       messages: [{
         role: "user",
@@ -72,7 +63,7 @@ export class AiService {
 
     const message = await this.client.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 300,
+      max_tokens: 200,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: `Data atual: ${today}\n\nTexto: ${text}` }],
     });

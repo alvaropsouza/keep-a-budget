@@ -1,4 +1,5 @@
 import {
+  IsDate,
   IsDateString,
   IsOptional,
   IsEnum,
@@ -9,18 +10,22 @@ import {
 import { Transform } from "class-transformer";
 import { BanksEnum } from "../enums/banks.enum";
 
-const toDate = (value: unknown): Date | undefined =>
-  value ? new Date(value as string) : undefined;
+const toDate = (value: unknown): Date | undefined => {
+  if (!value) return undefined;
+  if (value instanceof Date) return isNaN(value.getTime()) ? undefined : value;
+  const date = new Date(value as string);
+  return isNaN(date.getTime()) ? undefined : date;
+};
 
 export class CreateInvoiceDto {
   @IsEnum(BanksEnum)
   bank!: BanksEnum;
 
-  @IsDateString()
+  @IsDate()
   @Transform(({ value }) => toDate(value))
   closingDate!: Date;
 
-  @IsDateString()
+  @IsDate()
   @Transform(({ value }) => toDate(value))
   dueDate!: Date;
 
@@ -35,12 +40,12 @@ export class UpdateInvoiceDto {
   @IsEnum(BanksEnum)
   bank?: BanksEnum;
 
-  @IsDateString()
+  @IsDate()
   @IsOptional()
   @Transform(({ value }) => toDate(value))
   closingDate?: Date;
 
-  @IsDateString()
+  @IsDate()
   @IsOptional()
   @Transform(({ value }) => toDate(value))
   dueDate?: Date;

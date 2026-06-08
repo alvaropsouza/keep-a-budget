@@ -8,6 +8,7 @@ import { FixedExpensesModule } from "./modules/fixed-expenses.module";
 import { FreelanceInvoiceModule } from "./modules/freelance-invoice.module";
 import { FinancialGoalModule } from "./modules/financial-goal.module";
 import { CacheModule } from "./modules/cache.module";
+import { AiModule } from "./modules/ai.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CacheModule } from "./modules/cache.module";
     FixedExpensesModule,
     FreelanceInvoiceModule,
     FinancialGoalModule,
+    AiModule,
   ],
   controllers: [HealthController],
 })

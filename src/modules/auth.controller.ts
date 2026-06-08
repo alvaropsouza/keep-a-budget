@@ -22,6 +22,7 @@ import {
 import { AuthService, AuthSession } from "../services/auth.service";
 import { resolveSessionToken } from "../utils/sessionToken";
 import { SessionAuthGuard } from "./session-auth.guard";
+import { LoginRateLimitGuard } from "../guards/login-rate-limit.guard";
 import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
@@ -53,6 +54,7 @@ const toAuthPayload = (session: AuthSession) => ({
 export class AuthController {
   constructor(@Inject(AuthService) private readonly authService: AuthService) {}
 
+  @UseGuards(LoginRateLimitGuard)
   @Post("login")
   @HttpCode(HttpStatus.OK)
   async login(
@@ -103,6 +105,7 @@ export class AuthController {
     );
   }
 
+  @UseGuards(LoginRateLimitGuard)
   @Post("webauthn/login/options")
   async beginPasskeyAuthentication(@Body() body: BeginPasskeyAuthenticationDto) {
     return this.authService.beginPasskeyAuthentication(body.email);

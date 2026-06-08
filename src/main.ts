@@ -33,7 +33,7 @@ async function bootstrap(): Promise<void> {
     new ValidationPipe({
       transform: true,
       whitelist: true,
-      forbidNonWhitelisted: false,
+      forbidNonWhitelisted: true,
     }),
   );
 

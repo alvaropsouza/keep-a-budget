@@ -14,7 +14,7 @@ const helmetPlugin = fp(async (app: FastifyInstance) => {
     frameAncestors: ["'none'"],
     imgSrc: ["'self'", "data:", "blob:"],
     objectSrc: ["'none'"],
-    scriptSrc: ["'self'", "'unsafe-inline'"],
+    scriptSrc: ["'self'"],
     styleSrc: ["'self'", "'unsafe-inline'"],
   };
 

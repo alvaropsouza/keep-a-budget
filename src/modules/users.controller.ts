@@ -53,6 +53,9 @@ export class UsersController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() body: CreateUserDto) {
+    if (process.env.REGISTRATION_OPEN !== "true") {
+      throw new AppError("Registration is closed", 403);
+    }
     return this.userService.createUser(body);
   }
 

@@ -1,5 +1,6 @@
 node_modules/
 src/generated/
+.github/skills
 .env
 .DS_Store
 *.log

@@ -6,6 +6,8 @@ import {
   Min,
   IsDateString,
   IsEnum,
+  IsBoolean,
+  IsNumberString,
 } from "class-validator";
 import { BanksEnum } from "../enums/banks.enum";
 
@@ -41,6 +43,10 @@ export class CreateExpenseDto {
   @IsString()
   @IsOptional()
   receipt?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  irDeductible?: boolean;
 }
 
 export class UpdateExpenseDto {
@@ -64,6 +70,20 @@ export class UpdateExpenseDto {
   @IsUUID()
   @IsOptional()
   cardInvoiceId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  irDeductible?: boolean;
+}
+
+export class IrQueryParamsDto {
+  @IsNumberString()
+  year!: string;
+}
+
+export class IrToggleDto {
+  @IsBoolean()
+  irDeductible!: boolean;
 }
 
 export class ExpenseQueryParamsDto {

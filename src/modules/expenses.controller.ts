@@ -6,19 +6,24 @@ import {
   Param,
   Post,
   Put,
+  Patch,
   Body,
   Query,
   HttpCode,
   HttpStatus,
   Req,
+  Res,
   UseGuards,
 } from "@nestjs/common";
-import { FastifyRequest } from "fastify";
+import { FastifyRequest, FastifyReply } from "fastify";
 import { ExpenseService } from "../services/expense.service";
+import { IrDocumentService } from "../services/ir-document.service";
 import {
   CreateExpenseDto,
   UpdateExpenseDto,
   ExpenseQueryParamsDto,
+  IrQueryParamsDto,
+  IrToggleDto,
 } from "../dto/expense.dto";
 import { SessionAuthGuard } from "./session-auth.guard";
 import { AppError } from "../utils/AppError";
@@ -27,12 +32,44 @@ import { validateDto } from "../utils/validation";
 @UseGuards(SessionAuthGuard)
 @Controller("expenses")
 export class ExpensesController {
-  constructor(@Inject(ExpenseService) private readonly expenseService: ExpenseService) {}
+  constructor(
+    @Inject(ExpenseService) private readonly expenseService: ExpenseService,
+    @Inject(IrDocumentService) private readonly irDocumentService: IrDocumentService,
+  ) {}
 
   @Get()
   async getAll(@Query() query: ExpenseQueryParamsDto, @Req() req: FastifyRequest) {
     const filter = this.expenseService.buildFilter(query);
     return this.expenseService.getAllWithSignedReceipts(filter, req.authUser?.userId);
+  }
+
+  @Get("ir")
+  async getIrExpenses(@Query() query: IrQueryParamsDto, @Req() req: FastifyRequest) {
+    const year = Number(query.year);
+    return this.expenseService.getIrExpenses(year, req.authUser!.userId);
+  }
+
+  @Get("ir/summary")
+  async getIrSummary(@Query() query: IrQueryParamsDto, @Req() req: FastifyRequest) {
+    const year = Number(query.year);
+    return this.expenseService.getIrSummary(year, req.authUser!.userId);
+  }
+
+  @Get("ir/export")
+  async exportIrZip(
+    @Query() query: IrQueryParamsDto,
+    @Req() req: FastifyRequest,
+    @Res() reply: FastifyReply,
+  ) {
+    const year = Number(query.year);
+    const userId = req.authUser!.userId;
+    const irDocuments = await this.irDocumentService.listByYear(year, userId);
+    const zipBuffer = await this.expenseService.exportIrZip(year, userId, irDocuments);
+
+    reply
+      .header("Content-Type", "application/zip")
+      .header("Content-Disposition", `attachment; filename="documentos-ir-${year}.zip"`)
+      .send(zipBuffer);
   }
 
   @Get(":id")
@@ -66,6 +103,11 @@ export class ExpensesController {
   async delete(@Param("id") id: string) {
     await this.expenseService.deleteExpense(id);
     return { message: "Expense deleted successfully" };
+  }
+
+  @Patch(":id/ir")
+  async toggleIrDeductible(@Param("id") id: string, @Body() body: IrToggleDto) {
+    return this.expenseService.updateExpense(id, { irDeductible: body.irDeductible });
   }
 
   @Post(":id/receipt")
@@ -143,6 +185,7 @@ export class ExpensesController {
           : undefined,
         installmentStartDate: formFields.installmentStartDate,
         receipt: formFields.receipt,
+        irDeductible: formFields.irDeductible === "true",
       };
 
       return { body, file };

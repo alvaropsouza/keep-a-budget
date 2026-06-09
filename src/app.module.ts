@@ -9,6 +9,7 @@ import { FreelanceInvoiceModule } from "./modules/freelance-invoice.module";
 import { FinancialGoalModule } from "./modules/financial-goal.module";
 import { CacheModule } from "./modules/cache.module";
 import { AiModule } from "./modules/ai.module";
+import { IrDocumentModule } from "./modules/ir-document.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AiModule } from "./modules/ai.module";
     FreelanceInvoiceModule,
     FinancialGoalModule,
     AiModule,
+    IrDocumentModule,
   ],
   controllers: [HealthController],
 })

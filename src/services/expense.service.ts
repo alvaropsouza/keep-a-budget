@@ -1,11 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { Prisma } from "../generated/prisma/client/client";
+import { Readable } from "node:stream";
+import { ZipArchive } from "archiver";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { IExpense } from "../models/Expense";
 import { InvoiceService } from "./invoice.service";
 import { ExpenseTypeEnum } from "../enums/expenseType.enum";
 import { FilterBuilder } from "../utils/filterBuilder";
 import { ExpenseQueryParamsDto } from "../dto/expense.dto";
-import { uploadToS3, getSignedS3Url } from "../utils/s3Upload";
+import { uploadToS3, getSignedS3Url, extractS3Key } from "../utils/s3Upload";
+import s3Client from "../config/s3";
+import { getS3UrlConfig } from "../utils/s3Url";
 import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { runWithTransaction } from "../utils/runWithTransaction";
@@ -20,7 +25,15 @@ interface CreateExpenseData {
   installmentStartNumber?: number;
   installmentStartDate?: string;
   receipt?: string;
+  irDeductible?: boolean;
   userId?: string;
+}
+
+export interface IrCategorySummary {
+  category: string;
+  total: number;
+  count: number;
+  missingReceiptCount: number;
 }
 
 interface FileData {
@@ -44,6 +57,7 @@ const mapExpense = (row: any): IExpense => ({
   amount: toNumber(row.amount),
   description: row.description ?? "",
   receipt: row.receipt ?? undefined,
+  irDeductible: row.irDeductible ?? false,
   installment:
     row.installmentCurrent || row.installmentTotal
       ? {
@@ -108,6 +122,7 @@ export class ExpenseService {
         amount: data.amount!,
         description: data.description ?? "",
         receipt: data.receipt ?? null,
+        irDeductible: data.irDeductible ?? false,
         installmentCurrent: data.installment?.current ?? null,
         installmentTotal: data.installment?.total ?? null,
         cardInvoiceId: data.cardInvoiceId ?? null,
@@ -135,6 +150,7 @@ export class ExpenseService {
           ...(data.amount !== undefined ? { amount: data.amount } : {}),
           ...(data.description !== undefined ? { description: data.description } : {}),
           ...(data.receipt !== undefined ? { receipt: data.receipt } : {}),
+          ...(data.irDeductible !== undefined ? { irDeductible: data.irDeductible } : {}),
           ...(data.cardInvoiceId !== undefined
             ? { cardInvoiceId: data.cardInvoiceId }
             : {}),
@@ -590,5 +606,135 @@ export class ExpenseService {
 
     logger.info({ expenseId: id }, "Receipt removed");
     return expense;
+  }
+
+  async getIrExpenses(year: number, userId: string): Promise<IExpense[]> {
+    const yearStart = new Date(Date.UTC(year, 0, 1));
+    const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
+    const rows = await prisma.expense.findMany({
+      where: {
+        userId,
+        irDeductible: true,
+        date: { gte: yearStart, lte: yearEnd },
+      },
+      orderBy: [{ category: "asc" }, { date: "asc" }],
+    });
+
+    return rows.map(mapExpense);
+  }
+
+  async getIrSummary(year: number, userId: string): Promise<IrCategorySummary[]> {
+    const expenses = await this.getIrExpenses(year, userId);
+    const byCategory = new Map<string, IrCategorySummary>();
+
+    for (const expense of expenses) {
+      const existing = byCategory.get(expense.category) ?? {
+        category: expense.category,
+        total: 0,
+        count: 0,
+        missingReceiptCount: 0,
+      };
+      existing.total += expense.amount;
+      existing.count += 1;
+      if (!expense.receipt) existing.missingReceiptCount += 1;
+      byCategory.set(expense.category, existing);
+    }
+
+    return [...byCategory.values()].sort((a, b) => b.total - a.total);
+  }
+
+  async exportIrZip(
+    year: number,
+    userId: string,
+    irDocuments: Array<{ id: string; date: Date; category: string; amount: number; description?: string; receipt: string }> = [],
+  ): Promise<Buffer> {
+    const expenses = await this.getIrExpenses(year, userId);
+
+    const expenseReceiptDownloads = await Promise.all(
+      expenses
+        .filter((expense) => expense.receipt)
+        .map(async (expense) => {
+          const s3Key = extractS3Key(expense.receipt!);
+          const buffer = await this.downloadS3Object(s3Key);
+          const extension = s3Key.split(".").pop() ?? "jpg";
+          const dateStr = expense.date.toISOString().split("T")[0];
+          const filename = `despesas/${dateStr}-${expense.category}-${expense.id.slice(0, 8)}.${extension}`;
+          return { buffer, filename, sourceId: expense.id };
+        }),
+    );
+
+    const documentReceiptDownloads = await Promise.all(
+      irDocuments.map(async (doc) => {
+        const s3Key = extractS3Key(doc.receipt);
+        const buffer = await this.downloadS3Object(s3Key);
+        const extension = s3Key.split(".").pop() ?? "pdf";
+        const dateStr = doc.date.toISOString().split("T")[0];
+        const filename = `pix/${dateStr}-${doc.category}-${doc.id.slice(0, 8)}.${extension}`;
+        return { buffer, filename, sourceId: doc.id };
+      }),
+    );
+
+    const expenseReceiptById = new Map(expenseReceiptDownloads.map((r) => [r.sourceId, r]));
+    const csvContent = this.buildIrCsv(expenses, irDocuments, expenseReceiptById);
+
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      const archive = new ZipArchive({ zlib: { level: 6 } });
+
+      archive.on("data", (chunk: Buffer) => chunks.push(chunk));
+      archive.on("end", () => resolve(Buffer.concat(chunks)));
+      archive.on("error", reject);
+
+      archive.append(Buffer.from(csvContent, "utf-8"), { name: `resumo-ir-${year}.csv` });
+
+      for (const { buffer, filename } of expenseReceiptDownloads) {
+        archive.append(buffer, { name: filename });
+      }
+      for (const { buffer, filename } of documentReceiptDownloads) {
+        archive.append(buffer, { name: filename });
+      }
+
+      archive.finalize();
+    });
+  }
+
+  private async downloadS3Object(key: string): Promise<Buffer> {
+    const config = getS3UrlConfig();
+    const command = new GetObjectCommand({ Bucket: config.bucket, Key: key });
+    const response = await s3Client.send(command);
+
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of response.Body as Readable) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  private buildIrCsv(
+    expenses: IExpense[],
+    irDocuments: Array<{ id: string; date: Date; category: string; amount: number; description?: string }>,
+    expenseReceiptById: Map<string, { filename: string }>,
+  ): string {
+    const BOM = "﻿";
+    const header = "Tipo,Data,Descrição,Categoria,Valor (R$),Arquivo do Recibo";
+
+    const expenseRows = expenses.map((expense) => {
+      const date = expense.date.toISOString().split("T")[0];
+      const description = (expense.description ?? "").replace(/,/g, ";");
+      const amount = expense.amount.toFixed(2).replace(".", ",");
+      const receiptFile = expenseReceiptById.get(expense.id)?.filename ?? "Sem recibo";
+      return `Despesa cartão,${date},${description},${expense.category},${amount},${receiptFile}`;
+    });
+
+    const documentRows = irDocuments.map((doc) => {
+      const date = doc.date.toISOString().split("T")[0];
+      const description = (doc.description ?? "").replace(/,/g, ";");
+      const amount = doc.amount.toFixed(2).replace(".", ",");
+      const receiptFile = `pix/${date}-${doc.category}-${doc.id.slice(0, 8)}`;
+      return `PIX/Débito,${date},${description},${doc.category},${amount},${receiptFile}`;
+    });
+
+    return BOM + [header, ...expenseRows, ...documentRows].join("\n");
   }
 }

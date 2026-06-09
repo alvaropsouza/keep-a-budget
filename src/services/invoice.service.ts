@@ -26,6 +26,7 @@ const mapExpense = (row: any): IExpense => ({
   amount: toNumber(row.amount),
   description: row.description ?? "",
   receipt: row.receipt ?? undefined,
+  irDeductible: row.irDeductible ?? false,
   installment:
     row.installmentCurrent || row.installmentTotal
       ? {

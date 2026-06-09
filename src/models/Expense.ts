@@ -12,6 +12,7 @@ export interface IExpense {
   amount: number;
   description?: string;
   receipt?: string;
+  irDeductible: boolean;
   installment?: {
     current?: number;
     total?: number;

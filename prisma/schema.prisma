@@ -28,7 +28,6 @@ model User {
     invoices           Invoice[]
     passkeys           PasskeyCredential[]
     webauthnChallenges WebAuthnChallenge[]
-    financialGoals     FinancialGoal[]
     irDocuments        IrDocument[]
     budgets            Budget[]
 
@@ -160,25 +159,6 @@ model IrDocument {
 
     @@index([userId, year], map: "ir_documents_user_id_year_idx")
     @@map("ir_documents")
-}
-
-model FinancialGoal {
-    id            String    @id @default(uuid()) @db.Uuid
-    userId        String    @map("user_id") @db.Uuid
-    user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-    name          String
-    description   String?
-    targetAmount  Decimal   @map("target_amount") @db.Decimal(12, 2)
-    currentAmount Decimal   @default(0) @map("current_amount") @db.Decimal(12, 2)
-    deadline      DateTime? @db.Date
-    category      String? // ex: viagem, emergência, equipamento
-    status        String    @default("active") // active, completed, cancelled
-    createdAt     DateTime  @default(now()) @map("created_at")
-    updatedAt     DateTime  @updatedAt @map("updated_at")
-
-    @@index([userId], map: "financial_goals_user_id_idx")
-    @@index([status], map: "financial_goals_status_idx")
-    @@map("financial_goals")
 }
 
 enum WebAuthnChallengePurpose {

@@ -49,11 +49,6 @@ export class BudgetService {
       throw new AppError("Todas as faturas devem ser do mesmo mês", 400);
     }
 
-    const [invoiceMonth] = invoiceMonths;
-    if (invoiceMonth.month !== month || invoiceMonth.year !== year) {
-      throw new AppError("As faturas devem corresponder ao mês do orçamento", 400);
-    }
-
     return prisma.$transaction(async (tx) => {
       const budget = await tx.budget.upsert({
         where: { userId_category_month_year: { userId, category, month, year } },

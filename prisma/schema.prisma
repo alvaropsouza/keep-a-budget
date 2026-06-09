@@ -62,7 +62,8 @@ model CardInvoice {
     isClosed    Boolean   @default(false) @map("is_closed")
     createdAt   DateTime  @default(now()) @map("created_at")
     updatedAt   DateTime  @updatedAt @map("updated_at")
-    expenses    Expense[]
+    expenses     Expense[]
+    budgetLinks  BudgetCardInvoice[]
 
     @@unique([userId, bank, closingDate], map: "card_invoices_user_bank_closing_date_unique")
     @@index([userId], map: "card_invoices_user_id_idx")
@@ -203,19 +204,32 @@ model PasskeyCredential {
 }
 
 model Budget {
-    id        String   @id @default(uuid()) @db.Uuid
-    userId    String   @map("user_id") @db.Uuid
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    category  String
-    amount    Decimal  @db.Decimal(12, 2)
-    month     Int
-    year      Int
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt @map("updated_at")
+    id           String              @id @default(uuid()) @db.Uuid
+    userId       String              @map("user_id") @db.Uuid
+    user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+    category     String
+    amount       Decimal             @db.Decimal(12, 2)
+    month        Int
+    year         Int
+    createdAt    DateTime            @default(now()) @map("created_at")
+    updatedAt    DateTime            @updatedAt @map("updated_at")
+    cardInvoices BudgetCardInvoice[]
 
     @@unique([userId, category, month, year], map: "budgets_user_category_month_year_unique")
     @@index([userId, year, month], map: "budgets_user_id_year_month_idx")
     @@map("budgets")
+}
+
+model BudgetCardInvoice {
+    id            String      @id @default(uuid()) @db.Uuid
+    budgetId      String      @map("budget_id") @db.Uuid
+    budget        Budget      @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+    cardInvoiceId String      @map("card_invoice_id") @db.Uuid
+    cardInvoice   CardInvoice @relation(fields: [cardInvoiceId], references: [id], onDelete: Cascade)
+    bank          String
+
+    @@unique([budgetId, bank], map: "budget_card_invoices_budget_bank_unique")
+    @@map("budget_card_invoices")
 }
 
 model WebAuthnChallenge {

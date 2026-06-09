@@ -31,15 +31,21 @@ export class BudgetController {
   @Get("summary")
   async summary(@Query() query: BudgetQueryDto, @Req() req: FastifyRequest) {
     const { userId } = this.getAuthUser(req);
-    const invoiceIds = query.invoiceIds ? query.invoiceIds.split(",").filter(Boolean) : [];
-    return this.budgetService.getSummary(userId, Number(query.month), Number(query.year), invoiceIds);
+    return this.budgetService.getSummary(userId, Number(query.month), Number(query.year));
   }
 
   @Post()
   @HttpCode(HttpStatus.OK)
   async upsert(@Body() body: UpsertBudgetDto, @Req() req: FastifyRequest) {
     const { userId } = this.getAuthUser(req);
-    return this.budgetService.upsert(userId, body.category, body.amount, body.month, body.year);
+    return this.budgetService.upsert(
+      userId,
+      body.category,
+      body.amount,
+      body.month,
+      body.year,
+      body.invoiceIds,
+    );
   }
 
   @Delete(":id")

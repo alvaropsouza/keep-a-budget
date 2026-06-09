@@ -10,6 +10,7 @@ import { FinancialGoalModule } from "./modules/financial-goal.module";
 import { CacheModule } from "./modules/cache.module";
 import { AiModule } from "./modules/ai.module";
 import { IrDocumentModule } from "./modules/ir-document.module";
+import { BudgetModule } from "./modules/budget.module";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { IrDocumentModule } from "./modules/ir-document.module";
     FinancialGoalModule,
     AiModule,
     IrDocumentModule,
+    BudgetModule,
   ],
   controllers: [HealthController],
 })

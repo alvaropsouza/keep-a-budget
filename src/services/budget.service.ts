@@ -91,40 +91,41 @@ export class BudgetService {
   async getSummary(userId: string, month: number, year: number): Promise<BudgetSummaryItem[]> {
     const budgets = await prisma.budget.findMany({
       where: { userId, month, year },
-      include: {
-        cardInvoices: {
-          select: { cardInvoiceId: true, bank: true },
-        },
+      select: {
+        category: true,
+        amount: true,
+        cardInvoices: { select: { cardInvoiceId: true, bank: true } },
       },
       orderBy: { category: "asc" },
     });
 
     if (budgets.length === 0) return [];
 
-    return Promise.all(
-      budgets.map(async (b) => {
-        const invoiceIds = b.cardInvoices.map((bi) => bi.cardInvoiceId);
+    const allInvoiceIds = [...new Set(budgets.flatMap((b) => b.cardInvoices.map((ci) => ci.cardInvoiceId)))];
+    const categories = budgets.map((b) => b.category);
 
-        const expenses = await prisma.expense.findMany({
-          where: {
-            userId,
-            cardInvoiceId: { in: invoiceIds },
-            category: b.category,
-          },
-          select: { amount: true },
-        });
+    const expenses = await prisma.expense.findMany({
+      where: {
+        userId,
+        cardInvoiceId: { in: allInvoiceIds },
+        category: { in: categories },
+      },
+      select: { category: true, amount: true, cardInvoiceId: true },
+    });
 
-        const spent = expenses.reduce((acc, e) => acc + Number(e.amount), 0);
-        const budgetAmount = Number(b.amount);
-
-        return {
-          category: b.category,
-          budgetAmount,
-          spent,
-          percentage: budgetAmount > 0 ? Math.round((spent / budgetAmount) * 100) : 0,
-          banks: b.cardInvoices.map((bi) => bi.bank),
-        };
-      }),
-    );
+    return budgets.map((b) => {
+      const invoiceSet = new Set(b.cardInvoices.map((ci) => ci.cardInvoiceId));
+      const spent = expenses
+        .filter((e) => e.cardInvoiceId != null && invoiceSet.has(e.cardInvoiceId) && e.category === b.category)
+        .reduce((acc, e) => acc + Number(e.amount), 0);
+      const budgetAmount = Number(b.amount);
+      return {
+        category: b.category,
+        budgetAmount,
+        spent,
+        percentage: budgetAmount > 0 ? Math.round((spent / budgetAmount) * 100) : 0,
+        banks: b.cardInvoices.map((ci) => ci.bank),
+      };
+    });
   }
 }

@@ -16,6 +16,7 @@ import { FastifyRequest } from "fastify";
 import { UserService } from "../services/user.service";
 import { CreateUserDto, UpdateUserDto } from "../dto/user.dto";
 import { SessionAuthGuard } from "./session-auth.guard";
+import { RegistrationRateLimitGuard } from "../guards/registration-rate-limit.guard";
 import { AppError } from "../utils/AppError";
 
 @Controller("users")
@@ -51,6 +52,7 @@ export class UsersController {
   }
 
   @Post()
+  @UseGuards(RegistrationRateLimitGuard)
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() body: CreateUserDto) {
     if (process.env.REGISTRATION_OPEN !== "true") {

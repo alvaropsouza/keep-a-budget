@@ -36,3 +36,18 @@ export class VerifyPasskeyRegistrationDto {
   @IsObject()
   response!: Record<string, unknown>;
 }
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @MinLength(1)
+  token!: string;
+
+  @IsString()
+  @MinLength(8)
+  password!: string;
+}

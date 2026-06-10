@@ -40,7 +40,7 @@ export class ExpensesController {
   @Get()
   async getAll(@Query() query: ExpenseQueryParamsDto, @Req() req: FastifyRequest) {
     const filter = this.expenseService.buildFilter(query);
-    return this.expenseService.getAllWithSignedReceipts(filter, req.authUser?.userId);
+    return this.expenseService.getAllWithSignedReceipts(filter, req.authUser!.userId);
   }
 
   @Get("ir")
@@ -89,7 +89,7 @@ export class ExpensesController {
     const { valid, errors } = await validateDto(CreateExpenseDto, body);
     if (!valid) throw new AppError("Validation failed", 400, errors);
     return this.expenseService.createExpense(
-      { ...body, userId: req.authUser?.userId },
+      { ...body, userId: req.authUser!.userId },
       file,
     );
   }

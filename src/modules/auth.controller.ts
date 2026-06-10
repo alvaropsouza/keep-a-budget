@@ -18,8 +18,11 @@ import {
   BeginPasskeyAuthenticationDto,
   VerifyPasskeyAuthenticationDto,
   VerifyPasskeyRegistrationDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
 } from "../dto/auth.dto";
 import { AuthService, AuthSession } from "../services/auth.service";
+import { EmailService } from "../services/email.service";
 import { resolveSessionToken } from "../utils/sessionToken";
 import { SessionAuthGuard } from "./session-auth.guard";
 import { LoginRateLimitGuard } from "../guards/login-rate-limit.guard";
@@ -52,7 +55,10 @@ const toAuthPayload = (session: AuthSession) => ({
 
 @Controller("auth")
 export class AuthController {
-  constructor(@Inject(AuthService) private readonly authService: AuthService) {}
+  constructor(
+    @Inject(AuthService) private readonly authService: AuthService,
+    @Inject(EmailService) private readonly emailService: EmailService,
+  ) {}
 
   @UseGuards(LoginRateLimitGuard)
   @Post("login")
@@ -145,6 +151,25 @@ export class AuthController {
       name: session.user.name,
       expiresAt: session.expiresAt.toISOString(),
     };
+  }
+
+  @UseGuards(LoginRateLimitGuard)
+  @Post("forgot-password")
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    const result = await this.authService.createPasswordResetToken(body.email);
+    if (result) {
+      await this.emailService.sendPasswordReset(result.userEmail, result.token);
+    }
+    // Always return 200 to prevent email enumeration
+    return { message: "Se o email existir, você receberá um link de redefinição." };
+  }
+
+  @Post("reset-password")
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    await this.authService.resetPasswordWithToken(body.token, body.password);
+    return { message: "Senha redefinida com sucesso." };
   }
 
   @Post("logout")

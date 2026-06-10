@@ -34,23 +34,23 @@ export class InvoicesController {
   @Get()
   async getAll(@Query() query: InvoiceQueryParamsDto, @Req() req: FastifyRequest) {
     const filter = this.invoiceService.buildFilter(query);
-    return this.invoiceService.getAllWithExpenses(filter, req.authUser?.userId);
+    return this.invoiceService.getAllWithExpenses(filter, req.authUser!.userId);
   }
 
   @Get("summary")
   async getSummary(@Req() req: FastifyRequest) {
-    return this.invoiceService.getSummary(req.authUser?.userId);
+    return this.invoiceService.getSummary(req.authUser!.userId);
   }
 
   @Get(":id")
   async getById(@Param("id") id: string, @Req() req: FastifyRequest) {
-    return this.invoiceService.getByIdWithExpenses(id, req.authUser?.userId);
+    return this.invoiceService.getByIdWithExpenses(id, req.authUser!.userId);
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() body: CreateInvoiceDto, @Req() req: FastifyRequest) {
-    return this.invoiceService.createInvoice({ ...body, userId: req.authUser?.userId });
+    return this.invoiceService.createInvoice({ ...body, userId: req.authUser!.userId });
   }
 
   @Post("create-from-csv")
@@ -99,7 +99,7 @@ export class InvoicesController {
       dueDate,
       csvContent,
       excludeIndexes,
-      req.authUser?.userId,
+      req.authUser!.userId,
     );
   }
 

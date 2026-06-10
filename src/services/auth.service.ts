@@ -20,7 +20,7 @@ const scryptAsync = promisify(scrypt);
 const SALT_LENGTH = 32;
 const KEY_LENGTH = 64;
 const SESSION_DURATION_DAYS = Number(process.env.SESSION_DURATION_DAYS ?? "30");
-const WEBAUTHN_RP_NAME = process.env.WEBAUTHN_RP_NAME ?? "Road of Life";
+const WEBAUTHN_RP_NAME = process.env.WEBAUTHN_RP_NAME ?? "Keep a Budget";
 const WEBAUTHN_RP_ID = process.env.WEBAUTHN_RP_ID ?? "localhost";
 const WEBAUTHN_ORIGIN = process.env.WEBAUTHN_ORIGIN ?? "http://localhost:3000";
 const WEBAUTHN_CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -444,6 +444,46 @@ export class AuthService {
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  async createPasswordResetToken(email: string): Promise<{ token: string; userEmail: string } | null> {
+    const normalizedEmail = normalizeEmail(email);
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (!user) return null;
+
+    // Invalidate all existing tokens for this user
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+
+    const token = createSessionToken();
+    const tokenHash = hashToken(token);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash, expiresAt },
+    });
+
+    return { token, userEmail: user.email };
+  }
+
+  async resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
+    const tokenHash = hashToken(token);
+    const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+
+    if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
+      throw new AppError("Token inválido ou expirado.", 400);
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+      prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+      // Revoke all active sessions so attacker can't stay logged in after reset
+      prisma.userSession.updateMany({
+        where: { userId: record.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
   }
 }
 

@@ -13,13 +13,12 @@ import {
 } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import {
-  LoginDto,
+  RequestOtpDto,
+  VerifyOtpDto,
   AuthenticateDto,
   BeginPasskeyAuthenticationDto,
   VerifyPasskeyAuthenticationDto,
   VerifyPasskeyRegistrationDto,
-  ForgotPasswordDto,
-  ResetPasswordDto,
 } from "../dto/auth.dto";
 import { AuthService, AuthSession } from "../services/auth.service";
 import { EmailService } from "../services/email.service";
@@ -61,13 +60,25 @@ export class AuthController {
   ) {}
 
   @UseGuards(LoginRateLimitGuard)
-  @Post("login")
+  @Post("otp/request")
   @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() body: LoginDto,
+  async requestOtp(@Body() body: RequestOtpDto) {
+    const result = await this.authService.requestEmailOtp(body.email);
+    if (result) {
+      await this.emailService.sendLoginCode(result.userEmail, result.code);
+    }
+    // Always return 200 to prevent email enumeration
+    return { message: "Se o email existir, você receberá um código de acesso." };
+  }
+
+  @UseGuards(LoginRateLimitGuard)
+  @Post("otp/verify")
+  @HttpCode(HttpStatus.OK)
+  async verifyOtp(
+    @Body() body: VerifyOtpDto,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const session = await this.authService.loginWithEmail(body.email, body.password);
+    const session = await this.authService.verifyEmailOtp(body.email, body.code);
     reply.header("Set-Cookie", buildCookie(session.sessionToken, session.expiresAt));
     return { ...toAuthPayload(session), message: "Sessao iniciada com sucesso" };
   }
@@ -151,25 +162,6 @@ export class AuthController {
       name: session.user.name,
       expiresAt: session.expiresAt.toISOString(),
     };
-  }
-
-  @UseGuards(LoginRateLimitGuard)
-  @Post("forgot-password")
-  @HttpCode(HttpStatus.OK)
-  async forgotPassword(@Body() body: ForgotPasswordDto) {
-    const result = await this.authService.createPasswordResetToken(body.email);
-    if (result) {
-      await this.emailService.sendPasswordReset(result.userEmail, result.token);
-    }
-    // Always return 200 to prevent email enumeration
-    return { message: "Se o email existir, você receberá um link de redefinição." };
-  }
-
-  @Post("reset-password")
-  @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() body: ResetPasswordDto) {
-    await this.authService.resetPasswordWithToken(body.token, body.password);
-    return { message: "Senha redefinida com sucesso." };
   }
 
   @Post("logout")

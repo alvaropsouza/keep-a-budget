@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { randomBytes, createHash, scrypt, timingSafeEqual } from "node:crypto";
-import { promisify } from "node:util";
+import { randomBytes, randomInt, createHash, timingSafeEqual } from "node:crypto";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../utils/AppError";
 import {
@@ -16,29 +15,14 @@ import {
 } from "@simplewebauthn/server";
 import { isoUint8Array } from "@simplewebauthn/server/helpers";
 
-const scryptAsync = promisify(scrypt);
-const SALT_LENGTH = 32;
-const KEY_LENGTH = 64;
 const SESSION_DURATION_DAYS = Number(process.env.SESSION_DURATION_DAYS ?? "30");
 const WEBAUTHN_RP_NAME = process.env.WEBAUTHN_RP_NAME ?? "Keep a Budget";
 const WEBAUTHN_RP_ID = process.env.WEBAUTHN_RP_ID ?? "localhost";
 const WEBAUTHN_ORIGIN = process.env.WEBAUTHN_ORIGIN ?? "http://localhost:3000";
 const WEBAUTHN_CHALLENGE_TTL_MS = 5 * 60 * 1000;
-
-export const hashPassword = async (password: string): Promise<string> => {
-  const salt = randomBytes(SALT_LENGTH).toString("hex");
-  const derivedKey = (await scryptAsync(password, salt, KEY_LENGTH)) as Buffer;
-  return `${salt}:${derivedKey.toString("hex")}`;
-};
-
-export const verifyPassword = async (password: string, stored: string): Promise<boolean> => {
-  const [salt, storedHash] = stored.split(":");
-  if (!salt || !storedHash) return false;
-  const derivedKey = (await scryptAsync(password, salt, KEY_LENGTH)) as Buffer;
-  const storedBuffer = Buffer.from(storedHash, "hex");
-  if (derivedKey.length !== storedBuffer.length) return false;
-  return timingSafeEqual(derivedKey, storedBuffer);
-};
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 
 export type AuthUser = {
   userId: string;
@@ -63,6 +47,13 @@ const hashToken = (token: string): string =>
   createHash("sha256").update(token).digest("hex");
 
 const createSessionToken = (): string => randomBytes(48).toString("hex");
+
+const createOtpCode = (): string =>
+  randomInt(0, 1_000_000).toString().padStart(6, "0");
+
+// Hash scoped to user id so the same code for different users never collides
+const hashOtpCode = (userId: string, code: string): string =>
+  hashToken(`${userId}:${code}`);
 
 const getExpiryDate = (): Date => {
   const now = Date.now();
@@ -206,24 +197,78 @@ export class AuthService {
     });
   }
 
-  async loginWithEmail(email: string, password: string): Promise<AuthSession> {
+  async requestEmailOtp(email: string): Promise<{ code: string; userEmail: string } | null> {
     const normalizedEmail = normalizeEmail(email);
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (!user) return null;
 
-    if (!user) {
-      throw new AppError("Email ou senha invalidos.", 401);
+    const latest = await prisma.emailOtp.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (latest && Date.now() - latest.createdAt.getTime() < OTP_RESEND_COOLDOWN_MS) {
+      throw new AppError("Aguarde um instante antes de pedir outro código.", 429);
     }
 
-    if (!user.passwordHash) {
-      throw new AppError("Conta sem senha configurada. Contate o administrador.", 403);
+    const code = createOtpCode();
+    const codeHash = hashOtpCode(user.id, code);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+    await prisma.$transaction([
+      prisma.emailOtp.deleteMany({ where: { userId: user.id } }),
+      prisma.emailOtp.create({
+        data: { userId: user.id, codeHash, expiresAt },
+      }),
+    ]);
+
+    return { code, userEmail: user.email };
+  }
+
+  async verifyEmailOtp(email: string, code: string): Promise<AuthSession> {
+    const invalidCode = (): never => {
+      throw new AppError("Código inválido ou expirado.", 401);
+    };
+
+    const normalizedEmail = normalizeEmail(email);
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (!user) invalidCode();
+
+    const otp = await prisma.emailOtp.findFirst({
+      where: { userId: user!.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (
+      !otp ||
+      otp.consumedAt ||
+      otp.expiresAt.getTime() <= Date.now() ||
+      otp.attempts >= OTP_MAX_ATTEMPTS
+    ) {
+      invalidCode();
     }
 
-    const passwordValid = await verifyPassword(password, user.passwordHash);
-    if (!passwordValid) {
-      throw new AppError("Email ou senha invalidos.", 401);
+    const validOtp = otp!;
+    const providedHash = Buffer.from(hashOtpCode(user!.id, code), "hex");
+    const storedHash = Buffer.from(validOtp.codeHash, "hex");
+    const matches =
+      providedHash.length === storedHash.length &&
+      timingSafeEqual(providedHash, storedHash);
+
+    if (!matches) {
+      await prisma.emailOtp.update({
+        where: { id: validOtp.id },
+        data: { attempts: { increment: 1 } },
+      });
+      invalidCode();
     }
 
-    return this.createSessionForUser(user);
+    await prisma.emailOtp.update({
+      where: { id: validOtp.id },
+      data: { consumedAt: new Date() },
+    });
+
+    return this.createSessionForUser(user!);
   }
 
   async beginPasskeyRegistration(userId: string): Promise<PublicKeyCredentialCreationOptionsJSON> {
@@ -446,44 +491,5 @@ export class AuthService {
     });
   }
 
-  async createPasswordResetToken(email: string): Promise<{ token: string; userEmail: string } | null> {
-    const normalizedEmail = normalizeEmail(email);
-    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (!user) return null;
-
-    // Invalidate all existing tokens for this user
-    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
-
-    const token = createSessionToken();
-    const tokenHash = hashToken(token);
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    await prisma.passwordResetToken.create({
-      data: { userId: user.id, tokenHash, expiresAt },
-    });
-
-    return { token, userEmail: user.email };
-  }
-
-  async resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
-    const tokenHash = hashToken(token);
-    const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
-
-    if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
-      throw new AppError("Token inválido ou expirado.", 400);
-    }
-
-    const passwordHash = await hashPassword(newPassword);
-
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
-      prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
-      // Revoke all active sessions so attacker can't stay logged in after reset
-      prisma.userSession.updateMany({
-        where: { userId: record.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
-  }
 }
 

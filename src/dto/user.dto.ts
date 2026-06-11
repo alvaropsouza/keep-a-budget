@@ -5,7 +5,6 @@ import {
   IsNumber,
   Min,
   IsDate,
-  MinLength,
   Matches,
 } from "class-validator";
 import { Transform } from "class-transformer";
@@ -25,11 +24,6 @@ export class CreateUserDto {
 
   @IsEmail()
   email!: string;
-
-  @IsString()
-  @MinLength(8)
-  @IsOptional()
-  password?: string;
 
   @IsString()
   @IsOptional()
@@ -74,11 +68,6 @@ export class UpdateUserDto {
   @IsEmail()
   @IsOptional()
   email?: string;
-
-  @IsString()
-  @IsOptional()
-  @MinLength(8)
-  password?: string;
 
   @IsString()
   @IsOptional()

@@ -20,16 +20,35 @@ const authSuccessSchema = {
 };
 
 export const authSchemas = {
-  login: {
+  otpRequest: {
     tags: ["Auth"],
-    description: "Login with a registered user email",
+    description: "Request a one-time login code sent to the user email",
     body: {
       type: "object",
       properties: {
         email: { type: "string", format: "email" },
-        locale: { type: "string" },
       },
       required: ["email"],
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
+        },
+      },
+    },
+  },
+  otpVerify: {
+    tags: ["Auth"],
+    description: "Verify a one-time login code and start a session",
+    body: {
+      type: "object",
+      properties: {
+        email: { type: "string", format: "email" },
+        code: { type: "string", pattern: "^\\d{6}$" },
+      },
+      required: ["email", "code"],
     },
     response: {
       200: authSuccessSchema,

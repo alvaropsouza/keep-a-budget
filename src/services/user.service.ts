@@ -3,7 +3,6 @@ import { IUser } from "../models/User";
 import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { prisma } from "../lib/prisma";
-import { hashPassword } from "./auth.service";
 import { isValidCpf, isValidRg, normalizeCpf, normalizeRg } from "../utils/brDocuments";
 import { CacheService } from "./cache.service";
 
@@ -108,7 +107,7 @@ export class UserService {
     return user;
   }
 
-  async update(id: string, data: Partial<IUser> & { password?: string }): Promise<IUser> {
+  async update(id: string, data: Partial<IUser>): Promise<IUser> {
     ensureValidDocuments(data);
     const updateData: Record<string, unknown> = {};
 
@@ -121,7 +120,6 @@ export class UserService {
     if (data.salary !== undefined) updateData.salary = data.salary;
     if (data.avatar !== undefined) updateData.avatar = data.avatar;
     if (data.lastLogin !== undefined) updateData.lastLogin = data.lastLogin;
-    if (data.password) updateData.passwordHash = await hashPassword(data.password);
 
     let row: UserRecord | null = null;
     try {
@@ -188,7 +186,7 @@ export class UserService {
     return user;
   }
 
-  async createUser(data: Partial<IUser> & { password?: string }): Promise<IUser> {
+  async createUser(data: Partial<IUser>): Promise<IUser> {
     ensureValidDocuments(data);
     const payload = {
       ...data,
@@ -197,8 +195,6 @@ export class UserService {
       rg: data.rg ? normalizeRg(data.rg) : undefined,
       lastLogin: data.lastLogin ?? new Date(),
     };
-
-    const passwordHash = data.password ? await hashPassword(data.password) : null;
 
     let row: UserRecord;
     try {
@@ -209,7 +205,6 @@ export class UserService {
           email: payload.email!,
           cpf: payload.cpf ?? null,
           rg: payload.rg ?? null,
-          passwordHash,
           phone: payload.phone ?? null,
           salary: payload.salary ?? null,
           avatar: payload.avatar ?? null,

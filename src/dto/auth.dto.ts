@@ -1,16 +1,17 @@
-import { IsEmail, IsObject, IsOptional, IsString, MinLength } from "class-validator";
+import { IsEmail, IsObject, IsString, Matches, MinLength } from "class-validator";
 
-export class LoginDto {
+export class RequestOtpDto {
+  @IsEmail()
+  email!: string;
+}
+
+export class VerifyOtpDto {
   @IsEmail()
   email!: string;
 
   @IsString()
-  @MinLength(8)
-  password!: string;
-
-  @IsString()
-  @IsOptional()
-  locale?: string;
+  @Matches(/^\d{6}$/, { message: "code must be a 6-digit number" })
+  code!: string;
 }
 
 export class AuthenticateDto {
@@ -37,17 +38,3 @@ export class VerifyPasskeyRegistrationDto {
   response!: Record<string, unknown>;
 }
 
-export class ForgotPasswordDto {
-  @IsEmail()
-  email!: string;
-}
-
-export class ResetPasswordDto {
-  @IsString()
-  @MinLength(1)
-  token!: string;
-
-  @IsString()
-  @MinLength(8)
-  password!: string;
-}

@@ -10,13 +10,13 @@ const corsPlugin = fp(async (app: FastifyInstance) => {
         return;
       }
 
-      const isProd = process.env.NODE_ENV === "production";
-      const extraOrigins = process.env.CORS_EXTRA_ORIGINS
-        ? process.env.CORS_EXTRA_ORIGINS.split(",").map((o) => o.trim())
-        : [];
-      const allowedOrigins = isProd
-        ? ["https://road-of-life.up.railway.app", ...extraOrigins]
-        : ["http://localhost:8080", ...extraOrigins];
+      const fallback =
+        process.env.NODE_ENV === "production"
+          ? []
+          : ["http://localhost:8080"];
+      const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+        ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+        : fallback;
 
       cb(null, allowedOrigins.includes(origin));
     },

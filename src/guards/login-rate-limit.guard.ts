@@ -12,11 +12,12 @@ export class LoginRateLimitGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest<FastifyRequest>();
     const forwarded = req.headers["x-forwarded-for"] as string | undefined;
     const ip = forwarded?.split(",")[0].trim() ?? req.ip ?? "unknown";
+    const key = `${ip}:${req.url}`;
     const now = Date.now();
-    const entry = this.store.get(ip);
+    const entry = this.store.get(key);
 
     if (!entry || entry.resetAt < now) {
-      this.store.set(ip, { count: 1, resetAt: now + this.WINDOW });
+      this.store.set(key, { count: 1, resetAt: now + this.WINDOW });
       return true;
     }
 

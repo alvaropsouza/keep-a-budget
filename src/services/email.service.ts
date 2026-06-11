@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = process.env.EMAIL_FROM ?? "Keep a Budget <noreply@road-of-life.app>";
+const FROM = process.env.EMAIL_FROM ?? "Keep a Budget <noreply@keepabudget.com.br>";
 
 @Injectable()
 export class EmailService {
@@ -10,7 +10,7 @@ export class EmailService {
 
   async sendLoginCode(email: string, code: string): Promise<void> {
     try {
-      const result = await resend.emails.send({
+      const { data, error } = await resend.emails.send({
         from: FROM,
         to: email,
         subject: `${code} é seu código de acesso — Keep a Budget`,
@@ -29,7 +29,13 @@ export class EmailService {
           </div>
         `,
       });
-      this.logger.log({ email, messageId: result.data?.id }, "Login code email sent");
+
+      if (error) {
+        this.logger.error({ error, email }, "Resend rejected email");
+        throw new Error(error.message);
+      }
+
+      this.logger.log({ email, messageId: data?.id }, "Login code email sent");
     } catch (err) {
       this.logger.error({ err, email }, "Failed to send login code email");
       throw err;

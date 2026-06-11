@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { randomBytes, randomInt, createHash, timingSafeEqual } from "node:crypto";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../utils/AppError";
@@ -110,6 +110,8 @@ const toAuthenticatorTransports = (
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   private async createSessionForUser(user: SessionUserRecord): Promise<AuthSession> {
     const sessionToken = createSessionToken();
     const tokenHash = hashToken(sessionToken);
@@ -200,7 +202,10 @@ export class AuthService {
   async requestEmailOtp(email: string): Promise<{ code: string; userEmail: string } | null> {
     const normalizedEmail = normalizeEmail(email);
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (!user) return null;
+    if (!user) {
+      this.logger.debug({ email: normalizedEmail }, "OTP requested for unknown email");
+      return null;
+    }
 
     const latest = await prisma.emailOtp.findFirst({
       where: { userId: user.id },
@@ -208,6 +213,7 @@ export class AuthService {
     });
 
     if (latest && Date.now() - latest.createdAt.getTime() < OTP_RESEND_COOLDOWN_MS) {
+      this.logger.warn({ userId: user.id }, "OTP resend blocked by cooldown");
       throw new AppError("Aguarde um instante antes de pedir outro código.", 429);
     }
 
@@ -222,6 +228,7 @@ export class AuthService {
       }),
     ]);
 
+    this.logger.log({ userId: user.id }, "OTP created, sending email");
     return { code, userEmail: user.email };
   }
 
@@ -260,6 +267,7 @@ export class AuthService {
         where: { id: validOtp.id },
         data: { attempts: { increment: 1 } },
       });
+      this.logger.warn({ userId: user!.id, attempts: validOtp.attempts + 1 }, "OTP verification failed: wrong code");
       invalidCode();
     }
 
@@ -268,6 +276,7 @@ export class AuthService {
       data: { consumedAt: new Date() },
     });
 
+    this.logger.log({ userId: user!.id }, "OTP verified, session created");
     return this.createSessionForUser(user!);
   }
 

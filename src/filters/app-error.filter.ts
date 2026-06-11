@@ -11,6 +11,10 @@ export class AppErrorFilter implements ExceptionFilter {
     const reply = ctx.getResponse<FastifyReply>();
 
     if (exception instanceof AppError) {
+      this.logger.warn(
+        { statusCode: exception.statusCode, details: exception.details },
+        `AppError: ${exception.message}`,
+      );
       reply.status(exception.statusCode).send({
         error: exception.message,
         ...(exception.details && { details: exception.details }),
@@ -21,6 +25,7 @@ export class AppErrorFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const response = exception.getResponse();
+      this.logger.warn({ status, response }, `HttpException: ${exception.message}`);
       reply.status(status).send(
         typeof response === "string" ? { error: response } : response,
       );

@@ -1,15 +1,16 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { Resend } from "resend";
-import logger from "../config/logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.EMAIL_FROM ?? "Keep a Budget <noreply@road-of-life.app>";
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
+
   async sendLoginCode(email: string, code: string): Promise<void> {
     try {
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: FROM,
         to: email,
         subject: `${code} é seu código de acesso — Keep a Budget`,
@@ -28,8 +29,9 @@ export class EmailService {
           </div>
         `,
       });
+      this.logger.log({ email, messageId: result.data?.id }, "Login code email sent");
     } catch (err) {
-      logger.error({ err, email }, "Failed to send login code email");
+      this.logger.error({ err, email }, "Failed to send login code email");
       throw err;
     }
   }

@@ -37,21 +37,14 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // Fastify's module augmentation causes structural mismatch between plugin
-  // callback types (RawServerBase) and NestFastifyApplication.register()
-  // (RawServerDefault). Safe at runtime — TypeScript limitation only.
-  // @ts-expect-error — see comment above
+
   await app.register(corsPlugin);
-  // @ts-expect-error — see comment above
   await app.register(helmetPlugin);
-  // @ts-expect-error — see comment above
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
-  // @ts-expect-error — see comment above
   await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 
   await connectDB();
   
-  // Configurar middleware de cache invalidation
   const cacheService = app.get(CacheService);
   setupCacheMiddleware(cacheService);
   

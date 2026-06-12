@@ -10,6 +10,7 @@ import { CacheModule } from "./modules/cache.module";
 import { AiModule } from "./modules/ai.module";
 import { IrDocumentModule } from "./modules/ir-document.module";
 import { BudgetModule } from "./modules/budget.module";
+import { VehiclesModule } from "./modules/vehicles.module";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { BudgetModule } from "./modules/budget.module";
     AiModule,
     IrDocumentModule,
     BudgetModule,
+    VehiclesModule,
   ],
   controllers: [HealthController],
 })

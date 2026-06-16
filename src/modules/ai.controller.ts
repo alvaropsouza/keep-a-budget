@@ -43,4 +43,31 @@ export class AiController {
 
     return this.aiService.parseExpenseFromImage(fileBuffer, mimetype);
   }
+
+  @Post("parse-ir-receipt")
+  @HttpCode(HttpStatus.OK)
+  async parseIrReceipt(@Req() req: FastifyRequest) {
+    let fileBuffer: Buffer | undefined;
+    let mimetype: string | undefined;
+
+    const parts = req.parts();
+    for await (const part of parts) {
+      if (part.type === "file") {
+        fileBuffer = await part.toBuffer();
+        mimetype = part.mimetype;
+      }
+    }
+
+    if (!fileBuffer || !mimetype) throw new BadRequestException("Arquivo não enviado");
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    if (!allowedTypes.includes(mimetype)) {
+      throw new BadRequestException("Tipo inválido. Use JPEG, PNG, WEBP ou PDF.");
+    }
+
+    const maxBytes = 10 * 1024 * 1024;
+    if (fileBuffer.length > maxBytes) throw new BadRequestException("Arquivo muito grande. Máximo 10MB.");
+
+    return this.aiService.parseIrReceiptFromFile(fileBuffer, mimetype);
+  }
 }

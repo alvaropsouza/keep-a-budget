@@ -104,29 +104,29 @@ export class InvoicesController {
   }
 
   @Put(":id")
-  async update(@Param("id") id: string, @Body() body: UpdateInvoiceDto) {
-    return this.invoiceService.update(id, body);
+  async update(@Param("id") id: string, @Body() body: UpdateInvoiceDto, @Req() req: FastifyRequest) {
+    return this.invoiceService.update(id, body, req.authUser!.userId);
   }
 
   @Delete(":id")
-  async delete(@Param("id") id: string) {
-    await this.invoiceService.deleteWithExpenses(id);
+  async delete(@Param("id") id: string, @Req() req: FastifyRequest) {
+    await this.invoiceService.deleteWithExpenses(id, req.authUser!.userId);
     return { message: "Invoice and associated expenses deleted successfully" };
   }
 
   @Post(":id/advance")
-  async advance(@Param("id") id: string, @Body() body: AdvanceInvoiceDto) {
-    return this.invoiceService.advancePayment(id, body.amount);
+  async advance(@Param("id") id: string, @Body() body: AdvanceInvoiceDto, @Req() req: FastifyRequest) {
+    return this.invoiceService.advancePayment(id, body.amount, req.authUser!.userId);
   }
 
   @Post(":id/close")
-  async close(@Param("id") id: string, @Body() body: CloseInvoiceDto) {
-    return this.invoiceService.closeInvoice(id, body.balance);
+  async close(@Param("id") id: string, @Body() body: CloseInvoiceDto, @Req() req: FastifyRequest) {
+    return this.invoiceService.closeInvoice(id, body.balance, req.authUser!.userId);
   }
 
   @Post(":id/reopen")
-  async reopen(@Param("id") id: string) {
-    return this.invoiceService.reopenInvoice(id);
+  async reopen(@Param("id") id: string, @Req() req: FastifyRequest) {
+    return this.invoiceService.reopenInvoice(id, req.authUser!.userId);
   }
 
   @Post(":id/import-csv")
@@ -155,6 +155,6 @@ export class InvoicesController {
 
     if (!csvContent) throw new AppError("No file uploaded", 400);
 
-    return this.invoiceService.importFromCsv(id, csvContent, excludeIndexes);
+    return this.invoiceService.importFromCsv(id, csvContent, excludeIndexes, req.authUser!.userId);
   }
 }

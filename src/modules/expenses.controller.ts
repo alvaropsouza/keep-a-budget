@@ -73,8 +73,8 @@ export class ExpensesController {
   }
 
   @Get(":id")
-  async getById(@Param("id") id: string) {
-    const expense = await this.expenseService.findById(id);
+  async getById(@Param("id") id: string, @Req() req: FastifyRequest) {
+    const expense = await this.expenseService.findById(id, undefined, req.authUser!.userId);
     if (expense.receipt) {
       const signedUrl = await this.expenseService.getReceiptUrl(expense.receipt);
       return { ...expense, receipt: signedUrl };
@@ -95,19 +95,19 @@ export class ExpensesController {
   }
 
   @Put(":id")
-  async update(@Param("id") id: string, @Body() body: UpdateExpenseDto) {
-    return this.expenseService.updateExpense(id, body);
+  async update(@Param("id") id: string, @Body() body: UpdateExpenseDto, @Req() req: FastifyRequest) {
+    return this.expenseService.updateExpense(id, body, req.authUser!.userId);
   }
 
   @Delete(":id")
-  async delete(@Param("id") id: string) {
-    await this.expenseService.deleteExpense(id);
+  async delete(@Param("id") id: string, @Req() req: FastifyRequest) {
+    await this.expenseService.deleteExpense(id, req.authUser!.userId);
     return { message: "Expense deleted successfully" };
   }
 
   @Patch(":id/ir")
-  async toggleIrDeductible(@Param("id") id: string, @Body() body: IrToggleDto) {
-    return this.expenseService.updateExpense(id, { irDeductible: body.irDeductible });
+  async toggleIrDeductible(@Param("id") id: string, @Body() body: IrToggleDto, @Req() req: FastifyRequest) {
+    return this.expenseService.updateExpense(id, { irDeductible: body.irDeductible }, req.authUser!.userId);
   }
 
   @Post(":id/receipt")
@@ -137,9 +137,9 @@ export class ExpensesController {
       filename,
       mimetype,
       userEmail,
-    });
+    }, req.authUser!.userId);
 
-    const expense = await this.expenseService.findById(id);
+    const expense = await this.expenseService.findById(id, undefined, req.authUser!.userId);
     if (expense.receipt) {
       const signedUrl = await this.expenseService.getReceiptUrl(expense.receipt);
       return { ...expense, receipt: signedUrl };
@@ -148,8 +148,8 @@ export class ExpensesController {
   }
 
   @Delete(":id/receipt")
-  async deleteReceipt(@Param("id") id: string) {
-    await this.expenseService.deleteReceipt(id);
+  async deleteReceipt(@Param("id") id: string, @Req() req: FastifyRequest) {
+    await this.expenseService.deleteReceipt(id, req.authUser!.userId);
     return { message: "Receipt removed successfully" };
   }
 

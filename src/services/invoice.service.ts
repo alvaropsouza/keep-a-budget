@@ -72,9 +72,10 @@ export class InvoiceService {
   private async findInvoiceById(
     id: string,
     client?: TxClient,
+    userId?: string,
   ): Promise<ICardInvoice> {
     const db = this.getDb(client);
-    const row = await db.cardInvoice.findUnique({ where: { id } });
+    const row = await db.cardInvoice.findFirst({ where: { id, ...(userId ? { userId } : {}) } });
 
     if (!row) {
       notFound();
@@ -133,11 +134,12 @@ export class InvoiceService {
     id: string,
     _populate?: string,
     client?: TxClient,
+    userId?: string,
   ): Promise<ICardInvoice> {
-    return this.findInvoiceById(id, client);
+    return this.findInvoiceById(id, client, userId);
   }
 
-  async update(id: string, data: Partial<ICardInvoice>): Promise<ICardInvoice> {
+  async update(id: string, data: Partial<ICardInvoice>, userId?: string): Promise<ICardInvoice> {
     const updateData: Prisma.CardInvoiceUpdateInput = {};
 
     if (data.bank != null) {
@@ -158,7 +160,7 @@ export class InvoiceService {
 
     const row = await prisma.cardInvoice
       .update({
-        where: { id },
+        where: { id, ...(userId ? { userId } : {}) },
         data: updateData,
       })
       .catch(() => null);
@@ -318,8 +320,9 @@ export class InvoiceService {
     return mapInvoice(row);
   }
 
-  async deleteWithExpenses(id: string): Promise<void> {
+  async deleteWithExpenses(id: string, userId?: string): Promise<void> {
     await runWithTransaction(async (tx) => {
+      await this.findInvoiceById(id, tx, userId);
       await tx.expense.deleteMany({ where: { cardInvoiceId: id } });
       const deleted = await tx.cardInvoice.delete({ where: { id } }).catch(() => null);
       if (!deleted) {
@@ -330,9 +333,9 @@ export class InvoiceService {
     logger.info({ invoiceId: id }, "Invoice and associated expenses deleted");
   }
 
-  async advancePayment(id: string, amount: number): Promise<ICardInvoice> {
+  async advancePayment(id: string, amount: number, userId?: string): Promise<ICardInvoice> {
     await runWithTransaction(async (tx) => {
-      const invoice = await this.findById(id, undefined, tx);
+      const invoice = await this.findById(id, undefined, tx, userId);
 
       const currentBalance = invoice.balance ?? 0;
       const advancedAmount = invoice.advance ?? 0;
@@ -467,8 +470,8 @@ export class InvoiceService {
     return createdInvoice;
   }
 
-  async closeInvoice(id: string, manualBalance?: number): Promise<ICardInvoice> {
-    const invoice = await this.findById(id);
+  async closeInvoice(id: string, manualBalance?: number, userId?: string): Promise<ICardInvoice> {
+    const invoice = await this.findById(id, undefined, undefined, userId);
 
     if (invoice.isClosed) {
       throw new AppError("Invoice is already closed", 400);
@@ -479,7 +482,7 @@ export class InvoiceService {
       updateData.balance = manualBalance;
     }
 
-    await this.update(id, updateData);
+    await this.update(id, updateData, userId);
 
     const updatedInvoice = await this.getByIdWithExpenses(id);
 
@@ -526,14 +529,14 @@ export class InvoiceService {
     };
   }
 
-  async reopenInvoice(id: string): Promise<ICardInvoice> {
-    const invoice = await this.findById(id);
+  async reopenInvoice(id: string, userId?: string): Promise<ICardInvoice> {
+    const invoice = await this.findById(id, undefined, undefined, userId);
 
     if (!invoice.isClosed) {
       throw new AppError("Invoice is not closed", 400);
     }
 
-    await this.update(id, { isClosed: false });
+    await this.update(id, { isClosed: false }, userId);
     const updatedInvoice = await this.getByIdWithExpenses(id);
 
     logger.info({ invoiceId: id }, "Invoice reopened");
@@ -666,8 +669,9 @@ export class InvoiceService {
     id: string,
     csvContent: string,
     excludeIndexes?: number[],
+    userId?: string,
   ): Promise<ICardInvoice> {
-    const invoice = await this.findById(id);
+    const invoice = await this.findById(id, undefined, undefined, userId);
 
     if (invoice.isClosed) {
       throw new AppError(

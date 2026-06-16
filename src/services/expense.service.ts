@@ -99,9 +99,9 @@ export class ExpenseService {
       .build();
   }
 
-  async findById(id: string, tx?: Prisma.TransactionClient): Promise<IExpense> {
+  async findById(id: string, tx?: Prisma.TransactionClient, userId?: string): Promise<IExpense> {
     const db = tx ?? prisma;
-    const row = await db.expense.findUnique({ where: { id } });
+    const row = await db.expense.findFirst({ where: { id, ...(userId ? { userId } : {}) } });
     if (!row) {
       notFound();
     }
@@ -474,10 +474,10 @@ export class ExpenseService {
     return targetDate;
   }
 
-  async updateExpense(id: string, updateData: Partial<IExpense>): Promise<IExpense> {
+  async updateExpense(id: string, updateData: Partial<IExpense>, userId?: string): Promise<IExpense> {
     return runWithTransaction(
       async (tx) => {
-        const oldExpense = await this.findById(id, tx);
+        const oldExpense = await this.findById(id, tx, userId);
 
         if (oldExpense.cardInvoiceId) {
           const invoice = await this.invoiceService.findById(
@@ -516,10 +516,10 @@ export class ExpenseService {
     );
   }
 
-  async deleteExpense(id: string): Promise<void> {
+  async deleteExpense(id: string, userId?: string): Promise<void> {
     await runWithTransaction(
       async (tx) => {
-        const expense = await this.findById(id, tx);
+        const expense = await this.findById(id, tx, userId);
 
         if (expense.cardInvoiceId) {
           const invoice = await this.invoiceService.findById(
@@ -556,8 +556,11 @@ export class ExpenseService {
     logger.info({ expenseId: id }, "Expense deleted");
   }
 
-  async uploadReceipt(expenseId: string, file: FileData): Promise<string | null> {
+  async uploadReceipt(expenseId: string, file: FileData, userId?: string): Promise<string | null> {
     try {
+      if (userId) {
+        await this.findById(expenseId, undefined, userId);
+      }
       const s3Key = await uploadToS3(file.buffer, file.filename, file.mimetype, {
         userEmail: file.userEmail,
       });
@@ -601,7 +604,10 @@ export class ExpenseService {
     return expensesWithSignedUrls as IExpense[];
   }
 
-  async deleteReceipt(id: string): Promise<IExpense> {
+  async deleteReceipt(id: string, userId?: string): Promise<IExpense> {
+    if (userId) {
+      await this.findById(id, undefined, userId);
+    }
     const expense = await this.update(id, { receipt: null as any });
 
     logger.info({ expenseId: id }, "Receipt removed");

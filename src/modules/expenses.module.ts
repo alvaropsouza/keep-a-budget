@@ -9,5 +9,6 @@ import { IrDocumentModule } from "./ir-document.module";
   imports: [AuthModule, InvoicesModule, IrDocumentModule],
   controllers: [ExpensesController],
   providers: [ExpenseService],
+  exports: [ExpenseService],
 })
 export class ExpensesModule {}

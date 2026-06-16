@@ -46,7 +46,7 @@ export class ExpensesController {
   @Get("ir")
   async getIrExpenses(@Query() query: IrQueryParamsDto, @Req() req: FastifyRequest) {
     const year = Number(query.year);
-    return this.expenseService.getIrExpenses(year, req.authUser!.userId);
+    return this.expenseService.getIrExpensesWithSignedReceipts(year, req.authUser!.userId);
   }
 
   @Get("ir/summary")

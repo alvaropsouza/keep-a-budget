@@ -1,6 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../utils/AppError";
+import { ExpenseService } from "./expense.service";
+import type { IExpense } from "../models/Expense";
 
 export interface BudgetSummaryItem {
   category: string;
@@ -12,6 +14,58 @@ export interface BudgetSummaryItem {
 
 @Injectable()
 export class BudgetService {
+  constructor(@Inject(ExpenseService) private readonly expenseService: ExpenseService) {}
+  async getExpenses(userId: string, category: string, month: number, year: number): Promise<IExpense[]> {
+    const budget = await prisma.budget.findUnique({
+      where: { userId_category_month_year: { userId, category, month, year } },
+      select: { cardInvoices: { select: { cardInvoiceId: true } } },
+    });
+
+    if (!budget) throw new AppError("Budget não encontrado", 404);
+
+    const invoiceIds = budget.cardInvoices.map((ci) => ci.cardInvoiceId);
+
+    const rows = await prisma.expense.findMany({
+      where: { userId, category, cardInvoiceId: { in: invoiceIds } },
+      orderBy: { date: "desc" },
+    });
+
+    const toNumber = (v: unknown) => (v == null ? 0 : Number(v));
+
+    return Promise.all(
+      rows.map(async (row): Promise<IExpense> => {
+        let receipt = row.receipt ?? undefined;
+        if (receipt) {
+          try {
+            receipt = await this.expenseService.getReceiptUrl(receipt);
+          } catch {
+            /* keep original key on sign failure */
+          }
+        }
+        return {
+          id: row.id,
+          _id: row.id,
+          userId: row.userId ?? undefined,
+          bank: row.bank as IExpense["bank"],
+          type: row.type as IExpense["type"],
+          category: row.category,
+          date: new Date(row.date),
+          amount: toNumber(row.amount),
+          description: row.description ?? "",
+          receipt,
+          irDeductible: row.irDeductible ?? false,
+          installment:
+            row.installmentCurrent || row.installmentTotal
+              ? { current: row.installmentCurrent ?? undefined, total: row.installmentTotal ?? undefined }
+              : undefined,
+          cardInvoiceId: row.cardInvoiceId,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        };
+      }),
+    );
+  }
+
   async upsert(
     userId: string,
     category: string,

@@ -34,6 +34,15 @@ export class BudgetController {
     return this.budgetService.getSummary(userId, Number(query.month), Number(query.year));
   }
 
+  @Get("expenses")
+  async expenses(
+    @Query() query: BudgetQueryDto & { category: string },
+    @Req() req: FastifyRequest,
+  ) {
+    const { userId } = this.getAuthUser(req);
+    return this.budgetService.getExpenses(userId, query.category, Number(query.month), Number(query.year));
+  }
+
   @Post()
   @HttpCode(HttpStatus.OK)
   async upsert(@Body() body: UpsertBudgetDto, @Req() req: FastifyRequest) {

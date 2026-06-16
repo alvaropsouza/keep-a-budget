@@ -624,6 +624,23 @@ export class ExpenseService {
     return rows.map(mapExpense);
   }
 
+  async getIrExpensesWithSignedReceipts(year: number, userId: string): Promise<IExpense[]> {
+    const expenses = await this.getIrExpenses(year, userId);
+
+    return Promise.all(
+      expenses.map(async (expense) => {
+        if (!expense.receipt) return expense;
+        try {
+          const signedUrl = await this.getReceiptUrl(expense.receipt);
+          return { ...expense, receipt: signedUrl };
+        } catch (error) {
+          logger.error({ expenseId: expense.id, error }, "Failed to sign IR expense receipt URL");
+          return expense;
+        }
+      }),
+    );
+  }
+
   async getIrSummary(year: number, userId: string): Promise<IrCategorySummary[]> {
     const expenses = await this.getIrExpenses(year, userId);
     const byCategory = new Map<string, IrCategorySummary>();

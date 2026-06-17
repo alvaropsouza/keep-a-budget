@@ -3,6 +3,8 @@ import {
   Get,
   Inject,
   Post,
+  Delete,
+  Param,
   Body,
   Req,
   Res,
@@ -10,6 +12,7 @@ import {
   HttpStatus,
   UseGuards,
   UnauthorizedException,
+  NotFoundException,
 } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
 import {
@@ -44,6 +47,21 @@ const clearCookie = (): string => {
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${securePart}`;
 };
 
+// Capture where/what the login came from. User-Agent is capped to a sane
+// length to avoid storing oversized header values. X-Device-Id is the client's
+// stable per-device id (localStorage UUID) used to keep one session per device.
+const readDeviceId = (req: FastifyRequest): string | undefined => {
+  const raw = req.headers["x-device-id"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value?.slice(0, 128);
+};
+
+const buildSessionContext = (req: FastifyRequest) => ({
+  userAgent: req.headers["user-agent"]?.slice(0, 512),
+  ipAddress: req.ip,
+  deviceId: readDeviceId(req),
+});
+
 const toAuthPayload = (session: AuthSession) => ({
   userId: session.user.userId,
   email: session.user.email,
@@ -76,9 +94,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async verifyOtp(
     @Body() body: VerifyOtpDto,
+    @Req() req: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const session = await this.authService.verifyEmailOtp(body.email, body.code);
+    const session = await this.authService.verifyEmailOtp(
+      body.email,
+      body.code,
+      buildSessionContext(req),
+    );
     reply.header("Set-Cookie", buildCookie(session.sessionToken, session.expiresAt));
     return { ...toAuthPayload(session), message: "Sessao iniciada com sucesso" };
   }
@@ -131,11 +154,13 @@ export class AuthController {
   @Post("webauthn/login/verify")
   async verifyPasskeyAuthentication(
     @Body() body: VerifyPasskeyAuthenticationDto,
+    @Req() req: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const session = await this.authService.verifyPasskeyAuthentication(
       body.email,
       body.response as unknown as AuthenticationResponseJSON,
+      buildSessionContext(req),
     );
     reply.header("Set-Cookie", buildCookie(session.sessionToken, session.expiresAt));
     return toAuthPayload(session);
@@ -162,6 +187,52 @@ export class AuthController {
       name: session.user.name,
       expiresAt: session.expiresAt.toISOString(),
     };
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Get("sessions")
+  async listSessions(@Req() req: FastifyRequest) {
+    const authUser = req.authUser;
+    if (!authUser) {
+      throw new UnauthorizedException();
+    }
+    const token = resolveSessionToken(req) ?? "";
+    const sessions = await this.authService.listSessions(authUser.userId, token);
+    return { sessions };
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Post("sessions/revoke-others")
+  @HttpCode(HttpStatus.OK)
+  async revokeOtherSessions(@Req() req: FastifyRequest) {
+    const authUser = req.authUser;
+    if (!authUser) {
+      throw new UnauthorizedException();
+    }
+    const token = resolveSessionToken(req) ?? "";
+    const revoked = await this.authService.revokeOtherSessions(
+      authUser.userId,
+      token,
+    );
+    return { revoked };
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Delete("sessions/:id")
+  @HttpCode(HttpStatus.OK)
+  async revokeSessionById(
+    @Req() req: FastifyRequest,
+    @Param("id") id: string,
+  ) {
+    const authUser = req.authUser;
+    if (!authUser) {
+      throw new UnauthorizedException();
+    }
+    const revoked = await this.authService.revokeSessionById(authUser.userId, id);
+    if (!revoked) {
+      throw new NotFoundException("Sessao nao encontrada");
+    }
+    return { message: "Sessao encerrada" };
   }
 
   @Post("logout")

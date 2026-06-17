@@ -11,6 +11,7 @@ import validateEnv from "./config/validateEnv";
 import { fastifyLoggerConfig } from "./config/logger";
 import { setupS3Bucket } from "./utils/s3Setup";
 import { invoiceClosureJob } from "./jobs/invoiceClosureJob";
+import { sessionCleanupJob } from "./jobs/sessionCleanupJob";
 import corsPlugin from "./plugins/cors";
 import helmetPlugin from "./plugins/helmet";
 import { AppErrorFilter } from "./filters/app-error.filter";
@@ -51,6 +52,7 @@ async function bootstrap(): Promise<void> {
   await setupS3Bucket();
 
   invoiceClosureJob.start();
+  sessionCleanupJob.start();
 
   const port = Number.parseInt(process.env.PORT || "3000", 10);
   const host = process.env.HOST || "0.0.0.0";

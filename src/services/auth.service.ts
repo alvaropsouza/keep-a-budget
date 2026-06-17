@@ -15,7 +15,12 @@ import {
 } from "@simplewebauthn/server";
 import { isoUint8Array } from "@simplewebauthn/server/helpers";
 
+// A session is valid for this long after the last login. Logging in again
+// from the same device refreshes the window; there is no per-request sliding
+// extension, so a session never outlives 30 days without a real login.
 const SESSION_DURATION_DAYS = Number(process.env.SESSION_DURATION_DAYS ?? "30");
+// Revoked sessions are kept this long for audit before purge.
+const REVOKED_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const WEBAUTHN_RP_NAME = process.env.WEBAUTHN_RP_NAME ?? "Keep a Budget";
 const WEBAUTHN_RP_ID = process.env.WEBAUTHN_RP_ID ?? "localhost";
 const WEBAUTHN_ORIGIN = process.env.WEBAUTHN_ORIGIN ?? "http://localhost:3000";
@@ -34,6 +39,26 @@ export type AuthSession = {
   user: AuthUser;
   expiresAt: Date;
   sessionToken: string;
+};
+
+// Where/what a login came from, captured for the session list / audit.
+// deviceId is a stable per-device identifier sent by the client (localStorage
+// UUID). When absent we fall back to a hash of the User-Agent.
+export type SessionContext = {
+  userAgent?: string;
+  ipAddress?: string;
+  deviceId?: string;
+};
+
+// A session as exposed to the user in the "my devices" list.
+export type SessionSummary = {
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: Date;
+  lastUsedAt: Date;
+  expiresAt: Date;
+  current: boolean;
 };
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
@@ -112,23 +137,51 @@ const toAuthenticatorTransports = (
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  private async createSessionForUser(user: SessionUserRecord): Promise<AuthSession> {
+  // Stable per-device key so we keep exactly one session row per device: the
+  // same device re-logging in reuses its row instead of piling up new ones.
+  // Prefers the client-supplied device id (localStorage UUID); falls back to a
+  // User-Agent hash. Namespaced to avoid collision between the two sources.
+  // Null only when neither signal is available.
+  private deviceIdFrom(context?: SessionContext): string | null {
+    if (context?.deviceId) {
+      return `client:${context.deviceId}`;
+    }
+    if (context?.userAgent) {
+      return `ua:${createHash("sha256").update(context.userAgent).digest("hex")}`;
+    }
+    return null;
+  }
+
+  private async createSessionForUser(
+    user: SessionUserRecord,
+    context?: SessionContext,
+  ): Promise<AuthSession> {
     const sessionToken = createSessionToken();
     const tokenHash = hashToken(sessionToken);
     const expiresAt = getExpiryDate();
+    const deviceId = this.deviceIdFrom(context);
+    const userAgent = context?.userAgent ?? null;
+    const ipAddress = context?.ipAddress ?? null;
+
+    // One session per (user, device). With a known device we upsert so a
+    // repeat login rotates the token and refreshes the 30-day window on the
+    // existing row. Without a device key we can only create a fresh row.
+    const sessionWrite = deviceId
+      ? prisma.userSession.upsert({
+          where: { userId_deviceId: { userId: user.id, deviceId } },
+          create: { userId: user.id, tokenHash, deviceId, expiresAt, userAgent, ipAddress },
+          update: { tokenHash, expiresAt, revokedAt: null, userAgent, ipAddress },
+        })
+      : prisma.userSession.create({
+          data: { userId: user.id, tokenHash, expiresAt, userAgent, ipAddress },
+        });
 
     await prisma.$transaction([
       prisma.user.update({
         where: { id: user.id },
         data: { lastLogin: new Date() },
       }),
-      prisma.userSession.create({
-        data: {
-          userId: user.id,
-          tokenHash,
-          expiresAt,
-        },
-      }),
+      sessionWrite,
     ]);
 
     return {
@@ -232,7 +285,11 @@ export class AuthService {
     return { code, userEmail: user.email };
   }
 
-  async verifyEmailOtp(email: string, code: string): Promise<AuthSession> {
+  async verifyEmailOtp(
+    email: string,
+    code: string,
+    context?: SessionContext,
+  ): Promise<AuthSession> {
     const invalidCode = (): never => {
       throw new AppError("Código inválido ou expirado.", 401);
     };
@@ -277,7 +334,7 @@ export class AuthService {
     });
 
     this.logger.log({ userId: user!.id }, "OTP verified, session created");
-    return this.createSessionForUser(user!);
+    return this.createSessionForUser(user!, context);
   }
 
   async beginPasskeyRegistration(userId: string): Promise<PublicKeyCredentialCreationOptionsJSON> {
@@ -386,6 +443,7 @@ export class AuthService {
   async verifyPasskeyAuthentication(
     email: string,
     response: AuthenticationResponseJSON,
+    context?: SessionContext,
   ): Promise<AuthSession> {
     const normalizedEmail = normalizeEmail(email);
     const user = await prisma.user.findUnique({
@@ -444,7 +502,7 @@ export class AuthService {
 
     await this.deleteChallenge(user.id, "authentication");
 
-    return this.createSessionForUser(user);
+    return this.createSessionForUser(user, context);
   }
 
   async authenticateToken(token: string): Promise<AuthSession> {
@@ -472,11 +530,8 @@ export class AuthService {
       unauthorized();
     }
 
-    await prisma.userSession.update({
-      where: { id: validSession.id },
-      data: { updatedAt: new Date() },
-    });
-
+    // No per-request extension: the 30-day window is set at login and only a
+    // real login (createSessionForUser) refreshes it. Reads never write.
     return {
       user: {
         userId: validSession.user.id,
@@ -498,6 +553,75 @@ export class AuthService {
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  // Active devices for a user. The session matching the caller's own token is
+  // flagged so the UI can mark "this device".
+  async listSessions(
+    userId: string,
+    currentToken: string,
+  ): Promise<SessionSummary[]> {
+    const currentHash = hashToken(currentToken);
+    const sessions = await prisma.userSession.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    return sessions.map((session) => ({
+      id: session.id,
+      userAgent: session.userAgent,
+      ipAddress: session.ipAddress,
+      createdAt: session.createdAt,
+      lastUsedAt: session.updatedAt,
+      expiresAt: session.expiresAt,
+      current: session.tokenHash === currentHash,
+    }));
+  }
+
+  // Revoke one session by id, scoped to its owner so a user can only end their
+  // own sessions. Returns false if nothing matched.
+  async revokeSessionById(userId: string, sessionId: string): Promise<boolean> {
+    const result = await prisma.userSession.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return result.count > 0;
+  }
+
+  // Revoke every active session of the user except the caller's own, so the
+  // current device stays logged in. Returns how many were revoked.
+  async revokeOtherSessions(
+    userId: string,
+    currentToken: string,
+  ): Promise<number> {
+    const currentHash = hashToken(currentToken);
+    const result = await prisma.userSession.updateMany({
+      where: { userId, revokedAt: null, tokenHash: { not: currentHash } },
+      data: { revokedAt: new Date() },
+    });
+    return result.count;
+  }
+
+  // Deletes sessions that are already expired, plus revoked ones older than
+  // the audit retention window. Keeps the table from growing unbounded.
+  async purgeStaleSessions(): Promise<number> {
+    const now = new Date();
+    const revokedCutoff = new Date(Date.now() - REVOKED_RETENTION_MS);
+
+    const result = await prisma.userSession.deleteMany({
+      where: {
+        OR: [
+          { expiresAt: { lt: now } },
+          { revokedAt: { lt: revokedCutoff } },
+        ],
+      },
+    });
+
+    return result.count;
   }
 
 }

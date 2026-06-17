@@ -26,8 +26,6 @@ model User {
     expenses           Expense[]
     cardInvoices       CardInvoice[]
     invoices           Invoice[]
-    passkeys           PasskeyCredential[]
-    webauthnChallenges WebAuthnChallenge[]
     irDocuments        IrDocument[]
     budgets            Budget[]
     emailOtps          EmailOtp[]
@@ -166,28 +164,6 @@ model IrDocument {
     @@map("ir_documents")
 }
 
-enum WebAuthnChallengePurpose {
-    registration
-    authentication
-}
-
-model PasskeyCredential {
-    id           String   @id @default(uuid()) @db.Uuid
-    userId       String   @map("user_id") @db.Uuid
-    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    credentialId String   @unique @map("credential_id")
-    publicKey    Bytes    @map("public_key")
-    counter      Int      @default(0)
-    transports   String[] @default([])
-    deviceType   String   @map("device_type")
-    backedUp     Boolean  @default(false) @map("backed_up")
-    createdAt    DateTime @default(now()) @map("created_at")
-    updatedAt    DateTime @updatedAt @map("updated_at")
-
-    @@index([userId], map: "passkeys_user_id_idx")
-    @@map("passkeys")
-}
-
 model Budget {
     id           String              @id @default(uuid()) @db.Uuid
     userId       String              @map("user_id") @db.Uuid
@@ -230,20 +206,4 @@ model EmailOtp {
     @@index([userId], map: "email_otps_user_id_idx")
     @@index([expiresAt], map: "email_otps_expires_at_idx")
     @@map("email_otps")
-}
-
-model WebAuthnChallenge {
-    id        String                   @id @default(uuid()) @db.Uuid
-    userId    String                   @map("user_id") @db.Uuid
-    user      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    purpose   WebAuthnChallengePurpose
-    challenge String                   @unique
-    expiresAt DateTime                 @map("expires_at")
-    createdAt DateTime                 @default(now()) @map("created_at")
-    updatedAt DateTime                 @updatedAt @map("updated_at")
-
-    @@unique([userId, purpose], map: "webauthn_challenges_user_id_purpose_unique")
-    @@index([purpose], map: "webauthn_challenges_purpose_idx")
-    @@index([expiresAt], map: "webauthn_challenges_expires_at_idx")
-    @@map("webauthn_challenges")
 }

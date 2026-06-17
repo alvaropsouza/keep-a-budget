@@ -130,6 +130,5 @@ Integrar cache nos demais services:
 - [ ] `ExpenseService`
 - [ ] `FixedExpenseService`
 - [ ] `FreelanceInvoiceService`
-- [ ] `AuthService` (para cache de challenges, passkeys)
 
 Padrão é idêntico ao exemplo acima — adicionar linhas de cache hit/miss em métodos de leitura.

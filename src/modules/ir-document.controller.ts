@@ -17,6 +17,7 @@ import { IrDocumentQueryDto, CreateIrDocumentDto } from "../dto/ir-document.dto"
 import { SessionAuthGuard } from "./session-auth.guard";
 import { AppError } from "../utils/AppError";
 import { validateDto } from "../utils/validation";
+import { validateUpload } from "../utils/validateUpload";
 
 @UseGuards(SessionAuthGuard)
 @Controller("ir-documents")
@@ -54,6 +55,11 @@ export class IrDocumentController {
       throw new AppError("Comprovante obrigatório", 400);
     }
 
+    const detectedMime = validateUpload(fileBuffer, {
+      allowed: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+      maxBytes: 10 * 1024 * 1024,
+    });
+
     const body: CreateIrDocumentDto = {
       date: formFields.date,
       category: formFields.category,
@@ -70,7 +76,7 @@ export class IrDocumentController {
         userId: req.authUser!.userId,
         userEmail: req.authUser?.email,
       },
-      { buffer: fileBuffer, filename, mimetype },
+      { buffer: fileBuffer, filename, mimetype: detectedMime },
     );
   }
 

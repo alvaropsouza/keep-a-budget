@@ -4,6 +4,7 @@ import { AiService } from "../services/ai.service";
 import { ParseExpenseDto } from "../dto/parse-expense.dto";
 import { SessionAuthGuard } from "./session-auth.guard";
 import { validateDto } from "../utils/validation";
+import { validateUpload } from "../utils/validateUpload";
 
 @UseGuards(SessionAuthGuard)
 @Controller("ai")
@@ -33,15 +34,12 @@ export class AiController {
 
     if (!fileBuffer || !mimetype) throw new BadRequestException("Arquivo não enviado");
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(mimetype)) {
-      throw new BadRequestException("Tipo de arquivo inválido. Use JPEG, PNG ou WEBP.");
-    }
+    const detectedMime = validateUpload(fileBuffer, {
+      allowed: ["image/jpeg", "image/png", "image/webp"],
+      maxBytes: 5 * 1024 * 1024,
+    });
 
-    const maxBytes = 5 * 1024 * 1024;
-    if (fileBuffer.length > maxBytes) throw new BadRequestException("Arquivo muito grande. Máximo 5MB.");
-
-    return this.aiService.parseExpenseFromImage(fileBuffer, mimetype);
+    return this.aiService.parseExpenseFromImage(fileBuffer, detectedMime);
   }
 
   @Post("parse-ir-receipt")
@@ -60,14 +58,11 @@ export class AiController {
 
     if (!fileBuffer || !mimetype) throw new BadRequestException("Arquivo não enviado");
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-    if (!allowedTypes.includes(mimetype)) {
-      throw new BadRequestException("Tipo inválido. Use JPEG, PNG, WEBP ou PDF.");
-    }
+    const detectedMime = validateUpload(fileBuffer, {
+      allowed: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+      maxBytes: 10 * 1024 * 1024,
+    });
 
-    const maxBytes = 10 * 1024 * 1024;
-    if (fileBuffer.length > maxBytes) throw new BadRequestException("Arquivo muito grande. Máximo 10MB.");
-
-    return this.aiService.parseIrReceiptFromFile(fileBuffer, mimetype);
+    return this.aiService.parseIrReceiptFromFile(fileBuffer, detectedMime);
   }
 }

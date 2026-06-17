@@ -28,6 +28,7 @@ import {
 import { SessionAuthGuard } from "./session-auth.guard";
 import { AppError } from "../utils/AppError";
 import { validateDto } from "../utils/validation";
+import { validateUpload } from "../utils/validateUpload";
 
 @UseGuards(SessionAuthGuard)
 @Controller("expenses")
@@ -132,10 +133,15 @@ export class ExpensesController {
       throw new AppError("No file uploaded", 400);
     }
 
+    const detectedMime = validateUpload(fileBuffer, {
+      allowed: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+      maxBytes: 10 * 1024 * 1024,
+    });
+
     await this.expenseService.uploadReceipt(id, {
       buffer: fileBuffer,
       filename,
-      mimetype,
+      mimetype: detectedMime,
       userEmail,
     }, req.authUser!.userId);
 

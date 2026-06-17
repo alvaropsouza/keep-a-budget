@@ -2,6 +2,7 @@ import { Controller, Post, HttpCode, HttpStatus, UseGuards, Req, BadRequestExcep
 import { FastifyRequest } from "fastify";
 import { VehiclesService } from "../services/vehicles.service";
 import { SessionAuthGuard } from "./session-auth.guard";
+import { validateUpload } from "../utils/validateUpload";
 
 @UseGuards(SessionAuthGuard)
 @Controller("vehicles")
@@ -24,6 +25,12 @@ export class VehiclesController {
     }
 
     if (!fileBuffer || !fileMimetype) throw new BadRequestException("No file uploaded");
-    return this.vehiclesService.processUploadedPhoto(fileBuffer, fileMimetype);
+
+    const detectedMime = validateUpload(fileBuffer, {
+      allowed: ["image/jpeg", "image/png", "image/webp"],
+      maxBytes: 5 * 1024 * 1024,
+    });
+
+    return this.vehiclesService.processUploadedPhoto(fileBuffer, detectedMime);
   }
 }

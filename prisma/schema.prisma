@@ -13,9 +13,10 @@ model User {
     lastName           String              @map("last_name")
     email              String              @unique
     cpf                String?             @unique @db.VarChar(11)
-    rg                 String?             @unique @db.VarChar(20)
+    rg                 String?
+    rgHash             String?             @unique @map("rg_hash")
     phone              String?
-    salary             Decimal?            @db.Decimal(12, 2)
+    salary             String?
     avatar             String?
     lastLogin          DateTime?           @map("last_login")
     createdAt          DateTime            @default(now()) @map("created_at")

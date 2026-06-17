@@ -4,6 +4,7 @@ import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { prisma } from "../lib/prisma";
 import { isValidCpf, isValidRg, normalizeCpf, normalizeRg } from "../utils/brDocuments";
+import { blindIndex, decryptField, encryptField } from "../utils/encryption";
 import { CacheService } from "./cache.service";
 
 interface UserRecord {
@@ -14,7 +15,7 @@ interface UserRecord {
   cpf: string | null;
   rg: string | null;
   phone: string | null;
-  salary: any;
+  salary: string | null;
   avatar: string | null;
   lastLogin: Date | null;
   createdAt: Date;
@@ -28,9 +29,9 @@ const mapUser = (row: UserRecord): IUser => ({
   lastName: row.lastName,
   email: row.email,
   cpf: row.cpf ?? undefined,
-  rg: row.rg ?? undefined,
+  rg: row.rg == null ? undefined : decryptField(row.rg),
   phone: row.phone ?? undefined,
-  salary: row.salary == null ? undefined : Number(row.salary),
+  salary: row.salary == null ? undefined : Number(decryptField(row.salary)),
   avatar: row.avatar ?? undefined,
   lastLogin: row.lastLogin,
   createdAt: row.createdAt,
@@ -62,7 +63,7 @@ const notFound = (): never => {
 const throwIfDocumentConflict = (error: unknown): void => {
   if (!(error instanceof Error)) return;
   const message = error.message;
-  if (message.includes("users_cpf_key") || message.includes("users_rg_key")) {
+  if (message.includes("users_cpf_key") || message.includes("users_rg_hash_key")) {
     throw new AppError("CPF ou RG ja cadastrado", 409);
   }
 };
@@ -115,9 +116,15 @@ export class UserService {
     if (data.lastName !== undefined) updateData.lastName = data.lastName;
     if (data.email !== undefined) updateData.email = data.email.trim().toLowerCase();
     if (data.cpf !== undefined) updateData.cpf = data.cpf ? normalizeCpf(data.cpf) : null;
-    if (data.rg !== undefined) updateData.rg = data.rg ? normalizeRg(data.rg) : null;
+    if (data.rg !== undefined) {
+      const normalizedRg = data.rg ? normalizeRg(data.rg) : null;
+      updateData.rg = normalizedRg ? encryptField(normalizedRg) : null;
+      updateData.rgHash = normalizedRg ? blindIndex(normalizedRg) : null;
+    }
     if (data.phone !== undefined) updateData.phone = data.phone;
-    if (data.salary !== undefined) updateData.salary = data.salary;
+    if (data.salary !== undefined) {
+      updateData.salary = data.salary == null ? null : encryptField(String(data.salary));
+    }
     if (data.avatar !== undefined) updateData.avatar = data.avatar;
     if (data.lastLogin !== undefined) updateData.lastLogin = data.lastLogin;
 
@@ -196,6 +203,8 @@ export class UserService {
       lastLogin: data.lastLogin ?? new Date(),
     };
 
+    const normalizedRg = payload.rg ?? null;
+
     let row: UserRecord;
     try {
       row = await prisma.user.create({
@@ -204,9 +213,10 @@ export class UserService {
           lastName: payload.lastName!,
           email: payload.email!,
           cpf: payload.cpf ?? null,
-          rg: payload.rg ?? null,
+          rg: normalizedRg ? encryptField(normalizedRg) : null,
+          rgHash: normalizedRg ? blindIndex(normalizedRg) : null,
           phone: payload.phone ?? null,
-          salary: payload.salary ?? null,
+          salary: payload.salary == null ? null : encryptField(String(payload.salary)),
           avatar: payload.avatar ?? null,
           lastLogin: payload.lastLogin ?? null,
         },

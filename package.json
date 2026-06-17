@@ -8,6 +8,7 @@
     "start": "nest start --prod",
     "dev": "nest start --watch",
     "data:migrate-to-prod": "tsx scripts/migrate-to-prod.ts",
+    "data:encrypt-users": "tsx scripts/encryptExistingUserData.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test": "echo \"Error: no test specified\" && exit 1"

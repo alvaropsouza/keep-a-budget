@@ -44,6 +44,11 @@ const sniffType = (buffer: Buffer): AllowedUploadType | null => {
  * which can carry scripts). Returns the trusted detected mimetype, which
  * callers should use instead of the client-supplied one.
  */
+export const RECEIPT_UPLOAD_RULES: { allowed: AllowedUploadType[]; maxBytes: number } = {
+  allowed: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+  maxBytes: 10 * 1024 * 1024,
+};
+
 export const validateUpload = (
   buffer: Buffer,
   options: { allowed: AllowedUploadType[]; maxBytes: number },

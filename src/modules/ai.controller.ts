@@ -4,7 +4,8 @@ import { AiService } from "../services/ai.service";
 import { ParseExpenseDto } from "../dto/parse-expense.dto";
 import { SessionAuthGuard } from "./session-auth.guard";
 import { validateDto } from "../utils/validation";
-import { validateUpload } from "../utils/validateUpload";
+import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validateUpload";
+import { readMultipart } from "../utils/readMultipart";
 
 @UseGuards(SessionAuthGuard)
 @Controller("ai")
@@ -21,48 +22,22 @@ export class AiController {
   @Post("parse-expense-image")
   @HttpCode(HttpStatus.OK)
   async parseExpenseFromImage(@Req() req: FastifyRequest) {
-    let fileBuffer: Buffer | undefined;
-    let mimetype: string | undefined;
+    const { file } = await readMultipart(req);
+    if (!file) throw new BadRequestException("Arquivo não enviado");
 
-    const parts = req.parts();
-    for await (const part of parts) {
-      if (part.type === "file") {
-        fileBuffer = await part.toBuffer();
-        mimetype = part.mimetype;
-      }
-    }
+    const detectedMime = validateUpload(file.buffer, RECEIPT_UPLOAD_RULES);
 
-    if (!fileBuffer || !mimetype) throw new BadRequestException("Arquivo não enviado");
-
-    const detectedMime = validateUpload(fileBuffer, {
-      allowed: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
-      maxBytes: 10 * 1024 * 1024,
-    });
-
-    return this.aiService.parseExpenseFromImage(fileBuffer, detectedMime);
+    return this.aiService.parseExpenseFromImage(file.buffer, detectedMime);
   }
 
   @Post("parse-ir-receipt")
   @HttpCode(HttpStatus.OK)
   async parseIrReceipt(@Req() req: FastifyRequest) {
-    let fileBuffer: Buffer | undefined;
-    let mimetype: string | undefined;
+    const { file } = await readMultipart(req);
+    if (!file) throw new BadRequestException("Arquivo não enviado");
 
-    const parts = req.parts();
-    for await (const part of parts) {
-      if (part.type === "file") {
-        fileBuffer = await part.toBuffer();
-        mimetype = part.mimetype;
-      }
-    }
+    const detectedMime = validateUpload(file.buffer, RECEIPT_UPLOAD_RULES);
 
-    if (!fileBuffer || !mimetype) throw new BadRequestException("Arquivo não enviado");
-
-    const detectedMime = validateUpload(fileBuffer, {
-      allowed: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
-      maxBytes: 10 * 1024 * 1024,
-    });
-
-    return this.aiService.parseIrReceiptFromFile(fileBuffer, detectedMime);
+    return this.aiService.parseIrReceiptFromFile(file.buffer, detectedMime);
   }
 }

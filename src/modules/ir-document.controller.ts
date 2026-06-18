@@ -17,7 +17,8 @@ import { IrDocumentQueryDto, CreateIrDocumentDto } from "../dto/ir-document.dto"
 import { SessionAuthGuard } from "./session-auth.guard";
 import { AppError } from "../utils/AppError";
 import { validateDto } from "../utils/validation";
-import { validateUpload } from "../utils/validateUpload";
+import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validateUpload";
+import { readMultipart } from "../utils/readMultipart";
 
 @UseGuards(SessionAuthGuard)
 @Controller("ir-documents")
@@ -35,36 +36,19 @@ export class IrDocumentController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Req() req: FastifyRequest) {
-    const formFields: Record<string, string> = {};
-    let fileBuffer: Buffer | undefined;
-    let filename: string | undefined;
-    let mimetype: string | undefined;
+    const { fields, file } = await readMultipart(req);
 
-    const parts = req.parts();
-    for await (const part of parts) {
-      if (part.type === "field") {
-        formFields[part.fieldname] = part.value as string;
-      } else if (part.type === "file") {
-        fileBuffer = await part.toBuffer();
-        filename = part.filename;
-        mimetype = part.mimetype;
-      }
-    }
-
-    if (!fileBuffer || !filename || !mimetype) {
+    if (!file) {
       throw new AppError("Comprovante obrigatório", 400);
     }
 
-    const detectedMime = validateUpload(fileBuffer, {
-      allowed: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
-      maxBytes: 10 * 1024 * 1024,
-    });
+    const detectedMime = validateUpload(file.buffer, RECEIPT_UPLOAD_RULES);
 
     const body: CreateIrDocumentDto = {
-      date: formFields.date,
-      category: formFields.category,
-      amount: Number.parseFloat(formFields.amount),
-      description: formFields.description,
+      date: fields.date,
+      category: fields.category,
+      amount: Number.parseFloat(fields.amount),
+      description: fields.description,
     };
 
     const { valid, errors } = await validateDto(CreateIrDocumentDto, body);
@@ -76,7 +60,7 @@ export class IrDocumentController {
         userId: req.authUser!.userId,
         userEmail: req.authUser?.email,
       },
-      { buffer: fileBuffer, filename, mimetype: detectedMime },
+      { buffer: file.buffer, filename: file.filename, mimetype: detectedMime },
     );
   }
 

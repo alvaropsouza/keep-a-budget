@@ -25,6 +25,30 @@ import {
 import { BanksEnum } from "../enums/banks.enum";
 import { SessionAuthGuard } from "./session-auth.guard";
 import { AppError } from "../utils/AppError";
+import { readMultipart, type MultipartFile } from "../utils/readMultipart";
+
+const readCsvContent = (file?: MultipartFile): string | null => {
+  if (!file) return null;
+  if (!file.filename.endsWith(".csv") && !file.mimetype.includes("csv")) {
+    throw new AppError("Only CSV files are accepted", 400);
+  }
+  return file.buffer.toString("utf-8");
+};
+
+const parseBank = (value?: string): BanksEnum | null => {
+  const raw = String(value ?? "").toUpperCase();
+  if (raw === BanksEnum.XP || raw === BanksEnum.NUBANK) return raw as BanksEnum;
+  return null;
+};
+
+const parseExcludeIndexes = (value?: string): number[] | undefined => {
+  if (!value) return undefined;
+  try {
+    return JSON.parse(value) as number[];
+  } catch {
+    return undefined;
+  }
+};
 
 @UseGuards(SessionAuthGuard)
 @Controller("invoices")
@@ -56,38 +80,13 @@ export class InvoicesController {
   @Post("create-from-csv")
   @HttpCode(HttpStatus.CREATED)
   async createFromCsv(@Req() req: FastifyRequest) {
-    let csvContent: string | null = null;
-    let closingDate: string | null = null;
-    let dueDate: string | null = null;
-    let bank: BanksEnum | null = null;
-    let excludeIndexes: number[] | undefined;
+    const { fields, file } = await readMultipart(req);
 
-    const parts = req.parts();
-    for await (const part of parts) {
-      if (part.type === "field") {
-        if (part.fieldname === "closingDate") closingDate = part.value as string;
-        if (part.fieldname === "dueDate") dueDate = part.value as string;
-        if (part.fieldname === "bank") {
-          const rawBank = String(part.value).toUpperCase();
-          if (rawBank === BanksEnum.XP || rawBank === BanksEnum.NUBANK) {
-            bank = rawBank as BanksEnum;
-          }
-        }
-        if (part.fieldname === "excludeIndexes") {
-          try {
-            excludeIndexes = JSON.parse(part.value as string) as number[];
-          } catch {
-            // ignore malformed value
-          }
-        }
-      } else if (part.type === "file") {
-        if (!part.filename.endsWith(".csv") && !part.mimetype.includes("csv")) {
-          throw new AppError("Only CSV files are accepted", 400);
-        }
-        const buffer = await part.toBuffer();
-        csvContent = buffer.toString("utf-8");
-      }
-    }
+    const csvContent = readCsvContent(file);
+    const closingDate = fields.closingDate ?? null;
+    const dueDate = fields.dueDate ?? null;
+    const bank = parseBank(fields.bank);
+    const excludeIndexes = parseExcludeIndexes(fields.excludeIndexes);
 
     if (!csvContent) throw new AppError("No CSV file uploaded", 400);
     if (!closingDate || !dueDate) throw new AppError("closingDate and dueDate are required", 400);
@@ -131,27 +130,10 @@ export class InvoicesController {
 
   @Post(":id/import-csv")
   async importCsv(@Param("id") id: string, @Req() req: FastifyRequest) {
-    let csvContent: string | null = null;
-    let excludeIndexes: number[] | undefined;
+    const { fields, file } = await readMultipart(req);
 
-    const parts = req.parts();
-    for await (const part of parts) {
-      if (part.type === "field") {
-        if (part.fieldname === "excludeIndexes") {
-          try {
-            excludeIndexes = JSON.parse(part.value as string) as number[];
-          } catch {
-            // ignore malformed value
-          }
-        }
-      } else if (part.type === "file") {
-        if (!part.mimetype.includes("csv") && !part.filename.endsWith(".csv")) {
-          throw new AppError("Only CSV files are accepted", 400);
-        }
-        const buffer = await part.toBuffer();
-        csvContent = buffer.toString("utf-8");
-      }
-    }
+    const csvContent = readCsvContent(file);
+    const excludeIndexes = parseExcludeIndexes(fields.excludeIndexes);
 
     if (!csvContent) throw new AppError("No file uploaded", 400);
 

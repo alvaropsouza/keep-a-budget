@@ -28,7 +28,8 @@ import {
 import { SessionAuthGuard } from "./session-auth.guard";
 import { AppError } from "../utils/AppError";
 import { validateDto } from "../utils/validation";
-import { validateUpload } from "../utils/validateUpload";
+import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validateUpload";
+import { readMultipart } from "../utils/readMultipart";
 
 @UseGuards(SessionAuthGuard)
 @Controller("expenses")
@@ -113,36 +114,19 @@ export class ExpensesController {
 
   @Post(":id/receipt")
   async uploadReceipt(@Param("id") id: string, @Req() req: FastifyRequest) {
-    let fileBuffer: Buffer | undefined;
-    let filename: string | undefined;
-    let mimetype: string | undefined;
-    let userEmail: string | undefined;
+    const { fields, file } = await readMultipart(req);
 
-    const parts = req.parts();
-    for await (const part of parts) {
-      if (part.type === "field" && part.fieldname === "userEmail") {
-        userEmail = part.value as string;
-      } else if (part.type === "file") {
-        fileBuffer = await part.toBuffer();
-        filename = part.filename;
-        mimetype = part.mimetype;
-      }
-    }
-
-    if (!fileBuffer || !filename || !mimetype) {
+    if (!file) {
       throw new AppError("No file uploaded", 400);
     }
 
-    const detectedMime = validateUpload(fileBuffer, {
-      allowed: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
-      maxBytes: 10 * 1024 * 1024,
-    });
+    const detectedMime = validateUpload(file.buffer, RECEIPT_UPLOAD_RULES);
 
     await this.expenseService.uploadReceipt(id, {
-      buffer: fileBuffer,
-      filename,
+      buffer: file.buffer,
+      filename: file.filename,
       mimetype: detectedMime,
-      userEmail,
+      userEmail: fields.userEmail,
     }, req.authUser!.userId);
 
     const expense = await this.expenseService.findById(id, undefined, req.authUser!.userId);
@@ -165,33 +149,22 @@ export class ExpensesController {
   }> {
     const contentType = req.headers["content-type"];
     if (contentType?.includes("multipart/form-data")) {
-      const formFields: Record<string, string> = {};
-      let file: { buffer: Buffer; filename: string; mimetype: string } | undefined;
-
-      const parts = req.parts();
-      for await (const part of parts) {
-        if (part.type === "field") {
-          formFields[part.fieldname] = part.value as string;
-        } else if (part.type === "file") {
-          const buffer = await part.toBuffer();
-          file = { buffer, filename: part.filename, mimetype: part.mimetype };
-        }
-      }
+      const { fields, file } = await readMultipart(req);
 
       const body: CreateExpenseDto = {
-        bank: formFields.bank as any,
-        category: formFields.category,
-        amount: Number.parseFloat(formFields.amount),
-        description: formFields.description,
-        installmentTotal: formFields.installmentTotal
-          ? Number.parseInt(formFields.installmentTotal)
+        bank: fields.bank as any,
+        category: fields.category,
+        amount: Number.parseFloat(fields.amount),
+        description: fields.description,
+        installmentTotal: fields.installmentTotal
+          ? Number.parseInt(fields.installmentTotal)
           : undefined,
-        installmentStartNumber: formFields.installmentStartNumber
-          ? Number.parseInt(formFields.installmentStartNumber)
+        installmentStartNumber: fields.installmentStartNumber
+          ? Number.parseInt(fields.installmentStartNumber)
           : undefined,
-        installmentStartDate: formFields.installmentStartDate,
-        receipt: formFields.receipt,
-        irDeductible: formFields.irDeductible === "true",
+        installmentStartDate: fields.installmentStartDate,
+        receipt: fields.receipt,
+        irDeductible: fields.irDeductible === "true",
       };
 
       return { body, file };

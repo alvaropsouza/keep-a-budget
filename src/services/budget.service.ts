@@ -5,11 +5,13 @@ import { ExpenseService } from "./expense.service";
 import type { IExpense } from "../models/Expense";
 
 export interface BudgetSummaryItem {
+  id: string;
   category: string;
   budgetAmount: number;
   spent: number;
   percentage: number;
   banks: string[];
+  closed: boolean;
 }
 
 @Injectable()
@@ -146,9 +148,12 @@ export class BudgetService {
     const budgets = await prisma.budget.findMany({
       where: { userId, month, year },
       select: {
+        id: true,
         category: true,
         amount: true,
-        cardInvoices: { select: { cardInvoiceId: true, bank: true } },
+        cardInvoices: {
+          select: { cardInvoiceId: true, bank: true, cardInvoice: { select: { isClosed: true } } },
+        },
       },
       orderBy: { category: "asc" },
     });
@@ -173,12 +178,15 @@ export class BudgetService {
         .filter((e) => e.cardInvoiceId != null && invoiceSet.has(e.cardInvoiceId) && e.category === b.category)
         .reduce((acc, e) => acc + Number(e.amount), 0);
       const budgetAmount = Number(b.amount);
+      const closed = b.cardInvoices.length > 0 && b.cardInvoices.every((ci) => ci.cardInvoice.isClosed);
       return {
+        id: b.id,
         category: b.category,
         budgetAmount,
         spent,
         percentage: budgetAmount > 0 ? Math.round((spent / budgetAmount) * 100) : 0,
         banks: b.cardInvoices.map((ci) => ci.bank),
+        closed,
       };
     });
   }

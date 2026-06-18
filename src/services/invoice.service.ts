@@ -8,7 +8,7 @@ import logger from "../config/logger";
 import { AppError } from "../utils/AppError";
 import { InvoiceQueryParamsDto } from "../dto/invoice.dto";
 import { BanksEnum } from "../enums/banks.enum";
-import { parseInvoiceCsv } from "../utils/xpCsvParser";
+import { parseInvoiceCsv } from "../utils/invoiceCsvParser";
 import { runWithTransaction } from "../utils/runWithTransaction";
 import { prisma } from "../lib/prisma";
 import { getBrazilTodayUtcMidnight } from "../utils/timezone";

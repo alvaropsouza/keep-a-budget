@@ -1,4 +1,4 @@
-export interface XpCsvRow {
+export interface InvoiceCsvRow {
   date: Date;
   description: string;
   amount: number;
@@ -9,6 +9,44 @@ export interface XpCsvRow {
 }
 
 export type SupportedCsvBank = "XP" | "NUBANK";
+
+/**
+ * Divide uma linha CSV respeitando campos entre aspas duplas.
+ * Necessário porque o valor pode conter o próprio delimitador
+ * (ex.: Nubank exporta `"214,89"` com vírgula decimal dentro de aspas).
+ * Aspas duplicadas (`""`) viram uma aspa literal.
+ */
+function splitCsvLine(line: string, delimiter: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === delimiter) {
+      result.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+
+  return result.map((part) => part.trim());
+}
 
 function parseBrazilianCurrency(raw: string): number {
   // "R$ 1.194,08" → 1194.08   |   "R$ -295,28" → -295.28
@@ -41,7 +79,7 @@ function parseInstallment(
 export function parseXpCsv(
   csvContent: string,
   excludeIndexes?: Set<number>,
-): XpCsvRow[] {
+): InvoiceCsvRow[] {
   const lines = csvContent
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -50,11 +88,11 @@ export function parseXpCsv(
   // Skip header row
   const dataLines = lines.slice(1);
 
-  const rows: XpCsvRow[] = [];
+  const rows: InvoiceCsvRow[] = [];
 
   for (let i = 0; i < dataLines.length; i++) {
     const line = dataLines[i];
-    const parts = line.split(";");
+    const parts = splitCsvLine(line, ";");
     if (parts.length < 5) continue;
 
     // Skip rows explicitly excluded by the user
@@ -79,7 +117,12 @@ export function parseXpCsv(
 }
 
 function parseNubankAmount(raw: string): number {
-  const cleaned = raw.replace(/\s+/g, "").replace(",", ".").trim();
+  const cleaned = raw.replace(/["\s]/g, "").trim();
+  // Formato BR: "1.234,56" → vírgula é decimal, ponto é milhar.
+  if (cleaned.includes(",")) {
+    return Number.parseFloat(cleaned.replace(/\./g, "").replace(",", "."));
+  }
+  // Formato com ponto decimal: "214.89" → usa direto.
   return Number.parseFloat(cleaned);
 }
 
@@ -94,7 +137,7 @@ function parseNubankInstallment(
 export function parseNubankCsv(
   csvContent: string,
   excludeIndexes?: Set<number>,
-): XpCsvRow[] {
+): InvoiceCsvRow[] {
   const lines = csvContent
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -103,13 +146,13 @@ export function parseNubankCsv(
   // date,title,amount
   const dataLines = lines.slice(1);
 
-  const rows: XpCsvRow[] = [];
+  const rows: InvoiceCsvRow[] = [];
 
   for (let i = 0; i < dataLines.length; i++) {
     const line = dataLines[i];
     if (excludeIndexes?.has(i)) continue;
 
-    const parts = line.split(",");
+    const parts = splitCsvLine(line, ",");
     if (parts.length < 3) continue;
 
     const rawDate = parts[0]?.trim();
@@ -136,7 +179,7 @@ export function parseInvoiceCsv(
   bank: SupportedCsvBank,
   csvContent: string,
   excludeIndexes?: Set<number>,
-): XpCsvRow[] {
+): InvoiceCsvRow[] {
   if (bank === "NUBANK") {
     return parseNubankCsv(csvContent, excludeIndexes);
   }

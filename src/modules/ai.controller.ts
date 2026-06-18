@@ -35,8 +35,8 @@ export class AiController {
     if (!fileBuffer || !mimetype) throw new BadRequestException("Arquivo não enviado");
 
     const detectedMime = validateUpload(fileBuffer, {
-      allowed: ["image/jpeg", "image/png", "image/webp"],
-      maxBytes: 5 * 1024 * 1024,
+      allowed: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+      maxBytes: 10 * 1024 * 1024,
     });
 
     return this.aiService.parseExpenseFromImage(fileBuffer, detectedMime);

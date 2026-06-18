@@ -14,6 +14,7 @@ export interface ParsedIrReceiptResponse {
 
 const SYSTEM_PROMPT = `Extrai despesa de texto PT-BR. Retorne JSON puro, sem markdown, sem explicações.
 Schema: {"bank":"${BANKS.join("|")}|null","amount":number|null,"date":"YYYY-MM-DD|null","category":"${CATEGORIES.join("|")}|null","description":"string|null","installmentTotal":number|null}
+Identificação de banco: NUBANK = Nubank, Nu Pagamentos, Nu Financeira, roxo. XP = XP, XP Investimentos, XP Inc, Banco XP, Rico. Use só o que estiver visível no comprovante/texto; se incerto, "bank":null.
 Datas relativas: resolver com a data fornecida. Valores em reais: "R$ 1.200,50"→1200.50.`;
 
 function parseJsonResponse(raw: string): ParsedExpenseResponse {
@@ -37,6 +38,25 @@ export class AiService {
     const today = new Date().toISOString().split("T")[0];
     const base64 = imageBuffer.toString("base64");
 
+    const isImage = mimeType.startsWith("image/");
+    const contentBlock = isImage
+      ? {
+          type: "image" as const,
+          source: {
+            type: "base64" as const,
+            media_type: mimeType as "image/jpeg" | "image/png" | "image/webp",
+            data: base64,
+          },
+        }
+      : {
+          type: "document" as const,
+          source: {
+            type: "base64" as const,
+            media_type: "application/pdf" as const,
+            data: base64,
+          },
+        };
+
     const message = await this.client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 250,
@@ -44,17 +64,10 @@ export class AiService {
       messages: [{
         role: "user",
         content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: mimeType as "image/jpeg" | "image/png" | "image/webp",
-              data: base64,
-            },
-          },
+          contentBlock,
           {
             type: "text",
-            text: `Data atual: ${today}\n\nEsta é uma imagem de um recibo ou comprovante. Extraia os dados da despesa.`,
+            text: `Data atual: ${today}\n\nEste é um recibo ou comprovante (imagem ou PDF). Extraia os dados da despesa.`,
           },
         ],
       }],

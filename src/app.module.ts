@@ -9,6 +9,7 @@ import { CacheModule } from "./modules/cache.module";
 import { AiModule } from "./modules/ai.module";
 import { IrDocumentModule } from "./modules/ir-document.module";
 import { BudgetModule } from "./modules/budget.module";
+import { CategoryModule } from "./modules/category.module";
 import { VehiclesModule } from "./modules/vehicles.module";
 
 @Module({
@@ -22,6 +23,7 @@ import { VehiclesModule } from "./modules/vehicles.module";
     AiModule,
     IrDocumentModule,
     BudgetModule,
+    CategoryModule,
     VehiclesModule,
   ],
   controllers: [HealthController],

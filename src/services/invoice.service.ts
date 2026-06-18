@@ -422,6 +422,30 @@ export class InvoiceService {
     return row ? mapInvoice(row) : null;
   }
 
+  async findOpenForExpenseDate(
+    bank: string,
+    date: Date,
+    userId?: string,
+    client?: TxClient,
+  ): Promise<ICardInvoice | null> {
+    const queryDate = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+
+    const db = this.getDb(client);
+    const row = await db.cardInvoice.findFirst({
+      where: {
+        bank,
+        isClosed: false,
+        closingDate: { gte: queryDate },
+        ...(userId ? { userId } : {}),
+      },
+      orderBy: { closingDate: "asc" },
+    });
+
+    return row ? mapInvoice(row) : null;
+  }
+
   async ensureInvoiceForDate(
     bank: string,
     date: Date,

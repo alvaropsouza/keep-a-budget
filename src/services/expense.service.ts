@@ -277,7 +277,7 @@ export class ExpenseService {
           "Resolving invoice for single expense",
         );
 
-        const cardInvoice = await this.invoiceService.findForExpenseDate(
+        let cardInvoice = await this.invoiceService.findForExpenseDate(
           data.bank,
           expenseDate,
           data.userId,
@@ -285,10 +285,18 @@ export class ExpenseService {
         );
 
         if (cardInvoice?.isClosed) {
-          throw new AppError(
-            "Cannot add expenses to a closed invoice. Please reopen the invoice first.",
-            400,
+          cardInvoice = await this.invoiceService.findOpenForExpenseDate(
+            data.bank,
+            expenseDate,
+            data.userId,
+            tx,
           );
+          if (!cardInvoice) {
+            throw new AppError(
+              "Cannot add expenses to a closed invoice. Please reopen the invoice first.",
+              400,
+            );
+          }
         }
 
         const createdExpense = await this.create(

@@ -11,6 +11,7 @@ import { BanksEnum } from "../enums/banks.enum";
 import { parseInvoiceCsv } from "../utils/xpCsvParser";
 import { runWithTransaction } from "../utils/runWithTransaction";
 import { prisma } from "../lib/prisma";
+import { getBrazilTodayUtcMidnight } from "../utils/timezone";
 
 const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
   value == null ? 0 : Number(value);
@@ -497,8 +498,9 @@ export class InvoiceService {
     closed: number;
     invoices: ICardInvoice[];
   }> {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    // "Hoje" no fuso do Brasil. Fatura com closingDate = D fecha só quando o dia
+    // brasileiro vira D+1 (00:00 BRT), não às 21h BRT do dia D (meia-noite UTC).
+    const today = getBrazilTodayUtcMidnight();
 
     const expiredRows = await prisma.cardInvoice.findMany({
       where: {

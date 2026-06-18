@@ -9,7 +9,6 @@ const tagMap: Record<string, string[]> = {
   CardInvoice: ["invoice", "invoices:all"],
   Expense: ["expense", "expenses:all"],
   FixedExpense: ["fixedExpense", "fixedExpenses:all"],
-  Invoice: ["freelanceInvoice", "freelanceInvoices:all"],
 };
 
 const globalForPrisma = globalThis as unknown as {
@@ -119,14 +118,6 @@ function invalidateCacheForModel(model: string, data: Record<string, unknown>, c
       "fixedExpense",
       "fixedExpenses:all",
       ...(userId ? [`user:${userId}:fixedExpenses`] : []),
-    ]);
-  } else if (model === "Invoice" && id) {
-    const userId = data?.userId as string | undefined;
-    cacheService.invalidate([
-      `freelanceInvoice:${id}`,
-      "freelanceInvoice",
-      "freelanceInvoices:all",
-      ...(userId ? [`user:${userId}:freelanceInvoices`] : []),
     ]);
   }
 }

@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import logger from "../config/logger";
 import { InvoiceService } from "../services/invoice.service";
+import { APP_TIMEZONE } from "../utils/timezone";
 
 export class InvoiceClosureJob {
   private invoiceService: InvoiceService;
@@ -21,8 +22,10 @@ export class InvoiceClosureJob {
     }
 
     // Cron pattern: "minute hour day month weekday"
-    // "5 0 * * *" = At 00:05 every day
-    this.task = cron.schedule("5 0 * * *", async () => {
+    // "5 0 * * *" = At 00:05 every day, horário do Brasil (America/Sao_Paulo)
+    this.task = cron.schedule(
+      "5 0 * * *",
+      async () => {
       try {
         logger.info("Running daily invoice closure check");
         const result = await this.invoiceService.checkAndCloseExpiredInvoices();
@@ -36,9 +39,11 @@ export class InvoiceClosureJob {
       } catch (error) {
         logger.error({ error }, "Error running daily invoice closure check");
       }
-    });
+      },
+      { timezone: APP_TIMEZONE },
+    );
 
-    logger.info("Invoice closure job started - will run daily at 00:05");
+    logger.info("Invoice closure job started - will run daily at 00:05 (BRT)");
   }
 
   /**

@@ -21,8 +21,9 @@ function parseJsonResponse(raw: string): ParsedExpenseResponse {
   const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
   try {
     return JSON.parse(text) as ParsedExpenseResponse;
-  } catch (error: any) {
-    throw new Error(`Falha ao interpretar resposta da IA: ${error?.message}\nResposta recebida: ${raw}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Falha ao interpretar resposta da IA: ${message}\nResposta recebida: ${raw}`);
   }
 }
 

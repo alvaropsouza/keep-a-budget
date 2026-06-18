@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "../generated/prisma/client/client";
 import { IFixedExpense } from "../models/FixedExpense";
 import { FilterBuilder } from "../utils/filterBuilder";
 import { FixedExpenseQueryParamsDto } from "../dto/fixedExpense.dto";
@@ -22,14 +23,14 @@ interface UpdateFixedExpenseData {
   isActive?: boolean;
 }
 
-const mapFixedExpense = (row: any): IFixedExpense => ({
+const mapFixedExpense = (row: Prisma.FixedExpenseGetPayload<true>): IFixedExpense => ({
   id: row.id,
   _id: row.id,
   userId: row.userId,
   name: row.name,
   amount: Number(row.amount),
   description: row.description ?? "",
-  dueDay: row.dueDay,
+  dueDay: row.dueDay ?? undefined,
   isActive: row.isActive,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -85,7 +86,7 @@ export class FixedExpenseService {
     if (!row) {
       notFound();
     }
-    return mapFixedExpense(row);
+    return mapFixedExpense(row!);
   }
 
   async update(id: string, data: UpdateFixedExpenseData): Promise<IFixedExpense> {
@@ -104,7 +105,7 @@ export class FixedExpenseService {
       notFound();
     }
 
-    return mapFixedExpense(row);
+    return mapFixedExpense(row!);
   }
 
   async delete(id: string): Promise<IFixedExpense> {
@@ -112,7 +113,7 @@ export class FixedExpenseService {
     if (!row) {
       notFound();
     }
-    return mapFixedExpense(row);
+    return mapFixedExpense(row!);
   }
 
   async createFixedExpense(

@@ -1,11 +1,11 @@
 import { validate } from "class-validator";
-import { plainToInstance } from "class-transformer";
+import { plainToInstance, type ClassConstructor } from "class-transformer";
 import { FastifyReply } from "fastify";
 import logger from "../config/logger";
 
 export async function validateDto(
-  dtoClass: any,
-  data: any
+  dtoClass: ClassConstructor<object>,
+  data: unknown
 ): Promise<{ valid: boolean; errors?: Record<string, string[]> }> {
   const dto = plainToInstance(dtoClass, data);
   const errors = await validate(dto, {
@@ -28,7 +28,7 @@ export async function validateDto(
 
 export function createValidationErrorResponse(
   errors: Record<string, string[]>
-): Record<string, any> {
+): Record<string, unknown> {
   return {
     statusCode: 400,
     error: "Validation Error",
@@ -38,8 +38,8 @@ export function createValidationErrorResponse(
 }
 
 export async function validateAndRespond(
-  dtoClass: any,
-  data: any,
+  dtoClass: ClassConstructor<object>,
+  data: unknown,
   reply: FastifyReply
 ): Promise<boolean> {
   const { valid, errors } = await validateDto(dtoClass, data);

@@ -31,10 +31,9 @@ export class AppErrorFilter implements ExceptionFilter {
         { statusCode: exception.statusCode, details: exception.details },
         `AppError: ${exception.message}`,
       );
-      reply.status(exception.statusCode).send({
-        error: exception.message,
-        ...(exception.details && { details: exception.details }),
-      });
+      const payload: { error: string; details?: unknown } = { error: exception.message };
+      if (exception.details) payload.details = exception.details;
+      reply.status(exception.statusCode).send(payload);
       return;
     }
 

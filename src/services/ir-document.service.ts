@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "../generated/prisma/client/client";
 import { uploadToS3, getSignedS3Url, extractS3Key } from "../utils/s3Upload";
 import { getS3UrlConfig } from "../utils/s3Url";
 import s3Client from "../config/s3";
@@ -38,7 +39,7 @@ interface FileData {
 const toNumber = (value: unknown): number =>
   value == null ? 0 : Number(value);
 
-const mapDocument = (row: any): IIrDocument => ({
+const mapDocument = (row: Prisma.IrDocumentGetPayload<true>): IIrDocument => ({
   id: row.id,
   userId: row.userId,
   date: new Date(row.date),

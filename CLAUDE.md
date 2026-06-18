@@ -79,6 +79,9 @@ pnpm run prisma:migrate   # prisma migrate dev
 ## Convenções
 
 - **Sem comentários no código** — nem inline, bloco, JSDoc ou divisor de seção. Nomes claros bastam. Comentários existentes: deixar, salvo se editando aquela linha.
+- **`any` proibido** — nenhuma forma (`: any`, `as any`, `Record<string, any>`, `Promise<any>`, `<any>`). Tipar com o tipo real; quando desconhecido (erro de `catch`, body de request), usar `unknown` + narrowing (`instanceof`, type guard, `validateDto`).
+- **Sem casts de conveniência (`as Type`)** — não usar `as` para calar o compilador. Tipar na origem: DTO, generic, retorno de service. `as` aceitável só em fronteiras reais: `JSON.parse`/SDK de terceiros sem tipo (cast estreito), narrowing de erro após checagem, e `as const`.
+- **Exceções de tipagem:** `src/generated/**` (Prisma gerado, não editar) e mappers de `$queryRaw` — tipo solto permitido, mas isolado num único mapper por tabela (ex: `mapExpense`, `mapUser`), nunca espalhado pelos services.
 - Upload: nunca confiar no mimetype do cliente — validar magic bytes via `src/utils/validateUpload.ts`.
 - Recibos/comprovantes: pre-signed URL curta, validar ownership (prevenir IDOR).
 - Após mudar `prisma/schema.prisma`: rodar `prisma:generate`.

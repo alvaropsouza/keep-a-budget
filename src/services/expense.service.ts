@@ -6,6 +6,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { IExpense } from "../models/Expense";
 import { InvoiceService } from "./invoice.service";
 import { ExpenseTypeEnum } from "../enums/expenseType.enum";
+import { BanksEnum } from "../enums/banks.enum";
 import { FilterBuilder } from "../utils/filterBuilder";
 import { ExpenseQueryParamsDto } from "../dto/expense.dto";
 import { uploadToS3, getSignedS3Url, extractS3Key } from "../utils/s3Upload";
@@ -17,7 +18,7 @@ import { runWithTransaction } from "../utils/runWithTransaction";
 import { prisma } from "../lib/prisma";
 
 interface CreateExpenseData {
-  bank: string;
+  bank: BanksEnum;
   category: string;
   amount: number;
   description?: string;
@@ -46,12 +47,12 @@ interface FileData {
 const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
   value == null ? 0 : Number(value);
 
-const mapExpense = (row: any): IExpense => ({
+const mapExpense = (row: Prisma.ExpenseGetPayload<true>): IExpense => ({
   id: row.id,
   _id: row.id,
   userId: row.userId ?? undefined,
-  bank: row.bank,
-  type: row.type,
+  bank: row.bank as BanksEnum,
+  type: row.type as ExpenseTypeEnum,
   category: row.category,
   date: new Date(row.date),
   amount: toNumber(row.amount),
@@ -105,7 +106,7 @@ export class ExpenseService {
     if (!row) {
       notFound();
     }
-    return mapExpense(row);
+    return mapExpense(row!);
   }
 
   private async create(
@@ -130,12 +131,12 @@ export class ExpenseService {
       },
     });
 
-    return mapExpense(row);
+    return mapExpense(row!);
   }
 
   async update(
     id: string,
-    data: Partial<IExpense>,
+    data: Omit<Partial<IExpense>, "receipt"> & { receipt?: string | null },
     tx?: Prisma.TransactionClient,
   ): Promise<IExpense> {
     const db = tx ?? prisma;
@@ -162,7 +163,7 @@ export class ExpenseService {
       notFound();
     }
 
-    return mapExpense(row);
+    return mapExpense(row!);
   }
 
   async delete(id: string, tx?: Prisma.TransactionClient): Promise<IExpense> {
@@ -171,7 +172,7 @@ export class ExpenseService {
     if (!row) {
       notFound();
     }
-    return mapExpense(row);
+    return mapExpense(row!);
   }
 
   async getAll(filter: Record<string, unknown>, userId?: string): Promise<IExpense[]> {
@@ -301,7 +302,12 @@ export class ExpenseService {
 
         const createdExpense = await this.create(
           {
-            ...(data as any),
+            bank: data.bank,
+            category: data.category,
+            amount: data.amount,
+            description: data.description,
+            receipt: data.receipt,
+            irDeductible: data.irDeductible,
             type: ExpenseTypeEnum.EXPENSE,
             date: expenseDate,
             cardInvoiceId: cardInvoice?.id ?? null,
@@ -452,7 +458,12 @@ export class ExpenseService {
       }
 
       expenses.push({
-        ...(baseData as any),
+        bank: baseData.bank,
+        category: baseData.category,
+        amount: baseData.amount,
+        receipt: baseData.receipt,
+        irDeductible: baseData.irDeductible,
+        userId: baseData.userId,
         type: ExpenseTypeEnum.EXPENSE,
         description: `${baseData.description || baseData.category} (${i}/${installmentTotal})`,
         date: targetDate,
@@ -572,7 +583,7 @@ export class ExpenseService {
       const s3Key = await uploadToS3(file.buffer, file.filename, file.mimetype, {
         userEmail: file.userEmail,
       });
-      await this.update(expenseId, { receipt: s3Key } as any);
+      await this.update(expenseId, { receipt: s3Key });
       logger.info({ expenseId }, "Receipt uploaded (private)");
       return s3Key;
     } catch (error) {
@@ -616,7 +627,7 @@ export class ExpenseService {
     if (userId) {
       await this.findById(id, undefined, userId);
     }
-    const expense = await this.update(id, { receipt: null as any });
+    const expense = await this.update(id, { receipt: null });
 
     logger.info({ expenseId: id }, "Receipt removed");
     return expense;

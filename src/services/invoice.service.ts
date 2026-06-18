@@ -16,12 +16,12 @@ import { getBrazilTodayUtcMidnight } from "../utils/timezone";
 const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
   value == null ? 0 : Number(value);
 
-const mapExpense = (row: any): IExpense => ({
+const mapExpense = (row: Prisma.ExpenseGetPayload<true>): IExpense => ({
   id: row.id,
   _id: row.id,
   userId: row.userId ?? undefined,
-  bank: row.bank,
-  type: row.type,
+  bank: row.bank as BanksEnum,
+  type: row.type as ExpenseTypeEnum,
   category: row.category,
   date: new Date(row.date),
   amount: toNumber(row.amount),
@@ -40,11 +40,11 @@ const mapExpense = (row: any): IExpense => ({
   updatedAt: row.updatedAt,
 });
 
-const mapInvoice = (row: any, expenses?: IExpense[]): ICardInvoice => ({
+const mapInvoice = (row: Prisma.CardInvoiceGetPayload<true>, expenses?: IExpense[]): ICardInvoice => ({
   id: row.id,
   _id: row.id,
   userId: row.userId ?? undefined,
-  bank: row.bank,
+  bank: row.bank as BanksEnum,
   closingDate: new Date(row.closingDate),
   dueDate: new Date(row.dueDate),
   balance: toNumber(row.balance),
@@ -82,7 +82,7 @@ export class InvoiceService {
       notFound();
     }
 
-    return mapInvoice(row);
+    return mapInvoice(row!);
   }
 
   private addMonthsClamped(date: Date, months: number): Date {
@@ -170,7 +170,7 @@ export class InvoiceService {
       notFound();
     }
 
-    return mapInvoice(row);
+    return mapInvoice(row!);
   }
 
   async getAllWithExpenses(
@@ -201,13 +201,13 @@ export class InvoiceService {
 
     if (closingDateFilter == null) {
       // no-op
-    } else if ((closingDateFilter as any).$gte) {
-      where.closingDate = {
-        gte: (closingDateFilter as any).$gte,
-        lte: (closingDateFilter as any).$lte,
-      };
+    } else if (closingDateFilter instanceof Date) {
+      where.closingDate = closingDateFilter;
     } else {
-      where.closingDate = closingDateFilter as Date;
+      where.closingDate = {
+        gte: closingDateFilter.$gte,
+        lte: closingDateFilter.$lte,
+      };
     }
 
     if (dueDateFilter == null) {
@@ -248,7 +248,7 @@ export class InvoiceService {
       orderBy: { dueDate: "desc" },
     });
 
-    return rows.map((row: any) =>
+    return rows.map((row) =>
       mapInvoice(row, row.expenses.map(mapExpense)),
     );
   }

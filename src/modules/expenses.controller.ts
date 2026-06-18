@@ -25,6 +25,7 @@ import {
   IrQueryParamsDto,
   IrToggleDto,
 } from "../dto/expense.dto";
+import { BanksEnum } from "../enums/banks.enum";
 import { SessionAuthGuard } from "./session-auth.guard";
 import { AppError } from "../utils/AppError";
 import { validateDto } from "../utils/validation";
@@ -152,7 +153,7 @@ export class ExpensesController {
       const { fields, file } = await readMultipart(req);
 
       const body: CreateExpenseDto = {
-        bank: fields.bank as any,
+        bank: fields.bank as BanksEnum,
         category: fields.category,
         amount: Number.parseFloat(fields.amount),
         description: fields.description,

@@ -279,6 +279,12 @@ pnpm run prisma:generate  # gera client Prisma
 pnpm run prisma:migrate   # prisma migrate dev
 ```
 
+## Helpers de repositório (src/repositories/invoice.repository.ts)
+
+- **`buildInvoiceWhere(filter, userId?)`** — constrói `Prisma.CardInvoiceWhereInput` a partir de `InvoiceFilter`. Usar em qualquer query que precise filtrar faturas por banco/data/período.
+- **`toUtcMidnight(date)`** — converte Date para meia-noite UTC. Usar ao comparar datas de despesa com datas de fatura.
+- **`userFilter(userId?)`** — retorna `{ userId }` ou `{}`. Usar em `where` spreads para isolamento por usuário.
+
 ## Comportamento do agente
 
 - **Avaliar alternativas antes de implementar** — antes de executar qualquer mudança arquitetural ou refactor sugerido no chat, apresentar brevemente as opções viáveis (incluindo a sugerida), recomendar a melhor, e aguardar confirmação. Mudanças pequenas e mecânicas (renomear arquivo, corrigir import) não precisam de avaliação.

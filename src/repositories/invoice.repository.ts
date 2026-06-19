@@ -15,6 +15,41 @@ type DbClient = TxClient;
 const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>
   value == null ? 0 : Number(value);
 
+const toUtcMidnight = (date: Date): Date =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+
+const userFilter = (userId?: string) => (userId ? { userId } : {});
+
+function buildInvoiceWhere(
+  filter: InvoiceFilter,
+  userId?: string,
+): Prisma.CardInvoiceWhereInput {
+  const where: Prisma.CardInvoiceWhereInput = {};
+  if (filter.bank) where.bank = filter.bank;
+  if (filter.closingDate) where.closingDate = new Date(filter.closingDate);
+  if (filter.startDate || filter.endDate) {
+    where.closingDate = {
+      gte: filter.startDate ? new Date(filter.startDate) : undefined,
+      lte: filter.endDate ? new Date(filter.endDate) : undefined,
+    };
+  }
+  if (filter.dueDate) where.dueDate = new Date(filter.dueDate);
+  if (filter.createdStartDate || filter.createdEndDate) {
+    where.createdAt = {
+      gte: filter.createdStartDate ? new Date(filter.createdStartDate) : undefined,
+      lte: filter.createdEndDate ? new Date(filter.createdEndDate) : undefined,
+    };
+  }
+  if (filter.updatedStartDate || filter.updatedEndDate) {
+    where.updatedAt = {
+      gte: filter.updatedStartDate ? new Date(filter.updatedStartDate) : undefined,
+      lte: filter.updatedEndDate ? new Date(filter.updatedEndDate) : undefined,
+    };
+  }
+  if (userId) where.userId = userId;
+  return where;
+}
+
 const mapExpense = (row: Prisma.ExpenseGetPayload<true>): IExpense => ({
   id: row.id,
   _id: row.id,
@@ -121,7 +156,7 @@ export class InvoiceRepository {
   ): Promise<boolean> {
     const db = this.getDb(tx);
     const row = await db.cardInvoice.findFirst({
-      where: { bank, closingDate, ...(userId ? { userId } : {}) },
+      where: { bank, closingDate, ...userFilter(userId) },
       select: { id: true },
     });
     return Boolean(row);
@@ -130,7 +165,7 @@ export class InvoiceRepository {
   private async findLatest(bank: string, userId?: string, tx?: TxClient): Promise<ICardInvoice | null> {
     const db = this.getDb(tx);
     const row = await db.cardInvoice.findFirst({
-      where: { bank, ...(userId ? { userId } : {}) },
+      where: { bank, ...userFilter(userId) },
       orderBy: { closingDate: "desc" },
     });
     return row ? mapInvoice(row) : null;
@@ -138,7 +173,7 @@ export class InvoiceRepository {
 
   async findById(id: string, userId?: string, tx?: TxClient): Promise<ICardInvoice | null> {
     const db = this.getDb(tx);
-    const row = await db.cardInvoice.findFirst({ where: { id, ...(userId ? { userId } : {}) } });
+    const row = await db.cardInvoice.findFirst({ where: { id, ...userFilter(userId) } });
     return row ? mapInvoice(row) : null;
   }
 
@@ -150,7 +185,7 @@ export class InvoiceRepository {
 
   async findWithExpenses(id: string, userId?: string): Promise<ICardInvoice> {
     const row = await prisma.cardInvoice.findUnique({
-      where: { id, ...(userId ? { userId } : {}) },
+      where: { id, ...userFilter(userId) },
       include: { expenses: { orderBy: [{ date: "desc" }, { createdAt: "desc" }] } },
     });
     if (!row) throw new AppError("Resource not found", 404);
@@ -158,43 +193,11 @@ export class InvoiceRepository {
   }
 
   async findMany(filter: InvoiceFilter, userId?: string): Promise<ICardInvoice[]> {
-    const where: Prisma.CardInvoiceWhereInput = {};
-
-    if (filter.bank) where.bank = filter.bank;
-
-    if (filter.closingDate) where.closingDate = new Date(filter.closingDate);
-
-    if (filter.startDate || filter.endDate) {
-      where.closingDate = {
-        gte: filter.startDate ? new Date(filter.startDate) : undefined,
-        lte: filter.endDate ? new Date(filter.endDate) : undefined,
-      };
-    }
-
-    if (filter.dueDate) where.dueDate = new Date(filter.dueDate);
-
-    if (filter.createdStartDate || filter.createdEndDate) {
-      where.createdAt = {
-        gte: filter.createdStartDate ? new Date(filter.createdStartDate) : undefined,
-        lte: filter.createdEndDate ? new Date(filter.createdEndDate) : undefined,
-      };
-    }
-
-    if (filter.updatedStartDate || filter.updatedEndDate) {
-      where.updatedAt = {
-        gte: filter.updatedStartDate ? new Date(filter.updatedStartDate) : undefined,
-        lte: filter.updatedEndDate ? new Date(filter.updatedEndDate) : undefined,
-      };
-    }
-
-    if (userId) where.userId = userId;
-
     const rows = await prisma.cardInvoice.findMany({
-      where,
+      where: buildInvoiceWhere(filter, userId),
       include: { expenses: { orderBy: [{ date: "desc" }, { createdAt: "desc" }] } },
       orderBy: { dueDate: "desc" },
     });
-
     return rows.map((row) => mapInvoice(row, row.expenses.map(mapExpense)));
   }
 
@@ -204,10 +207,10 @@ export class InvoiceRepository {
     userId?: string,
     tx?: TxClient,
   ): Promise<ICardInvoice | null> {
-    const queryDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const queryDate = toUtcMidnight(date);
     const db = this.getDb(tx);
     const row = await db.cardInvoice.findFirst({
-      where: { bank, closingDate: { gte: queryDate }, ...(userId ? { userId } : {}) },
+      where: { bank, closingDate: { gte: queryDate }, ...userFilter(userId) },
       orderBy: { closingDate: "asc" },
     });
     return row ? mapInvoice(row) : null;
@@ -219,10 +222,10 @@ export class InvoiceRepository {
     userId?: string,
     tx?: TxClient,
   ): Promise<ICardInvoice | null> {
-    const queryDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const queryDate = toUtcMidnight(date);
     const db = this.getDb(tx);
     const row = await db.cardInvoice.findFirst({
-      where: { bank, isClosed: false, closingDate: { gte: queryDate }, ...(userId ? { userId } : {}) },
+      where: { bank, isClosed: false, closingDate: { gte: queryDate }, ...userFilter(userId) },
       orderBy: { closingDate: "asc" },
     });
     return row ? mapInvoice(row) : null;
@@ -265,7 +268,7 @@ export class InvoiceRepository {
     if (data.isClosed != null) updateData.isClosed = data.isClosed;
 
     const row = await db.cardInvoice
-      .update({ where: { id, ...(userId ? { userId } : {}) }, data: updateData })
+      .update({ where: { id, ...userFilter(userId) }, data: updateData })
       .catch(() => null);
 
     if (!row) throw new AppError("Resource not found", 404);
@@ -349,7 +352,7 @@ export class InvoiceRepository {
   }
 
   async ensureForDate(bank: string, date: Date, userId?: string, tx?: TxClient): Promise<ICardInvoice> {
-    const targetDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const targetDate = toUtcMidnight(date);
 
     const existing = await this.findForExpenseDate(bank, targetDate, userId, tx);
     if (existing) return existing;

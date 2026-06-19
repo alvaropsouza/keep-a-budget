@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { Upload } from "@aws-sdk/lib-storage";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { ObjectCannedACL } from "@aws-sdk/client-s3";
 import s3Client from "../config/s3";
@@ -46,6 +46,25 @@ export class S3Service {
 
     logger.debug({ key, expiresIn, bucket: config.bucket }, "Generated pre-signed URL");
     return signedUrl;
+  }
+
+  async downloadObject(key: string): Promise<Buffer> {
+    const config = getS3UrlConfig();
+    const command = new GetObjectCommand({ Bucket: config.bucket, Key: key });
+    const response = await s3Client.send(command);
+
+    const { Readable } = await import("node:stream");
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of response.Body as InstanceType<typeof Readable>) {
+      chunks.push(chunk as Uint8Array);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  async deleteObject(keyOrUrl: string): Promise<void> {
+    const config = getS3UrlConfig();
+    const key = extractS3Key(keyOrUrl);
+    await s3Client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
   }
 
   generateKey(fileName: string, prefix?: string, userEmail?: string): string {

@@ -18,8 +18,8 @@ import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { AppError } from "../utils/app-error";
 import { ApiTags } from "@nestjs/swagger";
 import { validateDto } from "../utils/validation";
-import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validateUpload";
-import { readMultipart } from "../utils/readMultipart";
+import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validate-upload";
+import { readMultipart } from "../utils/read-multipart";
 
 @ApiTags("ir-documents")
 @UseGuards(SessionAuthGuard)

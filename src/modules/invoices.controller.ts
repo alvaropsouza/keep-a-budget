@@ -26,7 +26,7 @@ import { BanksEnum } from "../enums/banks.enum";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { AppError } from "../utils/app-error";
-import { readMultipart, type MultipartFile } from "../utils/readMultipart";
+import { readMultipart, type MultipartFile } from "../utils/read-multipart";
 
 const readCsvContent = (file?: MultipartFile): string | null => {
   if (!file) return null;

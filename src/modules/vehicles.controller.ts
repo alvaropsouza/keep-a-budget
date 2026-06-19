@@ -3,8 +3,8 @@ import { FastifyRequest } from "fastify";
 import { VehiclesService } from "../services/vehicles.service";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { ApiTags } from "@nestjs/swagger";
-import { validateUpload } from "../utils/validateUpload";
-import { readMultipart } from "../utils/readMultipart";
+import { validateUpload } from "../utils/validate-upload";
+import { readMultipart } from "../utils/read-multipart";
 
 @ApiTags("vehicles")
 @UseGuards(SessionAuthGuard)

@@ -54,17 +54,110 @@ Monorepo em `keep-a-budget-system/`:
 - Email: Resend
 - Jobs: `node-cron`
 - Logs: `pino`
-- Docs: Swagger (`@fastify/swagger`)
+- Docs: `@nestjs/swagger` + `@fastify/static` (decorators nos DTOs; UI em `/api/docs`)
 
 ## Arquitetura
 
-- `src/modules/` — controllers + guards (ex: `session-auth.guard.ts`)
-- `src/services/` — lógica de negócio
-- `src/dto/` — DTOs com validação
-- `src/docs/` — schemas Swagger
-- `src/utils/` — helpers (upload, encryption, s3, validação)
-- `src/generated/prisma/` — client Prisma gerado (NÃO editar à mão)
-- `prisma/` — schema e migrations
+```
+src/
+  main.ts              # bootstrap: Fastify, ValidationPipe, SwaggerModule
+  app.module.ts        # raiz: importa todos os módulos
+
+  config/              # configuração e singletons
+    database.ts        # DatabaseModule (PrismaService)
+    logger.ts          # logger Pino
+    prisma.ts          # cliente Prisma singleton com cache middleware
+    s3.ts              # S3Client singleton
+    validateEnv.ts     # validação de env vars no boot
+
+  dto/                 # DTOs: validação (class-validator) + docs (ApiProperty)
+    auth.dto.ts
+    budget.dto.ts
+    category.dto.ts
+    fixed-expense.dto.ts
+    invoice.dto.ts
+    ir-document.dto.ts
+    parse-expense.dto.ts
+    user.dto.ts
+
+  enums/
+    banks.enum.ts
+    expense-type.enum.ts
+
+  filters/
+    app-error.filter.ts  # converte AppError → HTTP response
+
+  guards/              # NestJS guards (CanActivate)
+    login-rate-limit.guard.ts
+    registration-rate-limit.guard.ts
+    session-auth.guard.ts
+
+  interfaces/          # tipos TypeScript puros (sem decorators)
+    card-invoice.ts
+    expense.ts
+    fixed-expense.ts
+    user.ts
+
+  jobs/                # crons (node-cron)
+    invoice-closure.job.ts
+    session-cleanup.job.ts
+
+  modules/             # módulos NestJS (plural, kebab-case)
+    ai/
+    auth/
+    budgets/
+    cache/
+    categories/
+    expenses/
+    fixed-expenses/
+    health/
+    invoices/
+    ir-documents/
+    users/
+    vehicles/
+
+  plugins/             # plugins Fastify (registrados via app.register)
+    cors.ts
+    fastify-auth.plugin.ts  # decora req.authUser a partir da session
+    helmet.ts
+
+  services/            # lógica de negócio (injetáveis NestJS)
+    ai.service.ts
+    budget.service.ts
+    ...
+
+  types/
+    fastify.d.ts       # augmenta FastifyRequest com authUser
+
+  utils/               # helpers puros (sem injeção)
+    app-error.ts
+    encryption.ts
+    read-multipart.ts
+    s3.ts
+    validate-upload.ts
+    ...
+
+  generated/           # Prisma client gerado — NÃO editar à mão
+    prisma/
+
+prisma/
+  schema.prisma
+  migrations/
+```
+
+### Convenções de nomenclatura
+
+- Arquivos: **kebab-case** em todo `src/` (exceto `generated/`)
+- Módulos: **plural** (`budgets`, `invoices`, `fixed-expenses`)
+- Sufixos obrigatórios: `.controller.ts` `.service.ts` `.module.ts` `.guard.ts` `.dto.ts` `.job.ts` `.filter.ts`
+- Plugin Fastify: sufixo `.plugin.ts`
+
+### Swagger
+
+Documentação via decorators nos DTOs e controllers — sem schemas manuais:
+- DTOs: `@ApiProperty` / `@ApiPropertyOptional` em cada campo
+- Controllers: `@ApiTags('recurso')` na classe
+- UI disponível em `/api/docs` (apenas fora de produção)
 
 ## Comandos
 

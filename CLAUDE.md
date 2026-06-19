@@ -2,17 +2,17 @@
 
 ## Memory System
 
-**Memória vive em `../vault/Memory/` — vault Obsidian na raiz do monorepo.**
+**Memória vive em `../memory/` na raiz do monorepo. Markdown puro — sem Obsidian, sem wikilinks.**
 
-IMPORTANT: Toda operação de memória usa `vault/Memory/` como raiz, NÃO `~/.claude/projects/*/memory/`.
+IMPORTANT: Toda operação de memória usa `../memory/` como raiz, NÃO `~/.claude/projects/*/memory/`.
 
 ### Escrever memórias
 
 1. Criar `.md` na subpasta correta:
-   - `vault/Memory/user/` — perfil, preferências, expertise do usuário
-   - `vault/Memory/project/` — decisões, status, metas, contexto de arquitetura
-   - `vault/Memory/feedback/` — regras do/don't de comportamento do agente
-   - `vault/Memory/reference/` — ponteiros para recursos externos
+   - `../memory/user/` — perfil, preferências, expertise do usuário
+   - `../memory/project/` — decisões, status, metas, contexto de arquitetura
+   - `../memory/feedback/` — regras do/don't de comportamento do agente
+   - `../memory/reference/` — ponteiros para recursos externos
 
 2. Frontmatter obrigatório:
    ```yaml
@@ -21,18 +21,17 @@ IMPORTANT: Toda operação de memória usa `vault/Memory/` como raiz, NÃO `~/.c
    type: user | project | feedback | reference
    area: backend | frontend | shared
    description: "resumo de uma linha"
-   tags:
-     - memory
-     - <type>
    created: YYYY-MM-DD
    ---
    ```
 
-3. Atualizar índice `vault/Memory/MEMORY.md` (uma linha por memória, sob a seção correta).
+3. Linkar memórias relacionadas com links markdown relativos: `[slug](../project/slug.md)`. Nunca wikilinks `[[slug]]`.
+
+4. Atualizar índice `../memory/MEMORY.md` (uma linha por memória, sob a seção correta, com link relativo).
 
 ### Ler memórias
 
-Ler `vault/Memory/MEMORY.md` para índice. Seguir links para arquivos individuais.
+Ler `../memory/MEMORY.md` para índice. Seguir os links markdown para arquivos individuais.
 
 ## Comunicação
 
@@ -43,7 +42,7 @@ Usar **caveman mode (full)** em todas sessões. Ativo por padrão.
 Monorepo em `keep-a-budget-system/`:
 - `keep-a-budget/` — backend NestJS/Fastify + Prisma + PostgreSQL (este repo)
 - `keep-a-budget-frontend/` — frontend React + Vite
-- `vault/` — Obsidian vault (memória do agente + docs do projeto)
+- `memory/` — memória do agente (markdown puro)
 
 ## Stack
 

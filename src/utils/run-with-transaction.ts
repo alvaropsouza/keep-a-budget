@@ -1,6 +1,6 @@
 import type { Prisma } from "../generated/prisma/client/client";
 import logger from "../config/logger";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../config/prisma";
 
 export type TxClient = Prisma.TransactionClient;
 

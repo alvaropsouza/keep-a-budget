@@ -67,12 +67,7 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-/**
- * Configura o middleware de cache invalidation.
- * Deve ser chamado durante a inicialização do NestJS.
- */
 export function setupCacheMiddleware(cacheService: CacheService): void {
-  // Evita configurar o middleware múltiplas vezes
   if (globalForPrisma.cacheMiddlewareConfigured) {
     return;
   }
@@ -85,9 +80,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-/**
- * Invalida cache baseado no modelo e dados afetados.
- */
 function invalidateCacheForModel(model: string, data: Record<string, unknown>, cacheService: CacheService): void {
   const id = data?.id as string | undefined;
 
@@ -122,9 +114,6 @@ function invalidateCacheForModel(model: string, data: Record<string, unknown>, c
   }
 }
 
-/**
- * Invalida a tag genérica de um modelo.
- */
 function invalidateModelCache(model: string, cacheService: CacheService): void {
   const tags = tagMap[model] || [];
   if (tags.length > 0) {

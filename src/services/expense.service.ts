@@ -3,7 +3,7 @@ import { Prisma } from "../generated/prisma/client/client";
 import { Readable } from "node:stream";
 import { ZipArchive } from "archiver";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { IExpense } from "../models/expense";
+import { IExpense } from "../interfaces/expense";
 import { InvoiceService } from "./invoice.service";
 import { ExpenseTypeEnum } from "../enums/expense-type.enum";
 import { BanksEnum } from "../enums/banks.enum";
@@ -15,7 +15,7 @@ import { getS3UrlConfig } from "../utils/s3-url";
 import logger from "../config/logger";
 import { AppError } from "../utils/app-error";
 import { runWithTransaction } from "../utils/run-with-transaction";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../config/prisma";
 
 interface CreateExpenseData {
   bank: BanksEnum;

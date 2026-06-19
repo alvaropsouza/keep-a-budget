@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { randomBytes, randomInt, createHash, timingSafeEqual } from "node:crypto";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../config/prisma";
 import { AppError } from "../utils/app-error";
 
 // A session is valid for this long after the last login. Logging in again

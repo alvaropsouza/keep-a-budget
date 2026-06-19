@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "../generated/prisma/client/client";
-import { ICardInvoice } from "../models/card-invoice";
-import { IExpense } from "../models/expense";
+import { ICardInvoice } from "../interfaces/card-invoice";
+import { IExpense } from "../interfaces/expense";
 import { ExpenseTypeEnum } from "../enums/expense-type.enum";
 import { FilterBuilder } from "../utils/filter-builder";
 import logger from "../config/logger";
@@ -10,7 +10,7 @@ import { InvoiceQueryParamsDto } from "../dto/invoice.dto";
 import { BanksEnum } from "../enums/banks.enum";
 import { parseInvoiceCsv } from "../utils/invoice-csv-parser";
 import { runWithTransaction } from "../utils/run-with-transaction";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../config/prisma";
 import { getBrazilTodayUtcMidnight } from "../utils/timezone";
 
 const toNumber = (value: Prisma.Decimal | number | null | undefined): number =>

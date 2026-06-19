@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "../generated/prisma/client/client";
-import { IFixedExpense } from "../models/fixed-expense";
+import { IFixedExpense } from "../interfaces/fixed-expense";
 import { FilterBuilder } from "../utils/filter-builder";
 import { FixedExpenseQueryParamsDto } from "../dto/fixed-expense.dto";
 import logger from "../config/logger";
 import { AppError } from "../utils/app-error";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../config/prisma";
 
 interface CreateFixedExpenseData {
   name: string;

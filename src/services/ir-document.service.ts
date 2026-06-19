@@ -6,7 +6,7 @@ import s3Client from "../config/s3";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import logger from "../config/logger";
 import { AppError } from "../utils/app-error";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../config/prisma";
 
 export interface IIrDocument {
   id: string;

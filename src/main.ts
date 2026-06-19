@@ -18,7 +18,7 @@ import corsPlugin from "./plugins/cors";
 import helmetPlugin from "./plugins/helmet";
 import { AppErrorFilter } from "./filters/app-error.filter";
 import { CacheService } from "./services/cache.service";
-import { setupCacheMiddleware } from "./lib/prisma";
+import { setupCacheMiddleware } from "./config/prisma";
 
 async function bootstrap(): Promise<void> {
   validateEnv();

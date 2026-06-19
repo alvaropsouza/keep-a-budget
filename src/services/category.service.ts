@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../config/prisma";
 import { AppError } from "../utils/app-error";
 
 export const DEFAULT_CATEGORIES: { name: string; icon: string }[] = [

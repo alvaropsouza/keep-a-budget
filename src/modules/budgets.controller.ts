@@ -12,62 +12,70 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
-import { BudgetService } from "../services/budget.service";
 import { UpsertBudgetDto, BudgetQueryDto } from "../dto/budget.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { AppError } from "../utils/app-error";
+import { ListBudgetsUseCase } from "../use-cases/budgets/list-budgets.use-case";
+import { GetBudgetSummaryUseCase } from "../use-cases/budgets/get-budget-summary.use-case";
+import { GetBudgetExpensesUseCase } from "../use-cases/budgets/get-budget-expenses.use-case";
+import { UpsertBudgetUseCase } from "../use-cases/budgets/upsert-budget.use-case";
+import { DeleteBudgetUseCase } from "../use-cases/budgets/delete-budget.use-case";
 
 @ApiTags("budgets")
 @UseGuards(SessionAuthGuard)
 @Controller("budgets")
 export class BudgetController {
-  constructor(private readonly budgetService: BudgetService) {}
+  constructor(
+    private readonly listBudgetsUseCase: ListBudgetsUseCase,
+    private readonly getBudgetSummaryUseCase: GetBudgetSummaryUseCase,
+    private readonly getBudgetExpensesUseCase: GetBudgetExpensesUseCase,
+    private readonly upsertBudgetUseCase: UpsertBudgetUseCase,
+    private readonly deleteBudgetUseCase: DeleteBudgetUseCase,
+  ) {}
 
   @Get()
   async list(@Query() query: BudgetQueryDto, @Req() req: FastifyRequest) {
-    const { userId } = this.getAuthUser(req);
-    return this.budgetService.list(userId, Number(query.month), Number(query.year));
+    return this.listBudgetsUseCase.execute({
+      userId: this.authUserId(req),
+      month: Number(query.month),
+      year: Number(query.year),
+    });
   }
 
   @Get("summary")
   async summary(@Query() query: BudgetQueryDto, @Req() req: FastifyRequest) {
-    const { userId } = this.getAuthUser(req);
-    return this.budgetService.getSummary(userId, Number(query.month), Number(query.year));
+    return this.getBudgetSummaryUseCase.execute({
+      userId: this.authUserId(req),
+      month: Number(query.month),
+      year: Number(query.year),
+    });
   }
 
   @Get("expenses")
-  async expenses(
-    @Query() query: BudgetQueryDto & { category: string },
-    @Req() req: FastifyRequest,
-  ) {
-    const { userId } = this.getAuthUser(req);
-    return this.budgetService.getExpenses(userId, query.category, Number(query.month), Number(query.year));
+  async expenses(@Query() query: BudgetQueryDto & { category: string }, @Req() req: FastifyRequest) {
+    return this.getBudgetExpensesUseCase.execute({
+      userId: this.authUserId(req),
+      category: query.category,
+      month: Number(query.month),
+      year: Number(query.year),
+    });
   }
 
   @Post()
   @HttpCode(HttpStatus.OK)
   async upsert(@Body() body: UpsertBudgetDto, @Req() req: FastifyRequest) {
-    const { userId } = this.getAuthUser(req);
-    return this.budgetService.upsert(
-      userId,
-      body.category,
-      body.amount,
-      body.month,
-      body.year,
-      body.invoiceIds,
-    );
+    return this.upsertBudgetUseCase.execute({ ...body, userId: this.authUserId(req) });
   }
 
   @Delete(":id")
   async remove(@Param("id") id: string, @Req() req: FastifyRequest) {
-    const { userId } = this.getAuthUser(req);
-    await this.budgetService.delete(id, userId);
+    await this.deleteBudgetUseCase.execute({ id, userId: this.authUserId(req) });
     return { message: "Budget deleted" };
   }
 
-  private getAuthUser(req: FastifyRequest) {
+  private authUserId(req: FastifyRequest): string {
     if (!req.authUser) throw new AppError("Unauthorized", 401);
-    return req.authUser;
+    return req.authUser.userId;
   }
 }

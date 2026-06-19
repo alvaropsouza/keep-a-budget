@@ -58,6 +58,75 @@ Monorepo em `keep-a-budget-system/`:
 
 ## Arquitetura
 
+### Camadas e responsabilidades
+
+```
+Controller  →  UseCase  →  Repository  (DB)
+                       →  Service      (integração externa)
+                       →  UseCase      (orquestração de outros UCs)
+```
+
+| Camada | Responsabilidade | Proibido |
+|--------|-----------------|----------|
+| **Controller** | Receber request, chamar UseCase, retornar response | Qualquer lógica de negócio |
+| **UseCase** | Orquestrar, logar, mapear erros, chamar Repository/Service | Acesso direto ao DB, chamadas HTTP externas |
+| **Repository** | Operações no banco via Prisma — só isso | Lógica de negócio, chamadas externas |
+| **Service** | Integração com serviços externos (Anthropic, S3, Resend, RemoveBG) | Lógica de negócio, acesso ao DB |
+
+> **Regra**: se não é integração externa, não é Service. Se não é operação de banco, não é Repository.
+
+### Fluxo de dados
+
+- DTO do controller === input do UseCase (sem conversão intermediária)
+- UseCase retorna o dado diretamente (controller só repassa)
+- Erros mapeados na ponta que os originou; UseCase lê e decide relançar, logar ou absorver
+
+### Error handling
+
+```typescript
+// Repository — mapeia erros de DB para domínio
+async findById(id: string): Promise<User> {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new AppError('User not found', 404);
+  return user;
+}
+
+// Service — mapeia erros externos para domínio
+async removeBackground(buffer: Buffer): Promise<Buffer> {
+  try {
+    return await removeBgApi(buffer);
+  } catch (err) {
+    throw new AppError('Background removal failed', 502);
+  }
+}
+
+// UseCase — orquestra, loga, decide o que propagar
+async execute(input: CreateExpenseInput): Promise<Expense> {
+  this.logger.log({ input }, 'CreateExpenseUseCase.execute');
+  try {
+    const expense = await this.expenseRepository.create(input); // AppError 4xx propaga
+    await this.emailService.notify(input.userId, expense);      // AppError 5xx: logar, não propagar
+    return expense;
+  } catch (err) {
+    if (err instanceof AppError && err.statusCode >= 500) {
+      this.logger.error({ err }, 'external service failed');
+      return expense; // degradação graciosa quando possível
+    }
+    throw err;
+  }
+}
+```
+
+### Logs padrão nos UseCases
+
+```typescript
+this.logger.log({ input }, 'NomeUseCase.execute');       // início
+this.logger.log({ result }, 'NomeUseCase.execute done'); // sucesso
+this.logger.error({ err }, 'NomeUseCase.execute failed');// falha não recuperável
+```
+
+### Estrutura de pastas
+
 ```
 src/
   main.ts              # bootstrap: Fastify, ValidationPipe, SwaggerModule
@@ -84,6 +153,9 @@ src/
     banks.enum.ts
     expense-type.enum.ts
 
+  errors/              # classes de erro de domínio (extends AppError)
+    app-error.ts
+
   filters/
     app-error.filter.ts  # converte AppError → HTTP response
 
@@ -102,38 +174,56 @@ src/
     invoice-closure.job.ts
     session-cleanup.job.ts
 
-  modules/             # módulos NestJS (plural, kebab-case)
-    ai/
-    auth/
-    budgets/
-    cache/
-    categories/
-    expenses/
-    fixed-expenses/
-    health/
-    invoices/
-    ir-documents/
-    users/
-    vehicles/
+  modules/             # módulos NestJS (plural, kebab-case) — estrutura flat
+    ai.controller.ts / ai.module.ts
+    auth.controller.ts / auth.module.ts
+    budgets.controller.ts / budgets.module.ts
+    cache.module.ts
+    categories.controller.ts / categories.module.ts
+    expenses.controller.ts / expenses.module.ts
+    fixed-expenses.controller.ts / fixed-expenses.module.ts
+    health.controller.ts          # registrado direto no AppModule, sem módulo próprio
+    invoices.controller.ts / invoices.module.ts
+    ir-documents.controller.ts / ir-documents.module.ts
+    users.controller.ts / users.module.ts
+    vehicles.controller.ts / vehicles.module.ts
 
   plugins/             # plugins Fastify (registrados via app.register)
     cors.ts
     fastify-auth.plugin.ts  # decora req.authUser a partir da session
     helmet.ts
 
-  services/            # lógica de negócio (injetáveis NestJS)
-    ai.service.ts
-    budget.service.ts
-    ...
+  repositories/        # acesso ao banco — só Prisma, sem lógica
+    budget.repository.ts
+    category.repository.ts
+    expense.repository.ts
+    fixed-expense.repository.ts
+    invoice.repository.ts
+    ir-document.repository.ts
+    user.repository.ts
+    vehicle.repository.ts
+
+  services/            # integrações externas APENAS
+    ai.service.ts      # Anthropic Claude API
+    email.service.ts   # Resend
+    remove-bg.service.ts # RemoveBG API
+    s3.service.ts      # AWS S3
 
   types/
     fastify.d.ts       # augmenta FastifyRequest com authUser
 
+  use-cases/           # lógica de negócio e orquestração
+    budgets/
+      create-budget.use-case.ts
+      list-budgets.use-case.ts
+      ...
+    expenses/
+      create-expense.use-case.ts
+      ...
+
   utils/               # helpers puros (sem injeção)
-    app-error.ts
     encryption.ts
     read-multipart.ts
-    s3.ts
     validate-upload.ts
     ...
 
@@ -149,8 +239,28 @@ prisma/
 
 - Arquivos: **kebab-case** em todo `src/` (exceto `generated/`)
 - Módulos: **plural** (`budgets`, `invoices`, `fixed-expenses`)
-- Sufixos obrigatórios: `.controller.ts` `.service.ts` `.module.ts` `.guard.ts` `.dto.ts` `.job.ts` `.filter.ts`
+- Sufixos obrigatórios: `.controller.ts` `.service.ts` `.module.ts` `.guard.ts` `.dto.ts` `.job.ts` `.filter.ts` `.repository.ts` `.use-case.ts`
 - Plugin Fastify: sufixo `.plugin.ts`
+
+### Nomenclatura de classes por camada
+
+#### Repository
+- Classe: `[Resource]Repository` — ex: `ExpenseRepository`, `UserRepository`
+- Arquivo: `[resource].repository.ts`
+- Métodos padrão: `findById` · `findMany` · `create` · `update` · `delete` · `deleteMany`
+- Métodos extras seguem o padrão `findBy[Field]` — ex: `findByEmail`, `findByInvoiceId`
+
+#### UseCase
+- Classe: `[Verb][Resource]UseCase` — ex: `CreateExpenseUseCase`, `ListInvoicesUseCase`
+- Arquivo: `[verb]-[resource].use-case.ts` — ex: `create-expense.use-case.ts`
+- Único método público: `execute(input: [ClassName]Input): Promise<[ClassName]Output>`
+- Verbos padrão: `Create` · `Update` · `Delete` · `GetById` · `List`
+- Verbos de domínio quando a ação não é CRUD: `CloseInvoice` · `AdvanceInvoicePayment` · `ImportExpensesFromCsv`
+
+#### Service (integrações externas)
+- Classe: `[Provider]Service` — ex: `AiService`, `EmailService`, `S3Service`, `RemoveBgService`
+- Arquivo: `[provider].service.ts`
+- Métodos descrevem a ação no provider: `parseExpense` · `sendOtp` · `uploadFile` · `removeBackground`
 
 ### Swagger
 
@@ -167,6 +277,10 @@ pnpm run build            # prisma generate && nest build
 pnpm run prisma:generate  # gera client Prisma
 pnpm run prisma:migrate   # prisma migrate dev
 ```
+
+## Comportamento do agente
+
+- **Avaliar alternativas antes de implementar** — antes de executar qualquer mudança arquitetural ou refactor sugerido no chat, apresentar brevemente as opções viáveis (incluindo a sugerida), recomendar a melhor, e aguardar confirmação. Mudanças pequenas e mecânicas (renomear arquivo, corrigir import) não precisam de avaliação.
 
 ## Convenções
 

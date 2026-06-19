@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ExpenseRepository } from "../../repositories/expense.repository";
-import { InvoiceService } from "../../services/invoice.service";
+import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { AppError } from "../../utils/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 
@@ -12,7 +12,7 @@ export class DeleteExpenseUseCase {
 
   constructor(
     private readonly expenseRepository: ExpenseRepository,
-    private readonly invoiceService: InvoiceService,
+    private readonly invoiceRepository: InvoiceRepository,
   ) {}
 
   async execute(input: DeleteExpenseInput): Promise<void> {
@@ -23,7 +23,7 @@ export class DeleteExpenseUseCase {
       if (!expense) throw new AppError("Resource not found", 404);
 
       if (expense.cardInvoiceId) {
-        const invoice = await this.invoiceService.findById(expense.cardInvoiceId.toString(), undefined, tx);
+        const invoice = await this.invoiceRepository.findById(expense.cardInvoiceId.toString(), undefined, tx);
         if (invoice?.isClosed) {
           throw new AppError("Cannot delete expenses from a closed invoice. Please reopen the invoice first.", 400);
         }
@@ -32,7 +32,7 @@ export class DeleteExpenseUseCase {
       await this.expenseRepository.delete(input.id, tx);
 
       if (expense.cardInvoiceId) {
-        await this.invoiceService.updateBalance(expense.cardInvoiceId, -expense.amount, tx);
+        await this.invoiceRepository.updateBalance(expense.cardInvoiceId, -expense.amount, tx);
       }
     }, { operationName: "expense.delete", metadata: { expenseId: input.id } });
 

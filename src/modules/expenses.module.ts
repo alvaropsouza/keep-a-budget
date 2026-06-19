@@ -4,8 +4,8 @@ import { AuthModule } from "./auth.module";
 import { InvoicesModule } from "./invoices.module";
 import { IrDocumentModule } from "./ir-documents.module";
 import { ExpenseRepository } from "../repositories/expense.repository";
+import { InvoiceRepository } from "../repositories/invoice.repository";
 import { S3Service } from "../services/s3.service";
-import { InvoiceService } from "../services/invoice.service";
 import { ListExpensesUseCase } from "../use-cases/expenses/list-expenses.use-case";
 import { GetExpenseByIdUseCase } from "../use-cases/expenses/get-expense-by-id.use-case";
 import { CreateExpenseUseCase } from "../use-cases/expenses/create-expense.use-case";
@@ -22,8 +22,8 @@ import { ExportIrZipUseCase } from "../use-cases/expenses/export-ir-zip.use-case
   controllers: [ExpensesController],
   providers: [
     ExpenseRepository,
+    InvoiceRepository,
     S3Service,
-    InvoiceService,
     ListExpensesUseCase,
     GetExpenseByIdUseCase,
     CreateExpenseUseCase,

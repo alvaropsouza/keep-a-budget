@@ -4,7 +4,8 @@
   "description": "Backend app responsible for keeping track of credit card invoice expenses",
   "main": "dist/main.js",
   "scripts": {
-    "build": "prisma generate && nest build",
+    "build": "prisma generate && node scripts/check-arch.mjs && nest build",
+    "check:arch": "node scripts/check-arch.mjs",
     "start": "nest start --prod",
     "dev": "nest start --watch",
     "data:migrate-to-prod": "tsx scripts/migrate-to-prod.ts",

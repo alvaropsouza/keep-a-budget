@@ -2,7 +2,6 @@ import {
   Controller,
   Delete,
   Get,
-  Inject,
   Param,
   Post,
   Put,
@@ -14,7 +13,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
-import { InvoiceService } from "../services/invoice.service";
 import {
   CreateInvoiceDto,
   UpdateInvoiceDto,
@@ -27,6 +25,17 @@ import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { AppError } from "../utils/app-error";
 import { readMultipart, type MultipartFile } from "../utils/read-multipart";
+import { ListInvoicesUseCase } from "../use-cases/invoices/list-invoices.use-case";
+import { GetInvoiceSummaryUseCase } from "../use-cases/invoices/get-invoice-summary.use-case";
+import { GetInvoiceByIdUseCase } from "../use-cases/invoices/get-invoice-by-id.use-case";
+import { CreateInvoiceUseCase } from "../use-cases/invoices/create-invoice.use-case";
+import { UpdateInvoiceUseCase } from "../use-cases/invoices/update-invoice.use-case";
+import { DeleteInvoiceUseCase } from "../use-cases/invoices/delete-invoice.use-case";
+import { CreateInvoiceFromCsvUseCase } from "../use-cases/invoices/create-invoice-from-csv.use-case";
+import { ImportExpensesFromCsvUseCase } from "../use-cases/invoices/import-expenses-from-csv.use-case";
+import { AdvanceInvoicePaymentUseCase } from "../use-cases/invoices/advance-invoice-payment.use-case";
+import { CloseInvoiceUseCase } from "../use-cases/invoices/close-invoice.use-case";
+import { ReopenInvoiceUseCase } from "../use-cases/invoices/reopen-invoice.use-case";
 
 const readCsvContent = (file?: MultipartFile): string | null => {
   if (!file) return null;
@@ -55,28 +64,39 @@ const parseExcludeIndexes = (value?: string): number[] | undefined => {
 @UseGuards(SessionAuthGuard)
 @Controller("invoices")
 export class InvoicesController {
-  constructor(@Inject(InvoiceService) private readonly invoiceService: InvoiceService) {}
+  constructor(
+    private readonly listInvoicesUseCase: ListInvoicesUseCase,
+    private readonly getInvoiceSummaryUseCase: GetInvoiceSummaryUseCase,
+    private readonly getInvoiceByIdUseCase: GetInvoiceByIdUseCase,
+    private readonly createInvoiceUseCase: CreateInvoiceUseCase,
+    private readonly updateInvoiceUseCase: UpdateInvoiceUseCase,
+    private readonly deleteInvoiceUseCase: DeleteInvoiceUseCase,
+    private readonly createInvoiceFromCsvUseCase: CreateInvoiceFromCsvUseCase,
+    private readonly importExpensesFromCsvUseCase: ImportExpensesFromCsvUseCase,
+    private readonly advanceInvoicePaymentUseCase: AdvanceInvoicePaymentUseCase,
+    private readonly closeInvoiceUseCase: CloseInvoiceUseCase,
+    private readonly reopenInvoiceUseCase: ReopenInvoiceUseCase,
+  ) {}
 
   @Get()
   async getAll(@Query() query: InvoiceQueryParamsDto, @Req() req: FastifyRequest) {
-    const filter = this.invoiceService.buildFilter(query);
-    return this.invoiceService.getAllWithExpenses(filter, req.authUser!.userId);
+    return this.listInvoicesUseCase.execute({ ...query, userId: req.authUser!.userId });
   }
 
   @Get("summary")
   async getSummary(@Req() req: FastifyRequest) {
-    return this.invoiceService.getSummary(req.authUser!.userId);
+    return this.getInvoiceSummaryUseCase.execute({ userId: req.authUser!.userId });
   }
 
   @Get(":id")
   async getById(@Param("id") id: string, @Req() req: FastifyRequest) {
-    return this.invoiceService.getByIdWithExpenses(id, req.authUser!.userId);
+    return this.getInvoiceByIdUseCase.execute({ id, userId: req.authUser!.userId });
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() body: CreateInvoiceDto, @Req() req: FastifyRequest) {
-    return this.invoiceService.createInvoice({ ...body, userId: req.authUser!.userId });
+    return this.createInvoiceUseCase.execute({ ...body, userId: req.authUser!.userId });
   }
 
   @Post("create-from-csv")
@@ -94,40 +114,40 @@ export class InvoicesController {
     if (!closingDate || !dueDate) throw new AppError("closingDate and dueDate are required", 400);
     if (!bank) throw new AppError("bank is required", 400);
 
-    return this.invoiceService.createFromCsv(
+    return this.createInvoiceFromCsvUseCase.execute({
       bank,
       closingDate,
       dueDate,
       csvContent,
       excludeIndexes,
-      req.authUser!.userId,
-    );
+      userId: req.authUser!.userId,
+    });
   }
 
   @Put(":id")
   async update(@Param("id") id: string, @Body() body: UpdateInvoiceDto, @Req() req: FastifyRequest) {
-    return this.invoiceService.update(id, body, req.authUser!.userId);
+    return this.updateInvoiceUseCase.execute({ id, ...body, userId: req.authUser!.userId });
   }
 
   @Delete(":id")
   async delete(@Param("id") id: string, @Req() req: FastifyRequest) {
-    await this.invoiceService.deleteWithExpenses(id, req.authUser!.userId);
+    await this.deleteInvoiceUseCase.execute({ id, userId: req.authUser!.userId });
     return { message: "Invoice and associated expenses deleted successfully" };
   }
 
   @Post(":id/advance")
   async advance(@Param("id") id: string, @Body() body: AdvanceInvoiceDto, @Req() req: FastifyRequest) {
-    return this.invoiceService.advancePayment(id, body.amount, req.authUser!.userId);
+    return this.advanceInvoicePaymentUseCase.execute({ id, amount: body.amount, userId: req.authUser!.userId });
   }
 
   @Post(":id/close")
   async close(@Param("id") id: string, @Body() body: CloseInvoiceDto, @Req() req: FastifyRequest) {
-    return this.invoiceService.closeInvoice(id, body.balance, req.authUser!.userId);
+    return this.closeInvoiceUseCase.execute({ id, manualBalance: body.balance, userId: req.authUser!.userId });
   }
 
   @Post(":id/reopen")
   async reopen(@Param("id") id: string, @Req() req: FastifyRequest) {
-    return this.invoiceService.reopenInvoice(id, req.authUser!.userId);
+    return this.reopenInvoiceUseCase.execute({ id, userId: req.authUser!.userId });
   }
 
   @Post(":id/import-csv")
@@ -139,6 +159,6 @@ export class InvoicesController {
 
     if (!csvContent) throw new AppError("No file uploaded", 400);
 
-    return this.invoiceService.importFromCsv(id, csvContent, excludeIndexes, req.authUser!.userId);
+    return this.importExpensesFromCsvUseCase.execute({ id, csvContent, excludeIndexes, userId: req.authUser!.userId });
   }
 }

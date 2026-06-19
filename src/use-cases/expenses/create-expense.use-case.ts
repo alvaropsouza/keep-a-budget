@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ExpenseRepository } from "../../repositories/expense.repository";
+import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { S3Service } from "../../services/s3.service";
-import { InvoiceService } from "../../services/invoice.service";
 import { AppError } from "../../utils/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
@@ -28,7 +28,7 @@ export class CreateExpenseUseCase {
 
   constructor(
     private readonly expenseRepository: ExpenseRepository,
-    private readonly invoiceService: InvoiceService,
+    private readonly invoiceRepository: InvoiceRepository,
     private readonly s3Service: S3Service,
   ) {}
 
@@ -52,10 +52,10 @@ export class CreateExpenseUseCase {
     const expenseDate = input.installmentStartDate ? new Date(input.installmentStartDate) : new Date();
 
     const expense = await runWithTransaction(async (tx) => {
-      let cardInvoice = await this.invoiceService.findForExpenseDate(input.bank, expenseDate, input.userId, tx);
+      let cardInvoice = await this.invoiceRepository.findForExpenseDate(input.bank, expenseDate, input.userId, tx);
 
       if (cardInvoice?.isClosed) {
-        cardInvoice = await this.invoiceService.findOpenForExpenseDate(input.bank, expenseDate, input.userId, tx);
+        cardInvoice = await this.invoiceRepository.findOpenForExpenseDate(input.bank, expenseDate, input.userId, tx);
         if (!cardInvoice) {
           throw new AppError("Cannot add expenses to a closed invoice. Please reopen the invoice first.", 400);
         }
@@ -78,7 +78,7 @@ export class CreateExpenseUseCase {
       );
 
       if (cardInvoice) {
-        await this.invoiceService.updateBalance(cardInvoice.id, created.amount, tx);
+        await this.invoiceRepository.updateBalance(cardInvoice.id, created.amount, tx);
       }
 
       return created;
@@ -117,7 +117,7 @@ export class CreateExpenseUseCase {
 
       for (let i = installmentStartNumber; i <= installmentTotal; i++) {
         const targetDate = this.calculateInstallmentDate(baseDate, i - installmentStartNumber);
-        const cardInvoice = await this.invoiceService.ensureInvoiceForDate(input.bank, targetDate, input.userId, tx);
+        const cardInvoice = await this.invoiceRepository.ensureForDate(input.bank, targetDate, input.userId, tx);
 
         if (cardInvoice?.isClosed) {
           throw new AppError(
@@ -153,7 +153,7 @@ export class CreateExpenseUseCase {
       }
 
       for (const [invoiceId, amount] of balancesByInvoice) {
-        await this.invoiceService.updateBalance(invoiceId, amount, tx);
+        await this.invoiceRepository.updateBalance(invoiceId, amount, tx);
       }
 
       return expenses;

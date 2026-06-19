@@ -156,4 +156,38 @@ export class ExpenseRepository {
     const row = await db.expense.delete({ where: { id } }).catch(() => null);
     return row ? mapExpense(row) : null;
   }
+
+  async createMany(data: CreateExpenseData[], tx?: TxClient): Promise<void> {
+    const db = tx ?? prisma;
+    await db.expense.createMany({
+      data: data.map((d) => ({
+        bank: d.bank,
+        type: d.type,
+        category: d.category,
+        date: d.date,
+        amount: d.amount,
+        description: d.description ?? "",
+        receipt: d.receipt ?? null,
+        irDeductible: d.irDeductible ?? false,
+        installmentCurrent: d.installmentCurrent ?? null,
+        installmentTotal: d.installmentTotal ?? null,
+        cardInvoiceId: d.cardInvoiceId ?? null,
+        userId: d.userId,
+      })),
+    });
+  }
+
+  async sumAmountByInvoice(invoiceId: string, type: ExpenseTypeEnum, tx?: TxClient): Promise<number> {
+    const db = tx ?? prisma;
+    const result = await db.expense.aggregate({
+      where: { cardInvoiceId: invoiceId, type },
+      _sum: { amount: true },
+    });
+    return Number(result._sum.amount ?? 0);
+  }
+
+  async deleteByInvoiceType(invoiceId: string, type: ExpenseTypeEnum, tx?: TxClient): Promise<void> {
+    const db = tx ?? prisma;
+    await db.expense.deleteMany({ where: { cardInvoiceId: invoiceId, type } });
+  }
 }

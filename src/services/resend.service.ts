@@ -5,8 +5,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.EMAIL_FROM ?? "Keep a Budget <noreply@keepabudget.com.br>";
 
 @Injectable()
-export class EmailService {
-  private readonly logger = new Logger(EmailService.name);
+export class ResendService {
+  private readonly logger = new Logger(ResendService.name);
 
   async sendLoginCode(email: string, code: string): Promise<void> {
     try {

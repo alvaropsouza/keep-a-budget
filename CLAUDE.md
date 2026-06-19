@@ -205,7 +205,7 @@ src/
 
   services/            # integrações externas APENAS
     ai.service.ts      # Anthropic Claude API
-    email.service.ts   # Resend
+    resend.service.ts  # Resend
     remove-bg.service.ts # RemoveBG API
     s3.service.ts      # AWS S3
 
@@ -258,7 +258,8 @@ prisma/
 - Verbos de domínio quando a ação não é CRUD: `CloseInvoice` · `AdvanceInvoicePayment` · `ImportExpensesFromCsv`
 
 #### Service (integrações externas)
-- Classe: `[Provider]Service` — ex: `AiService`, `EmailService`, `S3Service`, `RemoveBgService`
+- Classe: `[Provider]Service` — ex: `AiService`, `ResendService`, `S3Service`, `RemoveBgService`
+- **Provider = nome do serviço externo**, não o domínio de negócio. Ex: `ResendService` (não `EmailService`), `RemoveBgService` (não `BackgroundRemovalService`)
 - Arquivo: `[provider].service.ts`
 - Métodos descrevem a ação no provider: `parseExpense` · `sendOtp` · `uploadFile` · `removeBackground`
 
@@ -281,6 +282,8 @@ pnpm run prisma:migrate   # prisma migrate dev
 ## Comportamento do agente
 
 - **Avaliar alternativas antes de implementar** — antes de executar qualquer mudança arquitetural ou refactor sugerido no chat, apresentar brevemente as opções viáveis (incluindo a sugerida), recomendar a melhor, e aguardar confirmação. Mudanças pequenas e mecânicas (renomear arquivo, corrigir import) não precisam de avaliação.
+
+- **VIOLAÇÃO BLOQUEANTE — Controller importando Service/Repository diretamente** — Controller NUNCA pode importar de `services/` ou `repositories/`. Só pode injetar UseCases (e Guards). Ao escrever ou revisar código: se um controller importa service ou repository, PARAR e criar o UseCase primeiro. O script `scripts/check-arch.mjs` enforça isso no build (`pnpm run check:arch` para checar isolado).
 
 ## Convenções
 

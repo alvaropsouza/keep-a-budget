@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ExpenseRepository, UpdateExpenseData } from "../../repositories/expense.repository";
-import { InvoiceService } from "../../services/invoice.service";
+import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { AppError } from "../../utils/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 import type { IExpense } from "../../interfaces/expense";
@@ -13,7 +13,7 @@ export class UpdateExpenseUseCase {
 
   constructor(
     private readonly expenseRepository: ExpenseRepository,
-    private readonly invoiceService: InvoiceService,
+    private readonly invoiceRepository: InvoiceRepository,
   ) {}
 
   async execute(input: UpdateExpenseInput): Promise<IExpense> {
@@ -26,7 +26,7 @@ export class UpdateExpenseUseCase {
       if (!old) throw new AppError("Resource not found", 404);
 
       if (old.cardInvoiceId) {
-        const invoice = await this.invoiceService.findById(old.cardInvoiceId.toString(), undefined, tx);
+        const invoice = await this.invoiceRepository.findById(old.cardInvoiceId.toString(), undefined, tx);
         if (invoice?.isClosed) {
           throw new AppError("Cannot update expenses in a closed invoice. Please reopen the invoice first.", 400);
         }
@@ -37,7 +37,7 @@ export class UpdateExpenseUseCase {
 
       if (data.amount !== undefined && data.amount !== old.amount && updated.cardInvoiceId) {
         const delta = data.amount - old.amount;
-        await this.invoiceService.updateBalance(updated.cardInvoiceId, delta, tx);
+        await this.invoiceRepository.updateBalance(updated.cardInvoiceId, delta, tx);
       }
 
       return updated;

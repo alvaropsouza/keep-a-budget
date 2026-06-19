@@ -1,6 +1,6 @@
 import { Controller, Post, HttpCode, HttpStatus, UseGuards, Req, BadRequestException } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
-import { VehiclesService } from "../services/vehicles.service";
+import { UploadCarPhotoUseCase } from "../use-cases/vehicles/upload-car-photo.use-case";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { ApiTags } from "@nestjs/swagger";
 import { validateUpload } from "../utils/validate-upload";
@@ -10,7 +10,7 @@ import { readMultipart } from "../utils/read-multipart";
 @UseGuards(SessionAuthGuard)
 @Controller("vehicles")
 export class VehiclesController {
-  constructor(private readonly vehiclesService: VehiclesService) {}
+  constructor(private readonly uploadCarPhotoUseCase: UploadCarPhotoUseCase) {}
 
   @Post("car-photo")
   @HttpCode(HttpStatus.OK)
@@ -23,6 +23,6 @@ export class VehiclesController {
       maxBytes: 5 * 1024 * 1024,
     });
 
-    return this.vehiclesService.processUploadedPhoto(file.buffer, detectedMime);
+    return this.uploadCarPhotoUseCase.execute({ buffer: file.buffer, mimeType: detectedMime });
   }
 }

@@ -1,16 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { CarPhotoResponse } from "../dto/car-image.dto";
 
 @Injectable()
-export class VehiclesService {
-  private readonly logger = new Logger(VehiclesService.name);
+export class RemoveBgService {
+  private readonly logger = new Logger(RemoveBgService.name);
 
-  async processUploadedPhoto(buffer: Buffer, mimeType: string): Promise<CarPhotoResponse> {
-    const cleanUrl = await this.removeBackground(buffer, mimeType);
-    return { cleanUrl };
-  }
-
-  private async removeBackground(buffer: Buffer, mimeType: string): Promise<string | null> {
+  async removeBackground(buffer: Buffer, mimeType: string): Promise<string | null> {
     const apiKey = process.env.REMOVE_BG_API_KEY;
     if (!apiKey) return null;
 

@@ -1,44 +1,39 @@
 import cron from "node-cron";
 import logger from "../config/logger";
-import { InvoiceService } from "../services/invoice.service";
+import { InvoiceRepository } from "../repositories/invoice.repository";
+import { CloseInvoiceUseCase } from "../use-cases/invoices/close-invoice.use-case";
+import { CloseExpiredInvoicesUseCase } from "../use-cases/invoices/close-expired-invoices.use-case";
 import { APP_TIMEZONE } from "../utils/timezone";
 
 export class InvoiceClosureJob {
-  private invoiceService: InvoiceService;
+  private closeExpiredInvoicesUseCase: CloseExpiredInvoicesUseCase;
   private task: ReturnType<typeof cron.schedule> | null = null;
 
   constructor() {
-    this.invoiceService = new InvoiceService();
+    const invoiceRepository = new InvoiceRepository();
+    const closeInvoiceUseCase = new CloseInvoiceUseCase(invoiceRepository);
+    this.closeExpiredInvoicesUseCase = new CloseExpiredInvoicesUseCase(invoiceRepository, closeInvoiceUseCase);
   }
 
-  /**
-   * Starts the daily job to close expired invoices
-   * Runs every day at 00:05 (5 minutes past midnight)
-   */
   start(): void {
     if (this.task) {
       logger.warn("Invoice closure job is already running");
       return;
     }
 
-    // Cron pattern: "minute hour day month weekday"
-    // "5 0 * * *" = At 00:05 every day, horário do Brasil (America/Sao_Paulo)
     this.task = cron.schedule(
       "5 0 * * *",
       async () => {
-      try {
-        logger.info("Running daily invoice closure check");
-        const result = await this.invoiceService.checkAndCloseExpiredInvoices();
-        logger.info(
-          {
-            closedCount: result.closed,
-            invoiceIds: result.invoices.map((inv) => inv._id),
-          },
-          "Daily invoice closure check completed",
-        );
-      } catch (error) {
-        logger.error({ error }, "Error running daily invoice closure check");
-      }
+        try {
+          logger.info("Running daily invoice closure check");
+          const result = await this.closeExpiredInvoicesUseCase.execute();
+          logger.info(
+            { closedCount: result.closed, invoiceIds: result.invoices.map((inv) => inv._id) },
+            "Daily invoice closure check completed",
+          );
+        } catch (error) {
+          logger.error({ error }, "Error running daily invoice closure check");
+        }
       },
       { timezone: APP_TIMEZONE },
     );
@@ -46,9 +41,6 @@ export class InvoiceClosureJob {
     logger.info("Invoice closure job started - will run daily at 00:05 (BRT)");
   }
 
-  /**
-   * Stops the daily job
-   */
   stop(): void {
     if (this.task) {
       this.task.stop();
@@ -57,22 +49,14 @@ export class InvoiceClosureJob {
     }
   }
 
-  /**
-   * Manually trigger the invoice closure check
-   * Useful for testing or manual execution
-   */
   async runNow(): Promise<void> {
     logger.info("Manually triggering invoice closure check");
-    const result = await this.invoiceService.checkAndCloseExpiredInvoices();
+    const result = await this.closeExpiredInvoicesUseCase.execute();
     logger.info(
-      {
-        closedCount: result.closed,
-        invoiceIds: result.invoices.map((inv) => inv._id),
-      },
+      { closedCount: result.closed, invoiceIds: result.invoices.map((inv) => inv._id) },
       "Manual invoice closure check completed",
     );
   }
 }
 
-// Export singleton instance
 export const invoiceClosureJob = new InvoiceClosureJob();

@@ -21,7 +21,7 @@ import {
   AuthenticateDto,
 } from "../dto/auth.dto";
 import { AuthService, AuthSession } from "../services/auth.service";
-import { EmailService } from "../services/email.service";
+import { ResendService } from "../services/resend.service";
 import { resolveSessionToken } from "../utils/session-token";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
@@ -69,7 +69,7 @@ const toAuthPayload = (session: AuthSession) => ({
 export class AuthController {
   constructor(
     @Inject(AuthService) private readonly authService: AuthService,
-    @Inject(EmailService) private readonly emailService: EmailService,
+    @Inject(ResendService) private readonly resendService: ResendService,
   ) {}
 
   @UseGuards(LoginRateLimitGuard)
@@ -78,7 +78,7 @@ export class AuthController {
   async requestOtp(@Body() body: RequestOtpDto) {
     const result = await this.authService.requestEmailOtp(body.email);
     if (result) {
-      await this.emailService.sendLoginCode(result.userEmail, result.code);
+      await this.resendService.sendLoginCode(result.userEmail, result.code);
     }
     // Always return 200 to prevent email enumeration
     return { message: "Se o email existir, você receberá um código de acesso." };

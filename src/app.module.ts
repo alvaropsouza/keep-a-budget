@@ -7,9 +7,9 @@ import { ExpensesModule } from "./modules/expenses.module";
 import { FixedExpensesModule } from "./modules/fixed-expenses.module";
 import { CacheModule } from "./modules/cache.module";
 import { AiModule } from "./modules/ai.module";
-import { IrDocumentModule } from "./modules/ir-document.module";
-import { BudgetModule } from "./modules/budget.module";
-import { CategoryModule } from "./modules/category.module";
+import { IrDocumentModule } from "./modules/ir-documents.module";
+import { BudgetModule } from "./modules/budgets.module";
+import { CategoryModule } from "./modules/categories.module";
 import { VehiclesModule } from "./modules/vehicles.module";
 
 @Module({

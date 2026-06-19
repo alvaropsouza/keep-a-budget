@@ -21,21 +21,11 @@ Controller → UseCase → Repository (DB)
 | email | ✅ Renomeado EmailService → ResendService (provider naming) |
 | cache | ✅ Infraestrutura pura — manter como service |
 | invoice | ✅ InvoiceRepository + 12 UCs (list, summary, getById, create, update, delete, createFromCsv, importFromCsv, advance, close, reopen, closeExpired) |
+| user | ✅ UserRepository + 5 UCs (getById, getByEmail, create, update, delete) — user.service.ts deletado |
 
 ## Pendentes (ordem recomendada)
 
-### 1. `user` — 233 linhas
-
-**Service:** `src/services/user.service.ts`
-**Controller:** `src/modules/users.controller.ts`
-**Módulo:** `src/modules/users.module.ts`
-
-Use cases:
-- `GetUserUseCase`
-- `GetUserByEmailUseCase`
-- `CreateUserUseCase`
-- `UpdateUserUseCase`
-- `DeleteUserUseCase`
+### ~~1. `user`~~ — ✅ DONE
 
 ---
 

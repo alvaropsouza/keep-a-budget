@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Inject,
   Post,
   Delete,
   Param,
@@ -15,17 +14,19 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { FastifyReply, FastifyRequest } from "fastify";
-import {
-  RequestOtpDto,
-  VerifyOtpDto,
-  AuthenticateDto,
-} from "../dto/auth.dto";
-import { AuthService, AuthSession } from "../services/auth.service";
-import { ResendService } from "../services/resend.service";
-import { resolveSessionToken } from "../utils/session-token";
+import { RequestOtpDto, VerifyOtpDto, AuthenticateDto } from "../dto/auth.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { LoginRateLimitGuard } from "../guards/login-rate-limit.guard";
+import { resolveSessionToken } from "../utils/session-token";
+import type { AuthSession } from "../interfaces/auth";
+import { RequestOtpUseCase } from "../use-cases/auth/request-otp.use-case";
+import { VerifyOtpUseCase } from "../use-cases/auth/verify-otp.use-case";
+import { AuthenticateTokenUseCase } from "../use-cases/auth/authenticate-token.use-case";
+import { LogoutUseCase } from "../use-cases/auth/logout.use-case";
+import { ListSessionsUseCase } from "../use-cases/auth/list-sessions.use-case";
+import { RevokeSessionUseCase } from "../use-cases/auth/revoke-session.use-case";
+import { RevokeOtherSessionsUseCase } from "../use-cases/auth/revoke-other-sessions.use-case";
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? "kab_session";
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -41,9 +42,6 @@ const clearCookie = (): string => {
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${securePart}`;
 };
 
-// Capture where/what the login came from. User-Agent is capped to a sane
-// length to avoid storing oversized header values. X-Device-Id is the client's
-// stable per-device id (localStorage UUID) used to keep one session per device.
 const readDeviceId = (req: FastifyRequest): string | undefined => {
   const raw = req.headers["x-device-id"];
   const value = Array.isArray(raw) ? raw[0] : raw;
@@ -68,19 +66,20 @@ const toAuthPayload = (session: AuthSession) => ({
 @Controller("auth")
 export class AuthController {
   constructor(
-    @Inject(AuthService) private readonly authService: AuthService,
-    @Inject(ResendService) private readonly resendService: ResendService,
+    private readonly requestOtpUseCase: RequestOtpUseCase,
+    private readonly verifyOtpUseCase: VerifyOtpUseCase,
+    private readonly authenticateTokenUseCase: AuthenticateTokenUseCase,
+    private readonly logoutUseCase: LogoutUseCase,
+    private readonly listSessionsUseCase: ListSessionsUseCase,
+    private readonly revokeSessionUseCase: RevokeSessionUseCase,
+    private readonly revokeOtherSessionsUseCase: RevokeOtherSessionsUseCase,
   ) {}
 
   @UseGuards(LoginRateLimitGuard)
   @Post("otp/request")
   @HttpCode(HttpStatus.OK)
   async requestOtp(@Body() body: RequestOtpDto) {
-    const result = await this.authService.requestEmailOtp(body.email);
-    if (result) {
-      await this.resendService.sendLoginCode(result.userEmail, result.code);
-    }
-    // Always return 200 to prevent email enumeration
+    await this.requestOtpUseCase.execute({ email: body.email });
     return { message: "Se o email existir, você receberá um código de acesso." };
   }
 
@@ -92,11 +91,11 @@ export class AuthController {
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const session = await this.authService.verifyEmailOtp(
-      body.email,
-      body.code,
-      buildSessionContext(req),
-    );
+    const session = await this.verifyOtpUseCase.execute({
+      email: body.email,
+      code: body.code,
+      context: buildSessionContext(req),
+    });
     reply.header("Set-Cookie", buildCookie(session.sessionToken, session.expiresAt));
     return { ...toAuthPayload(session), message: "Sessao iniciada com sucesso" };
   }
@@ -107,7 +106,7 @@ export class AuthController {
     @Body() body: AuthenticateDto,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    const session = await this.authService.authenticateToken(body.token);
+    const session = await this.authenticateTokenUseCase.execute({ token: body.token });
     reply.header("Set-Cookie", buildCookie(session.sessionToken, session.expiresAt));
     return toAuthPayload(session);
   }
@@ -115,18 +114,14 @@ export class AuthController {
   @Get("validate")
   async validate(@Req() req: FastifyRequest) {
     const token = resolveSessionToken(req);
-    const session = await this.authService.authenticateToken(token ?? "");
-    return {
-      valid: true,
-      user: session.user,
-      expiresAt: session.expiresAt.toISOString(),
-    };
+    const session = await this.authenticateTokenUseCase.execute({ token: token ?? "" });
+    return { valid: true, user: session.user, expiresAt: session.expiresAt.toISOString() };
   }
 
   @Get("me")
   async me(@Req() req: FastifyRequest) {
     const token = resolveSessionToken(req);
-    const session = await this.authService.authenticateToken(token ?? "");
+    const session = await this.authenticateTokenUseCase.execute({ token: token ?? "" });
     return {
       userId: session.user.userId,
       email: session.user.email,
@@ -139,11 +134,12 @@ export class AuthController {
   @Get("sessions")
   async listSessions(@Req() req: FastifyRequest) {
     const authUser = req.authUser;
-    if (!authUser) {
-      throw new UnauthorizedException();
-    }
+    if (!authUser) throw new UnauthorizedException();
     const token = resolveSessionToken(req) ?? "";
-    const sessions = await this.authService.listSessions(authUser.userId, token);
+    const sessions = await this.listSessionsUseCase.execute({
+      userId: authUser.userId,
+      currentToken: token,
+    });
     return { sessions };
   }
 
@@ -152,43 +148,34 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async revokeOtherSessions(@Req() req: FastifyRequest) {
     const authUser = req.authUser;
-    if (!authUser) {
-      throw new UnauthorizedException();
-    }
+    if (!authUser) throw new UnauthorizedException();
     const token = resolveSessionToken(req) ?? "";
-    const revoked = await this.authService.revokeOtherSessions(
-      authUser.userId,
-      token,
-    );
+    const revoked = await this.revokeOtherSessionsUseCase.execute({
+      userId: authUser.userId,
+      currentToken: token,
+    });
     return { revoked };
   }
 
   @UseGuards(SessionAuthGuard)
   @Delete("sessions/:id")
   @HttpCode(HttpStatus.OK)
-  async revokeSessionById(
-    @Req() req: FastifyRequest,
-    @Param("id") id: string,
-  ) {
+  async revokeSessionById(@Req() req: FastifyRequest, @Param("id") id: string) {
     const authUser = req.authUser;
-    if (!authUser) {
-      throw new UnauthorizedException();
-    }
-    const revoked = await this.authService.revokeSessionById(authUser.userId, id);
-    if (!revoked) {
-      throw new NotFoundException("Sessao nao encontrada");
-    }
+    if (!authUser) throw new UnauthorizedException();
+    const revoked = await this.revokeSessionUseCase.execute({
+      userId: authUser.userId,
+      sessionId: id,
+    });
+    if (!revoked) throw new NotFoundException("Sessao nao encontrada");
     return { message: "Sessao encerrada" };
   }
 
   @Post("logout")
   @HttpCode(HttpStatus.OK)
-  async logout(
-    @Req() req: FastifyRequest,
-    @Res({ passthrough: true }) reply: FastifyReply,
-  ) {
+  async logout(@Req() req: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     const token = resolveSessionToken(req);
-    await this.authService.revokeSession(token);
+    await this.logoutUseCase.execute({ token });
     reply.header("Set-Cookie", clearCookie());
     return { message: "Sessao encerrada com sucesso" };
   }

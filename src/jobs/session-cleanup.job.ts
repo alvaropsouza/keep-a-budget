@@ -1,31 +1,26 @@
 import cron from "node-cron";
 import logger from "../config/logger";
-import { AuthService } from "../services/auth.service";
+import { SessionRepository } from "../repositories/session.repository";
+import { PurgeStaleSessionsUseCase } from "../use-cases/auth/purge-stale-sessions.use-case";
 
 export class SessionCleanupJob {
-  private authService: AuthService;
+  private purgeStaleSessionsUseCase: PurgeStaleSessionsUseCase;
   private task: ReturnType<typeof cron.schedule> | null = null;
 
   constructor() {
-    this.authService = new AuthService();
+    this.purgeStaleSessionsUseCase = new PurgeStaleSessionsUseCase(new SessionRepository());
   }
 
-  /**
-   * Starts the daily job that purges expired and old revoked sessions,
-   * keeping the user_sessions table from growing unbounded.
-   * Runs every day at 03:30.
-   */
   start(): void {
     if (this.task) {
       logger.warn("Session cleanup job is already running");
       return;
     }
 
-    // "30 3 * * *" = At 03:30 every day
     this.task = cron.schedule("30 3 * * *", async () => {
       try {
         logger.info("Running daily session cleanup");
-        const deleted = await this.authService.purgeStaleSessions();
+        const deleted = await this.purgeStaleSessionsUseCase.execute();
         logger.info({ deleted }, "Daily session cleanup completed");
       } catch (error) {
         logger.error({ error }, "Error running daily session cleanup");
@@ -43,12 +38,9 @@ export class SessionCleanupJob {
     }
   }
 
-  /**
-   * Manually trigger the cleanup. Useful for testing or manual execution.
-   */
   async runNow(): Promise<number> {
     logger.info("Manually triggering session cleanup");
-    const deleted = await this.authService.purgeStaleSessions();
+    const deleted = await this.purgeStaleSessionsUseCase.execute();
     logger.info({ deleted }, "Manual session cleanup completed");
     return deleted;
   }

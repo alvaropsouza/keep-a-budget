@@ -1,5 +1,5 @@
 import "fastify";
-import { AuthUser } from "../services/auth.service";
+import type { AuthUser } from "../interfaces/auth";
 
 declare module "fastify" {
   interface FastifyRequest {

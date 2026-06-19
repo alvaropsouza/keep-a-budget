@@ -2,11 +2,13 @@ import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req, BadReques
 import { FastifyRequest } from "fastify";
 import { AiService } from "../services/ai.service";
 import { ParseExpenseDto } from "../dto/parse-expense.dto";
-import { SessionAuthGuard } from "./session-auth.guard";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
+import { ApiTags } from "@nestjs/swagger";
 import { validateDto } from "../utils/validation";
 import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validateUpload";
 import { readMultipart } from "../utils/readMultipart";
 
+@ApiTags("ai")
 @UseGuards(SessionAuthGuard)
 @Controller("ai")
 export class AiController {

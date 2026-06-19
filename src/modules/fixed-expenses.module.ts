@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { FixedExpenseService } from "../services/fixedExpense.service";
+import { FixedExpenseService } from "../services/fixed-expense.service";
 import { FixedExpensesController } from "./fixed-expenses.controller";
 import { AuthModule } from "./auth.module";
 

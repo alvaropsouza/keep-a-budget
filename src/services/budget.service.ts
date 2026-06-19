@@ -1,8 +1,8 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { prisma } from "../lib/prisma";
-import { AppError } from "../utils/AppError";
+import { AppError } from "../utils/app-error";
 import { ExpenseService } from "./expense.service";
-import type { IExpense } from "../models/Expense";
+import type { IExpense } from "../models/expense";
 
 export interface BudgetSummaryItem {
   id: string;

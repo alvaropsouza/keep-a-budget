@@ -1,5 +1,5 @@
 import { BanksEnum } from "../enums/banks.enum";
-import { ExpenseTypeEnum } from "../enums/expenseType.enum";
+import { ExpenseTypeEnum } from "../enums/expense-type.enum";
 
 export interface IExpense {
   id: string;

@@ -23,8 +23,9 @@ import {
   CloseInvoiceDto,
 } from "../dto/invoice.dto";
 import { BanksEnum } from "../enums/banks.enum";
-import { SessionAuthGuard } from "./session-auth.guard";
-import { AppError } from "../utils/AppError";
+import { ApiTags } from "@nestjs/swagger";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
+import { AppError } from "../utils/app-error";
 import { readMultipart, type MultipartFile } from "../utils/readMultipart";
 
 const readCsvContent = (file?: MultipartFile): string | null => {
@@ -50,6 +51,7 @@ const parseExcludeIndexes = (value?: string): number[] | undefined => {
   }
 };
 
+@ApiTags("invoices")
 @UseGuards(SessionAuthGuard)
 @Controller("invoices")
 export class InvoicesController {

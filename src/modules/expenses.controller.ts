@@ -26,12 +26,14 @@ import {
   IrToggleDto,
 } from "../dto/expense.dto";
 import { BanksEnum } from "../enums/banks.enum";
-import { SessionAuthGuard } from "./session-auth.guard";
-import { AppError } from "../utils/AppError";
+import { ApiTags } from "@nestjs/swagger";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
+import { AppError } from "../utils/app-error";
 import { validateDto } from "../utils/validation";
 import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validateUpload";
 import { readMultipart } from "../utils/readMultipart";
 
+@ApiTags("expenses")
 @UseGuards(SessionAuthGuard)
 @Controller("expenses")
 export class ExpensesController {

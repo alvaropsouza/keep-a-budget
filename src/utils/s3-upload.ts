@@ -5,7 +5,7 @@ import type { ObjectCannedACL } from "@aws-sdk/client-s3";
 import s3Client from "../config/s3";
 import crypto from "node:crypto";
 import logger from "../config/logger";
-import { getS3UrlConfig } from "./s3Url";
+import { getS3UrlConfig } from "./s3-url";
 
 /**
  * Generate a unique S3 key for a file

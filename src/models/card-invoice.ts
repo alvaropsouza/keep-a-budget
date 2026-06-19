@@ -1,5 +1,5 @@
 import { BanksEnum } from "../enums/banks.enum";
-import { IExpense } from "./Expense";
+import { IExpense } from "./expense";
 
 export interface ICardInvoice {
   id: string;

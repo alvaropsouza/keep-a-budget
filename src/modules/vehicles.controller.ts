@@ -1,10 +1,12 @@
 import { Controller, Post, HttpCode, HttpStatus, UseGuards, Req, BadRequestException } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
 import { VehiclesService } from "../services/vehicles.service";
-import { SessionAuthGuard } from "./session-auth.guard";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
+import { ApiTags } from "@nestjs/swagger";
 import { validateUpload } from "../utils/validateUpload";
 import { readMultipart } from "../utils/readMultipart";
 
+@ApiTags("vehicles")
 @UseGuards(SessionAuthGuard)
 @Controller("vehicles")
 export class VehiclesController {

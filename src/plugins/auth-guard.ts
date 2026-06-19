@@ -1,7 +1,7 @@
 import fp from "fastify-plugin";
 import { AuthService, AuthUser } from "../services/auth.service";
-import { AppError } from "../utils/AppError";
-import { resolveSessionToken } from "../utils/sessionToken";
+import { AppError } from "../utils/app-error";
+import { resolveSessionToken } from "../utils/session-token";
 
 const authService = new AuthService();
 

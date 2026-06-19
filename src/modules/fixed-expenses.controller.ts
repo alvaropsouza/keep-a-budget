@@ -14,15 +14,17 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
-import { FixedExpenseService } from "../services/fixedExpense.service";
+import { FixedExpenseService } from "../services/fixed-expense.service";
 import {
   CreateFixedExpenseDto,
   UpdateFixedExpenseDto,
   FixedExpenseQueryParamsDto,
-} from "../dto/fixedExpense.dto";
-import { SessionAuthGuard } from "./session-auth.guard";
-import { AppError } from "../utils/AppError";
+} from "../dto/fixed-expense.dto";
+import { ApiTags } from "@nestjs/swagger";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
+import { AppError } from "../utils/app-error";
 
+@ApiTags("fixed-expenses")
 @UseGuards(SessionAuthGuard)
 @Controller("fixed-expenses")
 export class FixedExpensesController {

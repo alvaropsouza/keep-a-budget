@@ -1,6 +1,6 @@
 import { ExceptionFilter, Catch, ArgumentsHost, Logger, HttpException } from "@nestjs/common";
 import { FastifyReply } from "fastify";
-import { AppError } from "../utils/AppError";
+import { AppError } from "../utils/app-error";
 
 type DbError = {
   code?: string;

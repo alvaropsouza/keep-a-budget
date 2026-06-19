@@ -3,18 +3,18 @@ import { Prisma } from "../generated/prisma/client/client";
 import { Readable } from "node:stream";
 import { ZipArchive } from "archiver";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { IExpense } from "../models/Expense";
+import { IExpense } from "../models/expense";
 import { InvoiceService } from "./invoice.service";
-import { ExpenseTypeEnum } from "../enums/expenseType.enum";
+import { ExpenseTypeEnum } from "../enums/expense-type.enum";
 import { BanksEnum } from "../enums/banks.enum";
-import { FilterBuilder } from "../utils/filterBuilder";
+import { FilterBuilder } from "../utils/filter-builder";
 import { ExpenseQueryParamsDto } from "../dto/expense.dto";
-import { uploadToS3, getSignedS3Url, extractS3Key } from "../utils/s3Upload";
+import { uploadToS3, getSignedS3Url, extractS3Key } from "../utils/s3-upload";
 import s3Client from "../config/s3";
-import { getS3UrlConfig } from "../utils/s3Url";
+import { getS3UrlConfig } from "../utils/s3-url";
 import logger from "../config/logger";
-import { AppError } from "../utils/AppError";
-import { runWithTransaction } from "../utils/runWithTransaction";
+import { AppError } from "../utils/app-error";
+import { runWithTransaction } from "../utils/run-with-transaction";
 import { prisma } from "../lib/prisma";
 
 interface CreateExpenseData {

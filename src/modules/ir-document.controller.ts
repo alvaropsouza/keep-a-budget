@@ -14,12 +14,14 @@ import {
 import { FastifyRequest } from "fastify";
 import { IrDocumentService } from "../services/ir-document.service";
 import { IrDocumentQueryDto, CreateIrDocumentDto } from "../dto/ir-document.dto";
-import { SessionAuthGuard } from "./session-auth.guard";
-import { AppError } from "../utils/AppError";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
+import { AppError } from "../utils/app-error";
+import { ApiTags } from "@nestjs/swagger";
 import { validateDto } from "../utils/validation";
 import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validateUpload";
 import { readMultipart } from "../utils/readMultipart";
 
+@ApiTags("ir-documents")
 @UseGuards(SessionAuthGuard)
 @Controller("ir-documents")
 export class IrDocumentController {

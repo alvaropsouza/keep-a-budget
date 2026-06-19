@@ -14,9 +14,11 @@ import {
 import { FastifyRequest } from "fastify";
 import { CategoryService } from "../services/category.service";
 import { CreateCategoryDto, UpdateCategoryDto } from "../dto/category.dto";
-import { SessionAuthGuard } from "./session-auth.guard";
-import { AppError } from "../utils/AppError";
+import { ApiTags } from "@nestjs/swagger";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
+import { AppError } from "../utils/app-error";
 
+@ApiTags("categories")
 @UseGuards(SessionAuthGuard)
 @Controller("categories")
 export class CategoryController {

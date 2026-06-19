@@ -1,9 +1,9 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
-import { IUser } from "../models/User";
+import { IUser } from "../models/user";
 import logger from "../config/logger";
-import { AppError } from "../utils/AppError";
+import { AppError } from "../utils/app-error";
 import { prisma } from "../lib/prisma";
-import { isValidCpf, isValidRg, normalizeCpf, normalizeRg } from "../utils/brDocuments";
+import { isValidCpf, isValidRg, normalizeCpf, normalizeRg } from "../utils/br-documents";
 import { blindIndex, decryptField, encryptField } from "../utils/encryption";
 import { CacheService } from "./cache.service";
 

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { randomBytes, randomInt, createHash, timingSafeEqual } from "node:crypto";
 import { prisma } from "../lib/prisma";
-import { AppError } from "../utils/AppError";
+import { AppError } from "../utils/app-error";
 
 // A session is valid for this long after the last login. Logging in again
 // from the same device refreshes the window; there is no per-request sliding

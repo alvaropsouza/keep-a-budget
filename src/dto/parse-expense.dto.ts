@@ -1,6 +1,8 @@
 import { IsString, MinLength, MaxLength } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
 
 export class ParseExpenseDto {
+  @ApiProperty({ example: "Nubank 59,90 ontem alimentação", maxLength: 500 })
   @IsString()
   @MinLength(1)
   @MaxLength(500)

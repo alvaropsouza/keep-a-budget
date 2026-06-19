@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { prisma } from "../lib/prisma";
-import { AppError } from "../utils/AppError";
+import { AppError } from "../utils/app-error";
 
 export const DEFAULT_CATEGORIES: { name: string; icon: string }[] = [
   { name: "Alimentação", icon: "UtensilsCrossed" },

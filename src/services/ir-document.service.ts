@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "../generated/prisma/client/client";
-import { uploadToS3, getSignedS3Url, extractS3Key } from "../utils/s3Upload";
-import { getS3UrlConfig } from "../utils/s3Url";
+import { uploadToS3, getSignedS3Url, extractS3Key } from "../utils/s3-upload";
+import { getS3UrlConfig } from "../utils/s3-url";
 import s3Client from "../config/s3";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import logger from "../config/logger";
-import { AppError } from "../utils/AppError";
+import { AppError } from "../utils/app-error";
 import { prisma } from "../lib/prisma";
 
 export interface IIrDocument {

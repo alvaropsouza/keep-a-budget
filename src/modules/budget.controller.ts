@@ -14,9 +14,11 @@ import {
 import { FastifyRequest } from "fastify";
 import { BudgetService } from "../services/budget.service";
 import { UpsertBudgetDto, BudgetQueryDto } from "../dto/budget.dto";
-import { SessionAuthGuard } from "./session-auth.guard";
-import { AppError } from "../utils/AppError";
+import { ApiTags } from "@nestjs/swagger";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
+import { AppError } from "../utils/app-error";
 
+@ApiTags("budgets")
 @UseGuards(SessionAuthGuard)
 @Controller("budgets")
 export class BudgetController {

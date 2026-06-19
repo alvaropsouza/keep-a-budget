@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
 import { AuthService } from "../services/auth.service";
-import { resolveSessionToken } from "../utils/sessionToken";
+import { resolveSessionToken } from "../utils/session-token";
 
 @Injectable()
 export class SessionAuthGuard implements CanActivate {

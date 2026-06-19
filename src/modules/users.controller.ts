@@ -15,10 +15,12 @@ import {
 import { FastifyRequest } from "fastify";
 import { UserService } from "../services/user.service";
 import { CreateUserDto, UpdateUserDto } from "../dto/user.dto";
-import { SessionAuthGuard } from "./session-auth.guard";
+import { ApiTags } from "@nestjs/swagger";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { RegistrationRateLimitGuard } from "../guards/registration-rate-limit.guard";
-import { AppError } from "../utils/AppError";
+import { AppError } from "../utils/app-error";
 
+@ApiTags("users")
 @Controller("users")
 export class UsersController {
   constructor(@Inject(UserService) private readonly userService: UserService) {}

@@ -22,8 +22,9 @@ import {
 } from "../dto/auth.dto";
 import { AuthService, AuthSession } from "../services/auth.service";
 import { EmailService } from "../services/email.service";
-import { resolveSessionToken } from "../utils/sessionToken";
-import { SessionAuthGuard } from "./session-auth.guard";
+import { resolveSessionToken } from "../utils/session-token";
+import { ApiTags } from "@nestjs/swagger";
+import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { LoginRateLimitGuard } from "../guards/login-rate-limit.guard";
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? "kab_session";
@@ -63,6 +64,7 @@ const toAuthPayload = (session: AuthSession) => ({
   sessionToken: session.sessionToken,
 });
 
+@ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   constructor(

@@ -7,6 +7,17 @@ datasource db {
     provider = "postgresql"
 }
 
+enum FuelType {
+    gasolina
+    etanol
+    flex
+    diesel
+    eletrico
+    hibrido
+
+    @@map("fuel_type")
+}
+
 model User {
     id                 String              @id @default(uuid()) @db.Uuid
     name               String
@@ -29,6 +40,7 @@ model User {
     budgets            Budget[]
     emailOtps          EmailOtp[]
     categories         Category[]
+    vehicles           Vehicle[]
 
     @@map("users")
 }
@@ -187,4 +199,34 @@ model EmailOtp {
     @@index([userId], map: "email_otps_user_id_idx")
     @@index([expiresAt], map: "email_otps_expires_at_idx")
     @@map("email_otps")
+}
+
+model Vehicle {
+    id              String    @id @default(uuid()) @db.Uuid
+    userId          String    @map("user_id") @db.Uuid
+    user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    plate           String
+    brand           String
+    model           String
+    yearManufacture Int       @map("year_manufacture")
+    renavam         String?
+    chassis         String?
+    yearModel       Int?      @map("year_model")
+    color           String?
+    fuel            FuelType?
+    ipvaExpiry      DateTime? @map("ipva_expiry") @db.Date
+    ipvaValue       Decimal?  @map("ipva_value") @db.Decimal(12, 2)
+    insuranceExpiry DateTime? @map("insurance_expiry") @db.Date
+    licensingExpiry DateTime? @map("licensing_expiry") @db.Date
+    currentKm       Int?      @map("current_km")
+    lastServiceDate DateTime? @map("last_service_date") @db.Date
+    nextOilChangeKm Int?      @map("next_oil_change_km")
+    notes           String?
+    photoUrl        String?   @map("photo_url")
+    createdAt       DateTime  @default(now()) @map("created_at")
+    updatedAt       DateTime  @updatedAt @map("updated_at")
+
+    @@unique([userId, plate], map: "vehicles_user_id_plate_unique")
+    @@index([userId], map: "vehicles_user_id_idx")
+    @@map("vehicles")
 }

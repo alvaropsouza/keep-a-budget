@@ -1,5 +1,4 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ZipArchive } from "archiver";
 import { ExpenseRepository } from "../../repositories/expense.repository";
 import { S3Service } from "../../services/s3.service";
 import { GetIrDocumentsByYearUseCase } from "../ir-documents/get-ir-documents-by-year.use-case";
@@ -52,6 +51,7 @@ export class ExportIrZipUseCase {
     const expenseReceiptById = new Map(expenseReceiptDownloads.map((r) => [r.sourceId, r]));
     const csvContent = this.buildCsv(input.year, expenses, irDocuments, expenseReceiptById);
 
+    const { ZipArchive } = await import("archiver");
     const result = await new Promise<Buffer>((resolve, reject) => {
       const chunks: Buffer[] = [];
       const archive = new ZipArchive({ zlib: { level: 6 } });

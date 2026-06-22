@@ -1,4 +1,4 @@
-import cron from "node-cron";
+import type { ScheduledTask } from "node-cron" with { "resolution-mode": "import" };
 import logger from "../config/logger";
 import { InvoiceRepository } from "../repositories/invoice.repository";
 import { CloseInvoiceUseCase } from "../use-cases/invoices/close-invoice.use-case";
@@ -7,7 +7,7 @@ import { APP_TIMEZONE } from "../utils/timezone";
 
 export class InvoiceClosureJob {
   private closeExpiredInvoicesUseCase: CloseExpiredInvoicesUseCase;
-  private task: ReturnType<typeof cron.schedule> | null = null;
+  private task: ScheduledTask | null = null;
 
   constructor() {
     const invoiceRepository = new InvoiceRepository();
@@ -15,12 +15,13 @@ export class InvoiceClosureJob {
     this.closeExpiredInvoicesUseCase = new CloseExpiredInvoicesUseCase(invoiceRepository, closeInvoiceUseCase);
   }
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.task) {
       logger.warn("Invoice closure job is already running");
       return;
     }
 
+    const cron = await import("node-cron");
     this.task = cron.schedule(
       "5 0 * * *",
       async () => {

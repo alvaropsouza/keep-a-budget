@@ -61,8 +61,8 @@ async function bootstrap(): Promise<void> {
   
   await setupS3Bucket();
 
-  invoiceClosureJob.start();
-  sessionCleanupJob.start();
+  await invoiceClosureJob.start();
+  await sessionCleanupJob.start();
 
   const port = Number.parseInt(process.env.PORT || "3000", 10);
   const host = process.env.HOST || "0.0.0.0";

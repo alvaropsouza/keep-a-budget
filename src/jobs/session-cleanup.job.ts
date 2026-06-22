@@ -1,22 +1,23 @@
-import cron from "node-cron";
+import type { ScheduledTask } from "node-cron" with { "resolution-mode": "import" };
 import logger from "../config/logger";
 import { SessionRepository } from "../repositories/session.repository";
 import { PurgeStaleSessionsUseCase } from "../use-cases/auth/purge-stale-sessions.use-case";
 
 export class SessionCleanupJob {
   private purgeStaleSessionsUseCase: PurgeStaleSessionsUseCase;
-  private task: ReturnType<typeof cron.schedule> | null = null;
+  private task: ScheduledTask | null = null;
 
   constructor() {
     this.purgeStaleSessionsUseCase = new PurgeStaleSessionsUseCase(new SessionRepository());
   }
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.task) {
       logger.warn("Session cleanup job is already running");
       return;
     }
 
+    const cron = await import("node-cron");
     this.task = cron.schedule("30 3 * * *", async () => {
       try {
         logger.info("Running daily session cleanup");

@@ -16,6 +16,6 @@ export class ParseExpenseImagesUseCase {
       input.items.map((item) => this.aiService.parseExpenseFromImage(item.buffer, item.mimeType)),
     );
     this.logger.log("ParseExpenseImagesUseCase.execute done");
-    return results;
+    return results.flat();
   }
 }

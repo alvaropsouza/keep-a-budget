@@ -11,6 +11,7 @@ import { IrDocumentModule } from "./modules/ir-documents.module";
 import { BudgetModule } from "./modules/budgets.module";
 import { CategoryModule } from "./modules/categories.module";
 import { VehiclesModule } from "./modules/vehicles.module";
+import { IrStocksModule } from "./modules/ir-stocks.module";
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { VehiclesModule } from "./modules/vehicles.module";
     FixedExpensesModule,
     AiModule,
     IrDocumentModule,
+    IrStocksModule,
     BudgetModule,
     CategoryModule,
     VehiclesModule,

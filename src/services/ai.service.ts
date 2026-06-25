@@ -12,6 +12,19 @@ export interface ParsedIrReceiptResponse {
   description: string | null;
 }
 
+export interface ParsedStockTicketResponse {
+  ticker: string | null;
+  companyName: string | null;
+  cnpj: string | null;
+  broker: string | null;
+  date: string | null;
+  type: "COMPRA" | "VENDA" | null;
+  operationType: "NORMAL" | "DAY_TRADE" | null;
+  quantity: number | null;
+  unitPrice: number | null;
+  fees: number | null;
+}
+
 const ITEM_SCHEMA = `{"bank":"${BANKS.join("|")}|null","amount":number|null,"date":"YYYY-MM-DD"|null,"category":"${CATEGORIES.join("|")}|null","description":"string|null","installmentTotal":number|null}`;
 
 const SYSTEM_PROMPT = `Extrai despesa de comprovante ou texto PT-BR. Retorne JSON puro, sem markdown, sem explicações.
@@ -141,6 +154,51 @@ Regras: date=data do pagamento, amount=valor em reais (ex "R$ 1.200,50"→1200.5
     const content = message.content[0];
     if (content.type !== "text") throw new Error("Unexpected response type");
     return parseJsonResponse(content.text) as unknown as ParsedIrReceiptResponse;
+  }
+
+  async parseStockTicket(fileBuffer: Buffer, mimeType: string): Promise<ParsedStockTicketResponse> {
+    const today = new Date().toISOString().split("T")[0];
+    const base64 = fileBuffer.toString("base64");
+    const schema = `{"ticker":"string|null","companyName":"string|null","cnpj":"string|null","broker":"string|null","date":"YYYY-MM-DD|null","type":"COMPRA|VENDA|null","operationType":"NORMAL|DAY_TRADE|null","quantity":number|null,"unitPrice":number|null,"fees":number|null}`;
+    const systemPrompt = `Extrai dados de nota de corretagem ou comprovante de operação em bolsa (B3/Brasil). Retorne JSON puro, sem markdown, sem explicações.
+Schema: ${schema}
+Regras: ticker=código de negociação (ex: PETR4, ITUB3, WEGE3); companyName=nome da empresa; cnpj=CNPJ da empresa emissora do papel; broker=nome da corretora; date=data da operação; type=COMPRA se compra/aquisição, VENDA se venda/alienação; operationType=DAY_TRADE se compra e venda no mesmo dia, NORMAL caso contrário; quantity=quantidade de ações (número inteiro); unitPrice=preço unitário da ação em reais (ex "R$ 32,50"→32.50); fees=total de taxas pagas (corretagem + emolumentos + taxa de liquidação + outras taxas, em reais); retorne null para campos não encontrados.`;
+
+    const isImage = mimeType.startsWith("image/");
+    const contentBlock = isImage
+      ? {
+          type: "image" as const,
+          source: {
+            type: "base64" as const,
+            media_type: mimeType as "image/jpeg" | "image/png" | "image/webp",
+            data: base64,
+          },
+        }
+      : {
+          type: "document" as const,
+          source: {
+            type: "base64" as const,
+            media_type: "application/pdf" as const,
+            data: base64,
+          },
+        };
+
+    const message = await this.client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 400,
+      system: systemPrompt,
+      messages: [{
+        role: "user",
+        content: [
+          contentBlock,
+          { type: "text", text: `Data atual: ${today}\n\nExtraia os dados da operação em bolsa.` },
+        ],
+      }],
+    });
+
+    const content = message.content[0];
+    if (content.type !== "text") throw new Error("Unexpected response type");
+    return parseJsonResponse(content.text) as unknown as ParsedStockTicketResponse;
   }
 
   async parseExpense(text: string): Promise<ParsedExpenseResponse> {

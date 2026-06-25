@@ -9,6 +9,7 @@ import { readMultipart, readMultipartFiles } from "../utils/read-multipart";
 import { ParseExpenseUseCase } from "../use-cases/ai/parse-expense.use-case";
 import { ParseExpenseImagesUseCase } from "../use-cases/ai/parse-expense-images.use-case";
 import { ParseIrReceiptUseCase } from "../use-cases/ai/parse-ir-receipt.use-case";
+import { ParseStockTicketUseCase } from "../use-cases/ai/parse-stock-ticket.use-case";
 
 const MAX_EXPENSE_IMAGES = 10;
 
@@ -20,6 +21,7 @@ export class AiController {
     private readonly parseExpenseUseCase: ParseExpenseUseCase,
     private readonly parseExpenseImagesUseCase: ParseExpenseImagesUseCase,
     private readonly parseIrReceiptUseCase: ParseIrReceiptUseCase,
+    private readonly parseStockTicketUseCase: ParseStockTicketUseCase,
   ) {}
 
   @Post("parse-expense")
@@ -50,5 +52,14 @@ export class AiController {
     if (!file) throw new BadRequestException("Arquivo não enviado");
     const detectedMime = validateUpload(file.buffer, RECEIPT_UPLOAD_RULES);
     return this.parseIrReceiptUseCase.execute({ buffer: file.buffer, mimeType: detectedMime });
+  }
+
+  @Post("parse-stock-ticket")
+  @HttpCode(HttpStatus.OK)
+  async parseStockTicket(@Req() req: FastifyRequest) {
+    const { file } = await readMultipart(req);
+    if (!file) throw new BadRequestException("Arquivo não enviado");
+    const detectedMime = validateUpload(file.buffer, RECEIPT_UPLOAD_RULES);
+    return this.parseStockTicketUseCase.execute({ buffer: file.buffer, mimeType: detectedMime });
   }
 }

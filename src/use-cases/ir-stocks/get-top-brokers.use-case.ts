@@ -5,7 +5,7 @@ interface GetTopBrokersInput {
   userId: string;
 }
 
-interface GetTopBrokersOutput {
+export interface GetTopBrokersOutput {
   brokers: string[];
 }
 

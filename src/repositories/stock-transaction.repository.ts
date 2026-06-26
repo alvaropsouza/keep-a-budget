@@ -79,6 +79,17 @@ export class StockTransactionRepository {
     return mapTransaction(row);
   }
 
+  async findTopBrokers(userId: string, limit = 5): Promise<string[]> {
+    const rows = await prisma.stockTransaction.groupBy({
+      by: ["broker"],
+      where: { userId },
+      _count: { broker: true },
+      orderBy: { _count: { broker: "desc" } },
+      take: limit,
+    });
+    return rows.map(r => r.broker);
+  }
+
   async delete(id: string): Promise<void> {
     await prisma.stockTransaction.delete({ where: { id } });
   }

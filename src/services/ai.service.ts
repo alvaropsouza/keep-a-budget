@@ -15,7 +15,6 @@ export interface ParsedIrReceiptResponse {
 export interface ParsedStockTicketResponse {
   ticker: string | null;
   companyName: string | null;
-  cnpj: string | null;
   broker: string | null;
   date: string | null;
   type: "COMPRA" | "VENDA" | null;
@@ -159,10 +158,20 @@ Regras: date=data do pagamento, amount=valor em reais (ex "R$ 1.200,50"→1200.5
   async parseStockTicket(fileBuffer: Buffer, mimeType: string): Promise<ParsedStockTicketResponse> {
     const today = new Date().toISOString().split("T")[0];
     const base64 = fileBuffer.toString("base64");
-    const schema = `{"ticker":"string|null","companyName":"string|null","cnpj":"string|null","broker":"string|null","date":"YYYY-MM-DD|null","type":"COMPRA|VENDA|null","operationType":"NORMAL|DAY_TRADE|null","quantity":number|null,"unitPrice":number|null,"fees":number|null}`;
+    const schema = `{"ticker":"string|null","companyName":"string|null","broker":"string|null","date":"YYYY-MM-DD|null","type":"COMPRA|VENDA|null","operationType":"NORMAL|DAY_TRADE|null","quantity":number|null,"unitPrice":number|null,"fees":number|null}`;
     const systemPrompt = `Extrai dados de nota de corretagem ou comprovante de operação em bolsa (B3/Brasil). Retorne JSON puro, sem markdown, sem explicações.
 Schema: ${schema}
-Regras: ticker=código de negociação (ex: PETR4, ITUB3, WEGE3); companyName=nome da empresa; cnpj=CNPJ da empresa emissora do papel; broker=nome da corretora; date=data da operação; type=COMPRA se compra/aquisição, VENDA se venda/alienação; operationType=DAY_TRADE se compra e venda no mesmo dia, NORMAL caso contrário; quantity=quantidade de ações (número inteiro); unitPrice=preço unitário da ação em reais (ex "R$ 32,50"→32.50); fees=total de taxas pagas (corretagem + emolumentos + taxa de liquidação + outras taxas, em reais); retorne null para campos não encontrados.`;
+Regras:
+- ticker: código de negociação na B3 (ex: PETR4, ITUB3, MXRF11, WEGE3)
+- companyName: nome da empresa/fundo. Se não aparecer explicitamente no comprovante, infira a partir do ticker usando seu conhecimento de ativos B3 (ex: MXRF11→"Maxi Renda FII", PETR4→"Petróleo Brasileiro SA", ITUB4→"Itaú Unibanco SA", BBDC4→"Banco Bradesco SA", VALE3→"Vale SA", WEGE3→"WEG SA"). Para FIIs o nome termina em "FII" ou "Fundo de Investimento Imobiliário".
+- broker: nome da corretora. Detecte pela identidade visual: XP=tela preta/verde "XP Investimentos", Rico, Clear, BTG, NuInvest (Easynvest), Genial, Ágora, Toro.
+- date: data da operação em YYYY-MM-DD
+- type: COMPRA se compra/aquisição, VENDA se venda/alienação
+- operationType: DAY_TRADE se compra e venda no mesmo dia, NORMAL caso contrário
+- quantity: quantidade de ações/cotas (inteiro). Em comprovantes XP usar "Quantidade executada".
+- unitPrice: preço unitário em reais. Em comprovantes XP usar "Preço médio executado". Ex: "R$ 9,69"→9.69
+- fees: total de taxas (corretagem + emolumentos + liquidação). Se não visível, retorne 0.
+- Retorne null apenas quando genuinamente impossível inferir.`;
 
     const isImage = mimeType.startsWith("image/");
     const contentBlock = isImage

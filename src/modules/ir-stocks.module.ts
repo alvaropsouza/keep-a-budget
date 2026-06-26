@@ -7,17 +7,23 @@ import { CreateStockTransactionUseCase } from "../use-cases/ir-stocks/create-sto
 import { DeleteStockTransactionUseCase } from "../use-cases/ir-stocks/delete-stock-transaction.use-case";
 import { GetStockPositionsUseCase } from "../use-cases/ir-stocks/get-stock-positions.use-case";
 import { GetStockGainsByMonthUseCase } from "../use-cases/ir-stocks/get-stock-gains-by-month.use-case";
+import { GetTickerInfoUseCase } from "../use-cases/ir-stocks/get-ticker-info.use-case";
+import { GetTopBrokersUseCase } from "../use-cases/ir-stocks/get-top-brokers.use-case";
+import { BrapiService } from "../services/brapi.service";
 
 @Module({
   imports: [AuthModule],
   controllers: [IrStocksController],
   providers: [
     StockTransactionRepository,
+    BrapiService,
     ListStockTransactionsUseCase,
     CreateStockTransactionUseCase,
     DeleteStockTransactionUseCase,
     GetStockPositionsUseCase,
     GetStockGainsByMonthUseCase,
+    GetTickerInfoUseCase,
+    GetTopBrokersUseCase,
   ],
 })
 export class IrStocksModule {}

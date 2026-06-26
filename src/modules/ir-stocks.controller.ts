@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   Body,
+  BadRequestException,
 } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
 import { CreateStockTransactionDto, StockTransactionQueryDto } from "../dto/stock-transaction.dto";
@@ -22,6 +23,8 @@ import { CreateStockTransactionUseCase } from "../use-cases/ir-stocks/create-sto
 import { DeleteStockTransactionUseCase } from "../use-cases/ir-stocks/delete-stock-transaction.use-case";
 import { GetStockPositionsUseCase } from "../use-cases/ir-stocks/get-stock-positions.use-case";
 import { GetStockGainsByMonthUseCase } from "../use-cases/ir-stocks/get-stock-gains-by-month.use-case";
+import { GetTickerInfoUseCase } from "../use-cases/ir-stocks/get-ticker-info.use-case";
+import { GetTopBrokersUseCase } from "../use-cases/ir-stocks/get-top-brokers.use-case";
 
 @ApiTags("ir-stocks")
 @UseGuards(SessionAuthGuard)
@@ -33,6 +36,8 @@ export class IrStocksController {
     private readonly deleteStockTransactionUseCase: DeleteStockTransactionUseCase,
     private readonly getStockPositionsUseCase: GetStockPositionsUseCase,
     private readonly getStockGainsByMonthUseCase: GetStockGainsByMonthUseCase,
+    private readonly getTickerInfoUseCase: GetTickerInfoUseCase,
+    private readonly getTopBrokersUseCase: GetTopBrokersUseCase,
   ) {}
 
   @Get()
@@ -57,6 +62,17 @@ export class IrStocksController {
       userId: req.authUser!.userId,
       year: Number(query.year),
     });
+  }
+
+  @Get("top-brokers")
+  async topBrokers(@Req() req: FastifyRequest) {
+    return this.getTopBrokersUseCase.execute({ userId: req.authUser!.userId });
+  }
+
+  @Get("ticker-info/:ticker")
+  async tickerInfo(@Param("ticker") ticker: string) {
+    if (!ticker || ticker.length > 10) throw new BadRequestException("Ticker inválido");
+    return this.getTickerInfoUseCase.execute({ ticker });
   }
 
   @Post()

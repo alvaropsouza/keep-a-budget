@@ -56,6 +56,9 @@ importers:
       archiver:
         specifier: ^8.0.0
         version: 8.0.0
+      brapi:
+        specifier: ^1.0.1
+        version: 1.0.1
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -1330,6 +1333,9 @@ packages:
   brace-expansion@5.0.6:
     resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
     engines: {node: 18 || 20 || >=22}
+
+  brapi@1.0.1:
+    resolution: {integrity: sha512-FKDFsO6b5kKHi1XeY1BneGCAgQ4XTOo95wpkNw2FWaoF/sRdMZNH92oxuYuVdQd5EhplhZOAG+/pFKp/ARwRZA==}
 
   browserslist@4.28.2:
     resolution: {integrity: sha512-48xSriZYYg+8qXna9kwqjIVzuQxi+KYWp2+5nCYnYKPTr0LvD89Jqk2Or5ogxz0NUMfIjhh2lIUX/LyX9B4oIg==}
@@ -4175,6 +4181,8 @@ snapshots:
   brace-expansion@5.0.6:
     dependencies:
       balanced-match: 4.0.4
+
+  brapi@1.0.1: {}
 
   browserslist@4.28.2:
     dependencies:

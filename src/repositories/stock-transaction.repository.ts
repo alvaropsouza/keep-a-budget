@@ -19,6 +19,7 @@ const mapTransaction = (row: Prisma.StockTransactionGetPayload<true>): IStockTra
   unitPrice: toNumber(row.unitPrice),
   fees: toNumber(row.fees),
   isOpeningBalance: row.isOpeningBalance,
+  noteFile: row.noteFile ?? undefined,
   year: row.year,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -60,6 +61,7 @@ export class StockTransactionRepository {
     unitPrice: number;
     fees: number;
     isOpeningBalance?: boolean;
+    noteFile?: string;
     year: number;
   }): Promise<IStockTransaction> {
     const row = await prisma.stockTransaction.create({
@@ -76,6 +78,7 @@ export class StockTransactionRepository {
         unitPrice: data.unitPrice,
         fees: data.fees,
         isOpeningBalance: data.isOpeningBalance ?? false,
+        noteFile: data.noteFile ?? null,
         year: data.year,
       },
     });

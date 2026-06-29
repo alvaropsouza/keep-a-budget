@@ -12,6 +12,7 @@ import { GetTopBrokersUseCase } from "../use-cases/ir-stocks/get-top-brokers.use
 import { BatchCreateStockTransactionsUseCase } from "../use-cases/ir-stocks/batch-create-stock-transactions.use-case";
 import { DeleteAllStockTransactionsUseCase } from "../use-cases/ir-stocks/delete-all-stock-transactions.use-case";
 import { BrapiService } from "../services/brapi.service";
+import { S3Service } from "../services/s3.service";
 
 @Module({
   imports: [AuthModule],
@@ -19,6 +20,7 @@ import { BrapiService } from "../services/brapi.service";
   providers: [
     StockTransactionRepository,
     BrapiService,
+    S3Service,
     ListStockTransactionsUseCase,
     CreateStockTransactionUseCase,
     DeleteStockTransactionUseCase,

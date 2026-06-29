@@ -17,6 +17,8 @@ import { CreateStockTransactionDto, StockTransactionQueryDto } from "../dto/stoc
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { ApiTags } from "@nestjs/swagger";
 import { validateDto } from "../utils/validation";
+import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validate-upload";
+import { readMultipart } from "../utils/read-multipart";
 import { AppError } from "../utils/app-error";
 import { ListStockTransactionsUseCase } from "../use-cases/ir-stocks/list-stock-transactions.use-case";
 import { CreateStockTransactionUseCase } from "../use-cases/ir-stocks/create-stock-transaction.use-case";
@@ -93,13 +95,46 @@ export class IrStocksController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() body: CreateStockTransactionDto, @Req() req: FastifyRequest) {
+  async create(@Req() req: FastifyRequest) {
+    const contentType = req.headers["content-type"] ?? "";
+    let fields: Record<string, string> = {};
+    let uploadedFile: { buffer: Buffer; filename: string; mimetype: string } | undefined;
+
+    if (contentType.includes("multipart/form-data")) {
+      const { fields: f, file } = await readMultipart(req);
+      fields = f;
+      if (file) {
+        const detectedMime = validateUpload(file.buffer, RECEIPT_UPLOAD_RULES);
+        uploadedFile = { buffer: file.buffer, filename: file.filename, mimetype: detectedMime };
+      }
+    } else {
+      const rawBody = req.body as Record<string, unknown>;
+      for (const [k, v] of Object.entries(rawBody)) {
+        fields[k] = String(v ?? "");
+      }
+    }
+
+    const body: CreateStockTransactionDto = {
+      ticker: fields.ticker,
+      companyName: fields.companyName,
+      cnpj: fields.cnpj || undefined,
+      broker: fields.broker,
+      date: fields.date,
+      type: fields.type as CreateStockTransactionDto["type"],
+      operationType: fields.operationType as CreateStockTransactionDto["operationType"],
+      quantity: Number(fields.quantity),
+      unitPrice: Number(fields.unitPrice),
+      fees: Number(fields.fees ?? 0),
+      isOpeningBalance: fields.isOpeningBalance === "true" || fields.isOpeningBalance === "1",
+    };
+
     const { valid, errors } = await validateDto(CreateStockTransactionDto, body);
     if (!valid) throw new AppError("Dados inválidos", 400, errors);
 
     return this.createStockTransactionUseCase.execute({
       ...body,
       userId: req.authUser!.userId,
+      file: uploadedFile,
     });
   }
 

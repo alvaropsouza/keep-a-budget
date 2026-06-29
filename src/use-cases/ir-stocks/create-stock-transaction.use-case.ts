@@ -14,6 +14,7 @@ export type CreateStockTransactionInput = {
   quantity: number;
   unitPrice: number;
   fees: number;
+  isOpeningBalance?: boolean;
 };
 
 @Injectable()
@@ -40,6 +41,7 @@ export class CreateStockTransactionUseCase {
       quantity: input.quantity,
       unitPrice: input.unitPrice,
       fees: input.fees,
+      isOpeningBalance: input.isOpeningBalance,
       year,
     });
 

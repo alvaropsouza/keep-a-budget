@@ -25,6 +25,8 @@ import { GetStockPositionsUseCase } from "../use-cases/ir-stocks/get-stock-posit
 import { GetStockGainsByMonthUseCase } from "../use-cases/ir-stocks/get-stock-gains-by-month.use-case";
 import { GetTickerInfoUseCase } from "../use-cases/ir-stocks/get-ticker-info.use-case";
 import { GetTopBrokersUseCase } from "../use-cases/ir-stocks/get-top-brokers.use-case";
+import { BatchCreateStockTransactionsUseCase } from "../use-cases/ir-stocks/batch-create-stock-transactions.use-case";
+import { DeleteAllStockTransactionsUseCase } from "../use-cases/ir-stocks/delete-all-stock-transactions.use-case";
 
 @ApiTags("ir-stocks")
 @UseGuards(SessionAuthGuard)
@@ -38,6 +40,8 @@ export class IrStocksController {
     private readonly getStockGainsByMonthUseCase: GetStockGainsByMonthUseCase,
     private readonly getTickerInfoUseCase: GetTickerInfoUseCase,
     private readonly getTopBrokersUseCase: GetTopBrokersUseCase,
+    private readonly batchCreateStockTransactionsUseCase: BatchCreateStockTransactionsUseCase,
+    private readonly deleteAllStockTransactionsUseCase: DeleteAllStockTransactionsUseCase,
   ) {}
 
   @Get()
@@ -75,6 +79,18 @@ export class IrStocksController {
     return this.getTickerInfoUseCase.execute({ ticker });
   }
 
+  @Post("batch")
+  @HttpCode(HttpStatus.CREATED)
+  async batchCreate(@Body() body: { transactions: CreateStockTransactionDto[] }, @Req() req: FastifyRequest) {
+    if (!Array.isArray(body?.transactions) || body.transactions.length === 0) {
+      throw new AppError("transactions deve ser um array não vazio", 400);
+    }
+    return this.batchCreateStockTransactionsUseCase.execute({
+      userId: req.authUser!.userId,
+      transactions: body.transactions,
+    });
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() body: CreateStockTransactionDto, @Req() req: FastifyRequest) {
@@ -85,6 +101,11 @@ export class IrStocksController {
       ...body,
       userId: req.authUser!.userId,
     });
+  }
+
+  @Delete()
+  async deleteAll(@Req() req: FastifyRequest) {
+    return this.deleteAllStockTransactionsUseCase.execute({ userId: req.authUser!.userId });
   }
 
   @Delete(":id")

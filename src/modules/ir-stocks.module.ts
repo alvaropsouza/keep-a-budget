@@ -9,6 +9,8 @@ import { GetStockPositionsUseCase } from "../use-cases/ir-stocks/get-stock-posit
 import { GetStockGainsByMonthUseCase } from "../use-cases/ir-stocks/get-stock-gains-by-month.use-case";
 import { GetTickerInfoUseCase } from "../use-cases/ir-stocks/get-ticker-info.use-case";
 import { GetTopBrokersUseCase } from "../use-cases/ir-stocks/get-top-brokers.use-case";
+import { BatchCreateStockTransactionsUseCase } from "../use-cases/ir-stocks/batch-create-stock-transactions.use-case";
+import { DeleteAllStockTransactionsUseCase } from "../use-cases/ir-stocks/delete-all-stock-transactions.use-case";
 import { BrapiService } from "../services/brapi.service";
 
 @Module({
@@ -24,6 +26,8 @@ import { BrapiService } from "../services/brapi.service";
     GetStockGainsByMonthUseCase,
     GetTickerInfoUseCase,
     GetTopBrokersUseCase,
+    BatchCreateStockTransactionsUseCase,
+    DeleteAllStockTransactionsUseCase,
   ],
 })
 export class IrStocksModule {}

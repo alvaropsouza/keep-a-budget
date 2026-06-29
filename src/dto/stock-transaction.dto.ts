@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsDateString, IsIn, IsNumberString, Min } from "class-validator";
+import { IsString, IsNumber, IsOptional, IsDateString, IsIn, IsNumberString, IsBoolean, Min } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import type { StockTransactionType, StockOperationType } from "../interfaces/stock-transaction";
 
@@ -49,6 +49,11 @@ export class CreateStockTransactionDto {
   @IsNumber()
   @Min(0)
   fees!: number;
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  isOpeningBalance?: boolean;
 }
 
 export class StockTransactionQueryDto {

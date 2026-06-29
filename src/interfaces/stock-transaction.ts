@@ -14,6 +14,7 @@ export interface IStockTransaction {
   quantity: number;
   unitPrice: number;
   fees: number;
+  isOpeningBalance: boolean;
   year: number;
   createdAt: Date;
   updatedAt: Date;

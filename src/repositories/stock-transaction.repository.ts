@@ -18,6 +18,7 @@ const mapTransaction = (row: Prisma.StockTransactionGetPayload<true>): IStockTra
   quantity: toNumber(row.quantity),
   unitPrice: toNumber(row.unitPrice),
   fees: toNumber(row.fees),
+  isOpeningBalance: row.isOpeningBalance,
   year: row.year,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -58,6 +59,7 @@ export class StockTransactionRepository {
     quantity: number;
     unitPrice: number;
     fees: number;
+    isOpeningBalance?: boolean;
     year: number;
   }): Promise<IStockTransaction> {
     const row = await prisma.stockTransaction.create({
@@ -73,10 +75,46 @@ export class StockTransactionRepository {
         quantity: data.quantity,
         unitPrice: data.unitPrice,
         fees: data.fees,
+        isOpeningBalance: data.isOpeningBalance ?? false,
         year: data.year,
       },
     });
     return mapTransaction(row);
+  }
+
+  async createMany(items: Array<{
+    userId: string;
+    ticker: string;
+    companyName: string;
+    cnpj?: string;
+    broker: string;
+    date: Date;
+    type: StockTransactionType;
+    operationType: StockOperationType;
+    quantity: number;
+    unitPrice: number;
+    fees: number;
+    isOpeningBalance?: boolean;
+    year: number;
+  }>): Promise<number> {
+    const result = await prisma.stockTransaction.createMany({
+      data: items.map(d => ({
+        userId: d.userId,
+        ticker: d.ticker.toUpperCase(),
+        companyName: d.companyName,
+        cnpj: d.cnpj ?? null,
+        broker: d.broker,
+        date: d.date,
+        type: d.type,
+        operationType: d.operationType,
+        quantity: d.quantity,
+        unitPrice: d.unitPrice,
+        fees: d.fees,
+        isOpeningBalance: d.isOpeningBalance ?? false,
+        year: d.year,
+      })),
+    });
+    return result.count;
   }
 
   async findTopBrokers(userId: string, limit = 5): Promise<string[]> {
@@ -92,5 +130,10 @@ export class StockTransactionRepository {
 
   async delete(id: string): Promise<void> {
     await prisma.stockTransaction.delete({ where: { id } });
+  }
+
+  async deleteAllByUserId(userId: string): Promise<number> {
+    const result = await prisma.stockTransaction.deleteMany({ where: { userId } });
+    return result.count;
   }
 }

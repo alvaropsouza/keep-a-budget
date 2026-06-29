@@ -13,30 +13,47 @@ type PositionState = {
   averageCost: number;
 };
 
-function applyTransaction(positions: Map<string, PositionState>, tx: IStockTransaction): void {
-  const key = `${tx.ticker}::${tx.broker}`;
-  const pos = positions.get(key) ?? {
-    ticker: tx.ticker,
-    companyName: tx.companyName,
-    cnpj: tx.cnpj,
-    broker: tx.broker,
-    quantity: 0,
-    averageCost: 0,
-  };
+function findPositionKey(positions: Map<string, PositionState>, ticker: string, broker: string): string {
+  const exact = `${ticker}::${broker}`;
+  if (positions.has(exact)) return exact;
+  for (const [k, p] of positions) {
+    if (p.ticker === ticker) return k;
+  }
+  return exact;
+}
 
+function applyTransaction(positions: Map<string, PositionState>, tx: IStockTransaction): void {
   if (tx.type === "COMPRA") {
+    const key = `${tx.ticker}::${tx.broker}`;
+    const pos = positions.get(key) ?? {
+      ticker: tx.ticker,
+      companyName: tx.companyName,
+      cnpj: tx.cnpj,
+      broker: tx.broker,
+      quantity: 0,
+      averageCost: 0,
+    };
     const totalCost = pos.quantity * pos.averageCost + tx.quantity * tx.unitPrice + tx.fees;
     const totalQty = pos.quantity + tx.quantity;
     pos.averageCost = totalQty > 0 ? totalCost / totalQty : 0;
     pos.quantity = totalQty;
     pos.companyName = tx.companyName;
     if (tx.cnpj) pos.cnpj = tx.cnpj;
+    positions.set(key, pos);
   } else {
+    const key = findPositionKey(positions, tx.ticker, tx.broker);
+    const pos = positions.get(key) ?? {
+      ticker: tx.ticker,
+      companyName: tx.companyName,
+      cnpj: tx.cnpj,
+      broker: tx.broker,
+      quantity: 0,
+      averageCost: 0,
+    };
     pos.quantity = Math.max(0, pos.quantity - tx.quantity);
     if (pos.quantity === 0) pos.averageCost = 0;
+    positions.set(key, pos);
   }
-
-  positions.set(key, pos);
 }
 
 @Injectable()
@@ -51,9 +68,26 @@ export class GetStockPositionsUseCase {
     const transactions = await this.stockTransactionRepository.findManyByUserId(input.userId);
     const endOfYear = new Date(Date.UTC(input.year, 11, 31));
 
+    this.logger.log(
+      {
+        total: transactions.length,
+        compras: transactions.filter(t => t.type === "COMPRA").length,
+        vendas: transactions.filter(t => t.type === "VENDA").length,
+        skipped: transactions.filter(t => t.date > endOfYear).length,
+      },
+      "GetStockPositionsUseCase transactions",
+    );
+
     const positions = new Map<string, PositionState>();
     for (const tx of transactions) {
-      if (tx.date <= endOfYear) {
+      if (tx.date > endOfYear) continue;
+      if (tx.type === "VENDA") {
+        const key = findPositionKey(positions, tx.ticker, tx.broker);
+        const before = positions.get(key)?.quantity ?? 0;
+        applyTransaction(positions, tx);
+        const after = positions.get(key)?.quantity ?? 0;
+        this.logger.log({ ticker: tx.ticker, broker: tx.broker, qty: tx.quantity, before, after, key }, "VENDA applied");
+      } else {
         applyTransaction(positions, tx);
       }
     }

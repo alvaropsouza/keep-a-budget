@@ -59,6 +59,9 @@ function parseJsonArrayResponse(raw: string): ParsedExpenseResponse[] {
   }
 }
 
+const MODEL_FAST = "claude-haiku-4-5";
+const MODEL_PDF = "claude-sonnet-4-6";
+
 @Injectable()
 export class AiService {
   private readonly client: Anthropic;
@@ -91,7 +94,7 @@ export class AiService {
         };
 
     const message = await this.client.messages.create({
-      model: "claude-haiku-4-5",
+      model: isImage ? MODEL_FAST : MODEL_PDF,
       max_tokens: 1024,
       system: IMAGE_SYSTEM_PROMPT,
       messages: [{
@@ -138,7 +141,7 @@ Regras: date=data do pagamento, amount=valor em reais (ex "R$ 1.200,50"→1200.5
         };
 
     const message = await this.client.messages.create({
-      model: "claude-haiku-4-5",
+      model: isImage ? MODEL_FAST : MODEL_PDF,
       max_tokens: 250,
       system: irSystemPrompt,
       messages: [{
@@ -193,7 +196,7 @@ Regras:
         };
 
     const message = await this.client.messages.create({
-      model: "claude-haiku-4-5",
+      model: isImage ? MODEL_FAST : MODEL_PDF,
       max_tokens: 400,
       system: systemPrompt,
       messages: [{

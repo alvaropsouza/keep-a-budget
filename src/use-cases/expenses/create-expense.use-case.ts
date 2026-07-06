@@ -115,6 +115,9 @@ export class CreateExpenseUseCase {
       const expenses: IExpense[] = [];
       const balancesByInvoice = new Map<string, number>();
 
+      const perInstallment = Math.round((input.amount / installmentTotal) * 100) / 100;
+      const lastInstallmentAmount = Math.round((input.amount - perInstallment * (installmentTotal - 1)) * 100) / 100;
+
       for (let i = installmentStartNumber; i <= installmentTotal; i++) {
         const targetDate = this.calculateInstallmentDate(baseDate, i - installmentStartNumber);
         const cardInvoice = await this.invoiceRepository.ensureForDate(input.bank, targetDate, input.userId, tx);
@@ -126,12 +129,14 @@ export class CreateExpenseUseCase {
           );
         }
 
+        const installmentAmount = i === installmentTotal ? lastInstallmentAmount : perInstallment;
+
         const created = await this.expenseRepository.create(
           {
             userId: input.userId,
             bank: input.bank,
             category: input.category,
-            amount: input.amount,
+            amount: installmentAmount,
             receipt: input.receipt ?? null,
             irDeductible: input.irDeductible ?? false,
             type: ExpenseTypeEnum.EXPENSE,

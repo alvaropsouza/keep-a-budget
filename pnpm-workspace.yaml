@@ -1,9 +1,0 @@
-packages:
-  - '.'
-allowBuilds:
-  '@nestjs/core': true
-  '@prisma/engines': true
-  '@scarf/scarf': false
-  aws-sdk: true
-  esbuild: true
-  prisma: true

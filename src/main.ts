@@ -46,13 +46,15 @@ async function bootstrap(): Promise<void> {
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
   await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle(name)
-    .setDescription(description)
-    .setVersion(version)
-    .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup("api/docs", app, document);
+  if (process.env.NODE_ENV !== "production") {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle(name)
+      .setDescription(description)
+      .setVersion(version)
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup("api/docs", app, document);
+  }
 
   await connectDB();
   

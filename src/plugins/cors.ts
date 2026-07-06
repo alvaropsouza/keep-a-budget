@@ -1,19 +1,17 @@
 import fastifyCors, { FastifyCorsOptions } from "@fastify/cors";
-import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 
-const corsPlugin = fp(async (app: FastifyInstance) => {
+const corsPlugin = fp(async (app) => {
   const corsOptions: FastifyCorsOptions = {
     origin: (origin, cb) => {
+      const isProd = process.env.NODE_ENV === "production";
+
       if (!origin) {
-        cb(null, true);
+        cb(null, !isProd);
         return;
       }
 
-      const fallback =
-        process.env.NODE_ENV === "production"
-          ? []
-          : ["http://localhost:8080"];
+      const fallback = isProd ? [] : ["http://localhost:8080"];
       const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
         ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim())
         : fallback;

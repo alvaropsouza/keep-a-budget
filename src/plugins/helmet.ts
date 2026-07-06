@@ -1,8 +1,7 @@
 import helmet from "@fastify/helmet";
-import { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 
-const helmetPlugin = fp(async (app: FastifyInstance) => {
+const helmetPlugin = fp(async (app) => {
   const isProd = process.env.NODE_ENV === "production";
 
   const cspDirectives = {
@@ -15,7 +14,7 @@ const helmetPlugin = fp(async (app: FastifyInstance) => {
     imgSrc: ["'self'", "data:", "blob:"],
     objectSrc: ["'none'"],
     scriptSrc: ["'self'"],
-    styleSrc: ["'self'", "'unsafe-inline'"],
+    styleSrc: ["'self'"],
   };
 
   await app.register(helmet, {

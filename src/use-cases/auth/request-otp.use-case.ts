@@ -27,7 +27,7 @@ export class RequestOtpUseCase {
     const user = await this.sessionRepository.findUserByEmail(normalized);
     if (!user) {
       this.logger.debug({ email: normalized }, "OTP requested for unknown email");
-      return;
+      throw new AppError("Email não cadastrado", 404);
     }
 
     const latest = await this.sessionRepository.findLatestOtp(user.id);

@@ -80,7 +80,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async requestOtp(@Body() body: RequestOtpDto) {
     await this.requestOtpUseCase.execute({ email: body.email });
-    return { message: "Se o email existir, você receberá um código de acesso." };
+    return { message: "Código de acesso enviado para seu email." };
   }
 
   @UseGuards(LoginRateLimitGuard)

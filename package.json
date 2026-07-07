@@ -18,6 +18,9 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
+  "overrides": {
+    "fastify": "$fastify"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {

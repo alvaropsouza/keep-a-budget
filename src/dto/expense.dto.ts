@@ -5,17 +5,17 @@ import {
   IsUUID,
   Min,
   IsDateString,
-  IsEnum,
   IsBoolean,
   IsNumberString,
+  MinLength,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { BanksEnum } from "../enums/banks.enum";
 
 export class CreateExpenseDto {
-  @ApiProperty({ enum: BanksEnum })
-  @IsEnum(BanksEnum)
-  bank!: BanksEnum;
+  @ApiProperty({ example: "Nubank", description: "Nome de uma forma de pagamento cadastrada" })
+  @IsString()
+  @MinLength(1)
+  bank!: string;
 
   @ApiProperty({ example: "Alimentação" })
   @IsString()
@@ -60,10 +60,10 @@ export class CreateExpenseDto {
 }
 
 export class UpdateExpenseDto {
-  @ApiPropertyOptional({ enum: BanksEnum })
-  @IsEnum(BanksEnum)
+  @ApiPropertyOptional()
+  @IsString()
   @IsOptional()
-  bank?: BanksEnum;
+  bank?: string;
 
   @ApiPropertyOptional()
   @IsString()
@@ -105,10 +105,10 @@ export class IrToggleDto {
 }
 
 export class ExpenseQueryParamsDto {
-  @ApiPropertyOptional({ enum: BanksEnum })
-  @IsEnum(BanksEnum)
+  @ApiPropertyOptional()
+  @IsString()
   @IsOptional()
-  bank?: BanksEnum;
+  bank?: string;
 
   @ApiPropertyOptional()
   @IsString()

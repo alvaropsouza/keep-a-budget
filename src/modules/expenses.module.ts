@@ -5,6 +5,7 @@ import { InvoicesModule } from "./invoices.module";
 import { IrDocumentModule } from "./ir-documents.module";
 import { ExpenseRepository } from "../repositories/expense.repository";
 import { InvoiceRepository } from "../repositories/invoice.repository";
+import { PaymentMethodRepository } from "../repositories/payment-method.repository";
 import { S3Service } from "../services/s3.service";
 import { ListExpensesUseCase } from "../use-cases/expenses/list-expenses.use-case";
 import { GetExpenseByIdUseCase } from "../use-cases/expenses/get-expense-by-id.use-case";
@@ -23,6 +24,7 @@ import { ExportIrZipUseCase } from "../use-cases/expenses/export-ir-zip.use-case
   providers: [
     ExpenseRepository,
     InvoiceRepository,
+    PaymentMethodRepository,
     S3Service,
     ListExpensesUseCase,
     GetExpenseByIdUseCase,

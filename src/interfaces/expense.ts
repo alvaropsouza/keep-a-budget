@@ -1,11 +1,10 @@
-import { BanksEnum } from "../enums/banks.enum";
 import { ExpenseTypeEnum } from "../enums/expense-type.enum";
 
 export interface IExpense {
   id: string;
   _id: string;
   userId?: string;
-  bank: BanksEnum;
+  bank: string;
   type: ExpenseTypeEnum;
   category: string;
   date: Date;

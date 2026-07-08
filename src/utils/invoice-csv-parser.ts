@@ -10,6 +10,11 @@ export interface InvoiceCsvRow {
 
 export type SupportedCsvBank = "XP" | "NUBANK";
 
+export function toSupportedCsvBank(bank: string): SupportedCsvBank | null {
+  const raw = bank.toUpperCase();
+  return raw === "XP" || raw === "NUBANK" ? raw : null;
+}
+
 /**
  * Divide uma linha CSV respeitando campos entre aspas duplas.
  * Necessário porque o valor pode conter o próprio delimitador

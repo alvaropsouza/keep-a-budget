@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "../generated/prisma/client/client";
 import { prisma } from "../config/prisma";
 import type { IExpense } from "../interfaces/expense";
-import { BanksEnum } from "../enums/banks.enum";
 import { ExpenseTypeEnum } from "../enums/expense-type.enum";
 import type { TxClient } from "../utils/run-with-transaction";
 
@@ -20,7 +19,7 @@ export type ExpenseFilter = {
 
 export type CreateExpenseData = {
   userId: string;
-  bank: BanksEnum;
+  bank: string;
   type: ExpenseTypeEnum;
   category: string;
   date: Date;
@@ -34,7 +33,7 @@ export type CreateExpenseData = {
 };
 
 export type UpdateExpenseData = {
-  bank?: BanksEnum;
+  bank?: string;
   type?: ExpenseTypeEnum;
   category?: string;
   date?: Date;
@@ -52,7 +51,7 @@ const mapExpense = (row: Prisma.ExpenseGetPayload<true>): IExpense => ({
   id: row.id,
   _id: row.id,
   userId: row.userId ?? undefined,
-  bank: row.bank as BanksEnum,
+  bank: row.bank,
   type: row.type as ExpenseTypeEnum,
   category: row.category,
   date: new Date(row.date),

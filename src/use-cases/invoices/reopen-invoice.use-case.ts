@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { AppError } from "../../utils/app-error";
 import type { ICardInvoice } from "../../interfaces/card-invoice";
+import { InvoiceStatusEnum } from "../../enums/invoice-status.enum";
 
 export type ReopenInvoiceInput = { id: string; userId: string };
 
@@ -18,7 +19,8 @@ export class ReopenInvoiceUseCase {
 
     if (!invoice.isClosed) throw new AppError("Invoice is not closed", 400);
 
-    await this.invoiceRepository.update(input.id, { isClosed: false }, input.userId);
+    await this.invoiceRepository.update(input.id, { status: InvoiceStatusEnum.OPEN }, input.userId);
+    await this.invoiceRepository.syncBankStatuses(invoice.bank, invoice.userId);
     const result = await this.invoiceRepository.findWithExpenses(input.id, input.userId);
 
     this.logger.log({ id: result.id }, "ReopenInvoiceUseCase.execute done");

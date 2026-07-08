@@ -1,10 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
 import type { ICardInvoice } from "../../interfaces/card-invoice";
-import { BanksEnum } from "../../enums/banks.enum";
 
 export type CreateInvoiceInput = {
-  bank: BanksEnum;
+  bank: string;
   closingDate: Date;
   dueDate: Date;
   balance?: number;

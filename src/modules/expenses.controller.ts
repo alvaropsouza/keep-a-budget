@@ -22,7 +22,6 @@ import {
   IrQueryParamsDto,
   IrToggleDto,
 } from "../dto/expense.dto";
-import { BanksEnum } from "../enums/banks.enum";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { AppError } from "../utils/app-error";
@@ -143,7 +142,7 @@ export class ExpensesController {
     if (contentType?.includes("multipart/form-data")) {
       const { fields, file } = await readMultipart(req);
       const body: CreateExpenseDto = {
-        bank: fields.bank as BanksEnum,
+        bank: fields.bank,
         category: fields.category,
         amount: Number.parseFloat(fields.amount),
         description: fields.description,

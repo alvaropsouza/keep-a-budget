@@ -3,7 +3,7 @@ import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { ExpenseRepository } from "../../repositories/expense.repository";
 import { AppError } from "../../utils/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
-import { parseInvoiceCsv } from "../../utils/invoice-csv-parser";
+import { parseInvoiceCsv, toSupportedCsvBank } from "../../utils/invoice-csv-parser";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 import type { ICardInvoice } from "../../interfaces/card-invoice";
 
@@ -35,8 +35,13 @@ export class ImportExpensesFromCsvUseCase {
       );
     }
 
+    const csvBank = toSupportedCsvBank(invoice.bank);
+    if (!csvBank) {
+      throw new AppError("Importação de CSV está disponível apenas para faturas Nubank e XP", 400);
+    }
+
     const rows = parseInvoiceCsv(
-      invoice.bank,
+      csvBank,
       input.csvContent,
       input.excludeIndexes ? new Set(input.excludeIndexes) : undefined,
     );

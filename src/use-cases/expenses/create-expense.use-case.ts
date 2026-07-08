@@ -1,16 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ExpenseRepository } from "../../repositories/expense.repository";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
+import { PaymentMethodRepository } from "../../repositories/payment-method.repository";
 import { S3Service } from "../../services/s3.service";
 import { AppError } from "../../utils/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
-import { BanksEnum } from "../../enums/banks.enum";
+import { PaymentMethodTypeEnum } from "../../enums/payment-method-type.enum";
+import type { IPaymentMethod } from "../../interfaces/payment-method";
 import type { IExpense } from "../../interfaces/expense";
 
 export type CreateExpenseInput = {
   userId: string;
-  bank: BanksEnum;
+  bank: string;
   category: string;
   amount: number;
   description?: string;
@@ -29,11 +31,20 @@ export class CreateExpenseUseCase {
   constructor(
     private readonly expenseRepository: ExpenseRepository,
     private readonly invoiceRepository: InvoiceRepository,
+    private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly s3Service: S3Service,
   ) {}
 
   async execute(input: CreateExpenseInput): Promise<IExpense | IExpense[]> {
     this.logger.log({ userId: input.userId, bank: input.bank, amount: input.amount }, "CreateExpenseUseCase.execute");
+
+    const paymentMethod = await this.paymentMethodRepository.findByName(input.userId, input.bank);
+    if (!paymentMethod) {
+      throw new AppError(`Forma de pagamento "${input.bank}" não cadastrada. Cadastre em Configurações.`, 400);
+    }
+    if (!paymentMethod.isActive) {
+      throw new AppError(`Forma de pagamento "${input.bank}" está desativada.`, 400);
+    }
 
     const { installmentTotal, installmentStartDate, installmentStartNumber } = input;
 
@@ -41,18 +52,32 @@ export class CreateExpenseUseCase {
       throw new AppError("installmentStartNumber must be less than or equal to installmentTotal", 400);
     }
 
+    const isCard = paymentMethod.type === PaymentMethodTypeEnum.CREDIT_CARD;
+
     if (installmentTotal && installmentTotal > 1) {
-      return this.createInstallments(input, installmentTotal, installmentStartDate, installmentStartNumber);
+      if (!isCard) {
+        throw new AppError("Parcelamento só está disponível para cartão de crédito", 400);
+      }
+      return this.createInstallments(input, paymentMethod, installmentTotal, installmentStartDate, installmentStartNumber);
     }
 
-    return this.createSingle(input);
+    return this.createSingle(input, paymentMethod);
   }
 
-  private async createSingle(input: CreateExpenseInput): Promise<IExpense> {
+  private cardCycle(paymentMethod: IPaymentMethod): { closingDay: number; dueDay: number } | undefined {
+    return paymentMethod.closingDay && paymentMethod.dueDay
+      ? { closingDay: paymentMethod.closingDay, dueDay: paymentMethod.dueDay }
+      : undefined;
+  }
+
+  private async createSingle(input: CreateExpenseInput, paymentMethod: IPaymentMethod): Promise<IExpense> {
     const expenseDate = input.installmentStartDate ? new Date(input.installmentStartDate) : new Date();
+    const isCard = paymentMethod.type === PaymentMethodTypeEnum.CREDIT_CARD;
 
     const expense = await runWithTransaction(async (tx) => {
-      let cardInvoice = await this.invoiceRepository.findForExpenseDate(input.bank, expenseDate, input.userId, tx);
+      let cardInvoice = isCard
+        ? await this.invoiceRepository.ensureForDate(input.bank, expenseDate, input.userId, tx, this.cardCycle(paymentMethod))
+        : null;
 
       if (cardInvoice?.isClosed) {
         cardInvoice = await this.invoiceRepository.findOpenForExpenseDate(input.bank, expenseDate, input.userId, tx);
@@ -102,6 +127,7 @@ export class CreateExpenseUseCase {
 
   private async createInstallments(
     input: CreateExpenseInput,
+    paymentMethod: IPaymentMethod,
     installmentTotal: number,
     startDate?: string,
     installmentStartNumber: number = 1,
@@ -120,7 +146,13 @@ export class CreateExpenseUseCase {
 
       for (let i = installmentStartNumber; i <= installmentTotal; i++) {
         const targetDate = this.calculateInstallmentDate(baseDate, i - installmentStartNumber);
-        const cardInvoice = await this.invoiceRepository.ensureForDate(input.bank, targetDate, input.userId, tx);
+        const cardInvoice = await this.invoiceRepository.ensureForDate(
+          input.bank,
+          targetDate,
+          input.userId,
+          tx,
+          this.cardCycle(paymentMethod),
+        );
 
         if (cardInvoice?.isClosed) {
           throw new AppError(

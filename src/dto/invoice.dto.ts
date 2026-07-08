@@ -2,14 +2,14 @@ import {
   IsDate,
   IsDateString,
   IsOptional,
-  IsEnum,
   IsNumber,
+  IsString,
   Min,
+  MinLength,
   IsBoolean,
 } from "class-validator";
 import { Transform } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { BanksEnum } from "../enums/banks.enum";
 
 const toDate = (value: unknown): Date | undefined => {
   if (!value) return undefined;
@@ -19,9 +19,10 @@ const toDate = (value: unknown): Date | undefined => {
 };
 
 export class CreateInvoiceDto {
-  @ApiProperty({ enum: BanksEnum })
-  @IsEnum(BanksEnum)
-  bank!: BanksEnum;
+  @ApiProperty({ example: "Nubank", description: "Nome de um cartão cadastrado" })
+  @IsString()
+  @MinLength(1)
+  bank!: string;
 
   @ApiProperty({ format: "date-time" })
   @IsDate()
@@ -41,10 +42,10 @@ export class CreateInvoiceDto {
 }
 
 export class UpdateInvoiceDto {
-  @ApiPropertyOptional({ enum: BanksEnum })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsEnum(BanksEnum)
-  bank?: BanksEnum;
+  @IsString()
+  bank?: string;
 
   @ApiPropertyOptional({ format: "date-time" })
   @IsDate()
@@ -71,10 +72,10 @@ export class UpdateInvoiceDto {
 }
 
 export class InvoiceQueryParamsDto {
-  @ApiPropertyOptional({ enum: BanksEnum })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsEnum(BanksEnum)
-  bank?: BanksEnum;
+  @IsString()
+  bank?: string;
 
   @ApiPropertyOptional({ format: "date-time" })
   @IsDateString()

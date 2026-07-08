@@ -1,10 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "../generated/prisma/client/client";
+import { InvoiceStatus, Prisma } from "../generated/prisma/client/client";
 import { prisma } from "../config/prisma";
 import logger from "../config/logger";
 import type { ICardInvoice } from "../interfaces/card-invoice";
+import { InvoiceStatusEnum } from "../enums/invoice-status.enum";
 import type { IExpense } from "../interfaces/expense";
-import { BanksEnum } from "../enums/banks.enum";
 import { ExpenseTypeEnum } from "../enums/expense-type.enum";
 import { AppError } from "../utils/app-error";
 import { runWithTransaction, type TxClient } from "../utils/run-with-transaction";
@@ -54,7 +54,7 @@ const mapExpense = (row: Prisma.ExpenseGetPayload<true>): IExpense => ({
   id: row.id,
   _id: row.id,
   userId: row.userId ?? undefined,
-  bank: row.bank as BanksEnum,
+  bank: row.bank,
   type: row.type as ExpenseTypeEnum,
   category: row.category,
   date: new Date(row.date),
@@ -78,19 +78,20 @@ const mapInvoice = (row: Prisma.CardInvoiceGetPayload<true>, expenses?: IExpense
   id: row.id,
   _id: row.id,
   userId: row.userId ?? undefined,
-  bank: row.bank as BanksEnum,
+  bank: row.bank,
   closingDate: new Date(row.closingDate),
   dueDate: new Date(row.dueDate),
   balance: toNumber(row.balance),
   advance: toNumber(row.advance),
-  isClosed: row.isClosed,
+  status: row.status as InvoiceStatusEnum,
+  isClosed: row.status === InvoiceStatus.CLOSED,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
   expenses,
 });
 
 export type CreateInvoiceData = {
-  bank: BanksEnum;
+  bank: string;
   closingDate: Date;
   dueDate: Date;
   balance?: number;
@@ -100,11 +101,11 @@ export type CreateInvoiceData = {
 };
 
 export type UpdateInvoiceData = {
-  bank?: BanksEnum;
+  bank?: string;
   closingDate?: Date;
   dueDate?: Date;
   balance?: number;
-  isClosed?: boolean;
+  status?: InvoiceStatusEnum;
 };
 
 export type InvoiceFilter = {
@@ -121,14 +122,18 @@ export type InvoiceFilter = {
 
 export type InvoiceSummary = {
   totalOpen: number;
+  totalFuture: number;
   totalClosed: number;
   countOpen: number;
+  countFuture: number;
   countClosed: number;
   byBank: Array<{
     bank: string;
     totalOpen: number;
+    totalFuture: number;
     totalClosed: number;
     countOpen: number;
+    countFuture: number;
     countClosed: number;
   }>;
 };
@@ -225,7 +230,12 @@ export class InvoiceRepository {
     const queryDate = toUtcMidnight(date);
     const db = this.getDb(tx);
     const row = await db.cardInvoice.findFirst({
-      where: { bank, isClosed: false, closingDate: { gte: queryDate }, ...userFilter(userId) },
+      where: {
+        bank,
+        status: { not: InvoiceStatus.CLOSED },
+        closingDate: { gte: queryDate },
+        ...userFilter(userId),
+      },
       orderBy: { closingDate: "asc" },
     });
     return row ? mapInvoice(row) : null;
@@ -234,7 +244,7 @@ export class InvoiceRepository {
   async findExpiredOpen(): Promise<ICardInvoice[]> {
     const today = getBrazilTodayUtcMidnight();
     const rows = await prisma.cardInvoice.findMany({
-      where: { isClosed: false, closingDate: { lt: today } },
+      where: { status: { not: InvoiceStatus.CLOSED }, closingDate: { lt: today } },
     });
     return rows.map((row) => mapInvoice(row));
   }
@@ -251,11 +261,38 @@ export class InvoiceRepository {
         dueDate: data.dueDate,
         balance: data.balance ?? 0,
         advance: data.advance ?? 0,
-        isClosed: data.isClosed ?? false,
+        status: data.isClosed ? InvoiceStatus.CLOSED : InvoiceStatus.FUTURE,
         userId: data.userId,
       },
     });
+    if (!data.isClosed) {
+      await this.syncBankStatuses(data.bank, data.userId, tx);
+      const synced = await db.cardInvoice.findUnique({ where: { id: row.id } });
+      return mapInvoice(synced ?? row);
+    }
     return mapInvoice(row);
+  }
+
+  async syncBankStatuses(bank: string, userId?: string, tx?: TxClient): Promise<void> {
+    const db = this.getDb(tx);
+    const openRows = await db.cardInvoice.findMany({
+      where: { bank, status: { not: InvoiceStatus.CLOSED }, ...userFilter(userId) },
+      orderBy: { closingDate: "asc" },
+      select: { id: true, status: true },
+    });
+    if (openRows.length === 0) return;
+
+    const [current, ...future] = openRows;
+    if (current.status !== InvoiceStatus.OPEN) {
+      await db.cardInvoice.update({ where: { id: current.id }, data: { status: InvoiceStatus.OPEN } });
+    }
+    const demoteIds = future.filter((r) => r.status !== InvoiceStatus.FUTURE).map((r) => r.id);
+    if (demoteIds.length > 0) {
+      await db.cardInvoice.updateMany({
+        where: { id: { in: demoteIds } },
+        data: { status: InvoiceStatus.FUTURE },
+      });
+    }
   }
 
   async update(id: string, data: UpdateInvoiceData, userId?: string, tx?: TxClient): Promise<ICardInvoice> {
@@ -265,7 +302,7 @@ export class InvoiceRepository {
     if (data.closingDate != null) updateData.closingDate = data.closingDate;
     if (data.dueDate != null) updateData.dueDate = data.dueDate;
     if (data.balance != null) updateData.balance = data.balance;
-    if (data.isClosed != null) updateData.isClosed = data.isClosed;
+    if (data.status != null) updateData.status = data.status;
 
     const row = await db.cardInvoice
       .update({ where: { id, ...userFilter(userId) }, data: updateData })
@@ -303,70 +340,83 @@ export class InvoiceRepository {
       await tx.expense.deleteMany({ where: { cardInvoiceId: invoice.id } });
       const deleted = await tx.cardInvoice.delete({ where: { id } }).catch(() => null);
       if (!deleted) throw new AppError("Resource not found", 404);
+      await this.syncBankStatuses(invoice.bank, invoice.userId, tx);
     });
     logger.info({ invoiceId: id }, "Invoice and associated expenses deleted");
   }
 
   async getSummary(userId?: string): Promise<InvoiceSummary> {
     const where: Prisma.CardInvoiceWhereInput = userId ? { userId } : {};
-    const banks = ["NUBANK", "XP"] as const;
 
-    const [openAgg, closedAgg, byBankGroups] = await Promise.all([
-      prisma.cardInvoice.aggregate({
-        where: { ...where, isClosed: false },
-        _sum: { balance: true },
-        _count: { id: true },
-      }),
-      prisma.cardInvoice.aggregate({
-        where: { ...where, isClosed: true },
-        _sum: { balance: true },
-        _count: { id: true },
-      }),
-      prisma.cardInvoice.groupBy({
-        by: ["bank", "isClosed"],
-        where,
-        _sum: { balance: true },
-        _count: { id: true },
-      }),
-    ]);
+    const byBankGroups = await prisma.cardInvoice.groupBy({
+      by: ["bank", "status"],
+      where,
+      _sum: { balance: true },
+      _count: { id: true },
+    });
+
+    const banks = [...new Set(byBankGroups.map((r) => r.bank))].sort();
+
+    const pick = (bank: string, status: InvoiceStatus) =>
+      byBankGroups.find((r) => r.bank === bank && r.status === status);
 
     const byBank = banks.map((bank) => {
-      const openRow = byBankGroups.find((r) => r.bank === bank && !r.isClosed);
-      const closedRow = byBankGroups.find((r) => r.bank === bank && r.isClosed);
+      const openRow = pick(bank, InvoiceStatus.OPEN);
+      const futureRow = pick(bank, InvoiceStatus.FUTURE);
+      const closedRow = pick(bank, InvoiceStatus.CLOSED);
       return {
         bank,
         totalOpen: toNumber(openRow?._sum.balance),
+        totalFuture: toNumber(futureRow?._sum.balance),
         totalClosed: toNumber(closedRow?._sum.balance),
         countOpen: openRow?._count.id ?? 0,
+        countFuture: futureRow?._count.id ?? 0,
         countClosed: closedRow?._count.id ?? 0,
       };
     });
 
     return {
-      totalOpen: toNumber(openAgg._sum.balance),
-      totalClosed: toNumber(closedAgg._sum.balance),
-      countOpen: openAgg._count.id,
-      countClosed: closedAgg._count.id,
+      totalOpen: byBank.reduce((sum, b) => sum + b.totalOpen, 0),
+      totalFuture: byBank.reduce((sum, b) => sum + b.totalFuture, 0),
+      totalClosed: byBank.reduce((sum, b) => sum + b.totalClosed, 0),
+      countOpen: byBank.reduce((sum, b) => sum + b.countOpen, 0),
+      countFuture: byBank.reduce((sum, b) => sum + b.countFuture, 0),
+      countClosed: byBank.reduce((sum, b) => sum + b.countClosed, 0),
       byBank,
     };
   }
 
-  async ensureForDate(bank: string, date: Date, userId?: string, tx?: TxClient): Promise<ICardInvoice> {
+  async ensureForDate(
+    bank: string,
+    date: Date,
+    userId?: string,
+    tx?: TxClient,
+    cycle?: { closingDay: number; dueDay: number },
+  ): Promise<ICardInvoice> {
     const targetDate = toUtcMidnight(date);
 
     const existing = await this.findForExpenseDate(bank, targetDate, userId, tx);
     if (existing) return existing;
 
     const latest = await this.findLatest(bank, userId, tx);
-    if (!latest) {
+    if (!latest && !cycle) {
       throw new AppError(
-        `Nenhuma fatura cadastrada para o banco ${bank}. Crie a primeira fatura manualmente para definirmos o ciclo.`,
+        `Nenhuma fatura cadastrada para o cartão ${bank}. Crie a primeira fatura manualmente para definirmos o ciclo.`,
         400,
       );
     }
 
-    let currentClosingDate = latest.closingDate;
-    let currentDueDate = latest.dueDate;
+    if (!latest && cycle) {
+      const firstClosingDate = this.nextOccurrenceOfDay(targetDate, cycle.closingDay);
+      const firstDueDate = this.dueDateAfterClosing(firstClosingDate, cycle.dueDay);
+      return this.create(
+        { bank, closingDate: firstClosingDate, dueDate: firstDueDate, balance: 0, userId: userId! },
+        tx,
+      );
+    }
+
+    let currentClosingDate = latest!.closingDate;
+    let currentDueDate = latest!.dueDate;
     let created: ICardInvoice | null = null;
 
     while (!created || created.closingDate < targetDate) {
@@ -374,7 +424,7 @@ export class InvoiceRepository {
       const nextDueDate = this.addMonthsClamped(currentDueDate, 1);
 
       created = await this.create(
-        { bank: bank as BanksEnum, closingDate: nextClosingDate, dueDate: nextDueDate, balance: 0, userId: userId! },
+        { bank, closingDate: nextClosingDate, dueDate: nextDueDate, balance: 0, userId: userId! },
         tx,
       );
 
@@ -383,5 +433,26 @@ export class InvoiceRepository {
     }
 
     return created;
+  }
+
+  private nextOccurrenceOfDay(fromDate: Date, dayOfMonth: number): Date {
+    const year = fromDate.getUTCFullYear();
+    const month = fromDate.getUTCMonth();
+    const candidate = this.clampedDate(year, month, dayOfMonth);
+    if (candidate >= fromDate) return candidate;
+    return this.clampedDate(year, month + 1, dayOfMonth);
+  }
+
+  private dueDateAfterClosing(closingDate: Date, dueDay: number): Date {
+    const year = closingDate.getUTCFullYear();
+    const month = closingDate.getUTCMonth();
+    const sameMonth = this.clampedDate(year, month, dueDay);
+    if (sameMonth > closingDate) return sameMonth;
+    return this.clampedDate(year, month + 1, dueDay);
+  }
+
+  private clampedDate(year: number, month: number, day: number): Date {
+    const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(year, month, Math.min(day, lastDay)));
   }
 }

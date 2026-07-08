@@ -5,6 +5,8 @@ import { UsersModule } from "./modules/users.module";
 import { InvoicesModule } from "./modules/invoices.module";
 import { ExpensesModule } from "./modules/expenses.module";
 import { FixedExpensesModule } from "./modules/fixed-expenses.module";
+import { ExtraIncomesModule } from "./modules/extra-incomes.module";
+import { PaymentMethodsModule } from "./modules/payment-methods.module";
 import { CacheModule } from "./modules/cache.module";
 import { AiModule } from "./modules/ai.module";
 import { IrDocumentModule } from "./modules/ir-documents.module";
@@ -21,6 +23,8 @@ import { IrStocksModule } from "./modules/ir-stocks.module";
     InvoicesModule,
     ExpensesModule,
     FixedExpensesModule,
+    ExtraIncomesModule,
+    PaymentMethodsModule,
     AiModule,
     IrDocumentModule,
     IrStocksModule,

@@ -3,7 +3,6 @@ import { BudgetRepository } from "../../repositories/budget.repository";
 import { S3Service } from "../../services/s3.service";
 import { AppError } from "../../utils/app-error";
 import type { IExpense } from "../../interfaces/expense";
-import { BanksEnum } from "../../enums/banks.enum";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 
 export type GetBudgetExpensesInput = {
@@ -56,7 +55,7 @@ export class GetBudgetExpensesUseCase {
           id: row.id,
           _id: row.id,
           userId: row.userId ?? undefined,
-          bank: row.bank as BanksEnum,
+          bank: row.bank,
           type: row.type as ExpenseTypeEnum,
           category: row.category,
           date: new Date(row.date),

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { prisma } from "../config/prisma";
-import type { Budget, Expense } from "../generated/prisma/client/client";
+import { InvoiceStatus, type Budget, type Expense } from "../generated/prisma/client/client";
 
 type BudgetWithInvoices = Budget & {
   cardInvoices: { cardInvoiceId: string; bank: string }[];
@@ -44,7 +44,7 @@ export class BudgetRepository {
   }
 
   async findSummaryRows(userId: string, month: number, year: number): Promise<BudgetSummaryRow[]> {
-    return prisma.budget.findMany({
+    const rows = await prisma.budget.findMany({
       where: { userId, month, year },
       select: {
         id: true,
@@ -54,12 +54,20 @@ export class BudgetRepository {
           select: {
             cardInvoiceId: true,
             bank: true,
-            cardInvoice: { select: { isClosed: true } },
+            cardInvoice: { select: { status: true } },
           },
         },
       },
       orderBy: { category: "asc" },
     });
+    return rows.map((row) => ({
+      ...row,
+      cardInvoices: row.cardInvoices.map((ci) => ({
+        cardInvoiceId: ci.cardInvoiceId,
+        bank: ci.bank,
+        cardInvoice: { isClosed: ci.cardInvoice.status === InvoiceStatus.CLOSED },
+      })),
+    }));
   }
 
   async findInvoices(invoiceIds: string[], userId: string) {

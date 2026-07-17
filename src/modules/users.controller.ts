@@ -15,8 +15,10 @@ import { FastifyRequest } from "fastify";
 import { CreateUserDto, UpdateUserDto } from "../dto/user.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { RegistrationRateLimitGuard } from "../guards/registration-rate-limit.guard";
+import { RateLimitGuard } from "../guards/rate-limit.guard";
 import { AppError } from "../utils/app-error";
+
+const registrationRateLimit = new RateLimitGuard(5, 60 * 60 * 1000, "Muitas tentativas de registro. Tente novamente em 1 hora.");
 import { GetUserByIdUseCase } from "../use-cases/users/get-user-by-id.use-case";
 import { GetUserByEmailUseCase } from "../use-cases/users/get-user-by-email.use-case";
 import { CreateUserUseCase } from "../use-cases/users/create-user.use-case";
@@ -63,7 +65,7 @@ export class UsersController {
   }
 
   @Post()
-  @UseGuards(RegistrationRateLimitGuard)
+  @UseGuards(registrationRateLimit)
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() body: CreateUserDto) {
     if (process.env.REGISTRATION_OPEN !== "true") {

@@ -3,7 +3,6 @@ import { AuthController } from "./auth.controller";
 import { SessionRepository } from "../repositories/session.repository";
 import { ResendService } from "../services/resend.service";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { LoginRateLimitGuard } from "../guards/login-rate-limit.guard";
 import { RequestOtpUseCase } from "../use-cases/auth/request-otp.use-case";
 import { VerifyOtpUseCase } from "../use-cases/auth/verify-otp.use-case";
 import { AuthenticateTokenUseCase } from "../use-cases/auth/authenticate-token.use-case";
@@ -27,7 +26,6 @@ import { PurgeStaleSessionsUseCase } from "../use-cases/auth/purge-stale-session
     RevokeOtherSessionsUseCase,
     PurgeStaleSessionsUseCase,
     SessionAuthGuard,
-    LoginRateLimitGuard,
   ],
   exports: [AuthenticateTokenUseCase, SessionAuthGuard],
 })

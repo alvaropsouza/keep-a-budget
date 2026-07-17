@@ -17,7 +17,9 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { RequestOtpDto, VerifyOtpDto, AuthenticateDto } from "../dto/auth.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { LoginRateLimitGuard } from "../guards/login-rate-limit.guard";
+import { RateLimitGuard } from "../guards/rate-limit.guard";
+
+const loginRateLimit = new RateLimitGuard(10, 15 * 60 * 1000, "Too many login attempts. Try again in 15 minutes.");
 import { resolveSessionToken } from "../utils/session-token";
 import type { AuthSession } from "../interfaces/auth";
 import { RequestOtpUseCase } from "../use-cases/auth/request-otp.use-case";
@@ -75,7 +77,7 @@ export class AuthController {
     private readonly revokeOtherSessionsUseCase: RevokeOtherSessionsUseCase,
   ) {}
 
-  @UseGuards(LoginRateLimitGuard)
+  @UseGuards(loginRateLimit)
   @Post("otp/request")
   @HttpCode(HttpStatus.OK)
   async requestOtp(@Body() body: RequestOtpDto) {
@@ -83,7 +85,7 @@ export class AuthController {
     return { message: "Código de acesso enviado para seu email." };
   }
 
-  @UseGuards(LoginRateLimitGuard)
+  @UseGuards(loginRateLimit)
   @Post("otp/verify")
   @HttpCode(HttpStatus.OK)
   async verifyOtp(

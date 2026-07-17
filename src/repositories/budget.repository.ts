@@ -1,23 +1,46 @@
 import { Injectable } from "@nestjs/common";
 import { prisma } from "../config/prisma";
-import { InvoiceStatus, type Budget, type Expense } from "../generated/prisma/client/client";
+import { InvoiceStatus, type Budget, type Expense, type Prisma } from "../generated/prisma/client/client";
+import type { BudgetSummaryRow } from "../utils/budget-summary";
 
 type BudgetWithInvoices = Budget & {
   cardInvoices: { cardInvoiceId: string; bank: string }[];
 };
 
-type BudgetSummaryRow = {
+const summarySelect = {
+  id: true,
+  category: true,
+  amount: true,
+  month: true,
+  year: true,
+  cardInvoices: {
+    select: {
+      cardInvoiceId: true,
+      bank: true,
+      cardInvoice: { select: { status: true } },
+    },
+  },
+} satisfies Prisma.BudgetSelect;
+
+type RawSummaryRow = {
   id: string;
   category: string;
   amount: unknown;
   month: number;
   year: number;
-  cardInvoices: {
-    cardInvoiceId: string;
-    bank: string;
-    cardInvoice: { isClosed: boolean };
-  }[];
+  cardInvoices: { cardInvoiceId: string; bank: string; cardInvoice: { status: InvoiceStatus } }[];
 };
+
+function toSummaryRow(row: RawSummaryRow): BudgetSummaryRow {
+  return {
+    ...row,
+    cardInvoices: row.cardInvoices.map((ci) => ({
+      cardInvoiceId: ci.cardInvoiceId,
+      bank: ci.bank,
+      cardInvoice: { isClosed: ci.cardInvoice.status === InvoiceStatus.CLOSED },
+    })),
+  };
+}
 
 @Injectable()
 export class BudgetRepository {
@@ -48,30 +71,29 @@ export class BudgetRepository {
   async findSummaryRows(userId: string, month: number, year: number): Promise<BudgetSummaryRow[]> {
     const rows = await prisma.budget.findMany({
       where: { userId, month, year },
-      select: {
-        id: true,
-        category: true,
-        amount: true,
-        month: true,
-        year: true,
-        cardInvoices: {
-          select: {
-            cardInvoiceId: true,
-            bank: true,
-            cardInvoice: { select: { status: true } },
-          },
-        },
-      },
+      select: summarySelect,
       orderBy: { category: "asc" },
     });
-    return rows.map((row) => ({
-      ...row,
-      cardInvoices: row.cardInvoices.map((ci) => ({
-        cardInvoiceId: ci.cardInvoiceId,
-        bank: ci.bank,
-        cardInvoice: { isClosed: ci.cardInvoice.status === InvoiceStatus.CLOSED },
-      })),
-    }));
+    return rows.map(toSummaryRow);
+  }
+
+  async findActiveSummaryRows(
+    userId: string,
+    month: number,
+    year: number,
+  ): Promise<BudgetSummaryRow[]> {
+    const rows = await prisma.budget.findMany({
+      where: {
+        userId,
+        OR: [
+          { cardInvoices: { some: { cardInvoice: { status: InvoiceStatus.OPEN } } } },
+          { month, year },
+        ],
+      },
+      select: summarySelect,
+      orderBy: [{ year: "asc" }, { month: "asc" }, { category: "asc" }],
+    });
+    return rows.map(toSummaryRow);
   }
 
   async findInvoices(invoiceIds: string[], userId: string) {

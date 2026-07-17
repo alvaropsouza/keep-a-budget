@@ -18,6 +18,7 @@ import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { AppError } from "../utils/app-error";
 import { ListBudgetsUseCase } from "../use-cases/budgets/list-budgets.use-case";
 import { GetBudgetSummaryUseCase } from "../use-cases/budgets/get-budget-summary.use-case";
+import { GetActiveBudgetSummaryUseCase } from "../use-cases/budgets/get-active-budget-summary.use-case";
 import { GetBudgetExpensesUseCase } from "../use-cases/budgets/get-budget-expenses.use-case";
 import { UpsertBudgetUseCase } from "../use-cases/budgets/upsert-budget.use-case";
 import { DeleteBudgetUseCase } from "../use-cases/budgets/delete-budget.use-case";
@@ -29,6 +30,7 @@ export class BudgetController {
   constructor(
     private readonly listBudgetsUseCase: ListBudgetsUseCase,
     private readonly getBudgetSummaryUseCase: GetBudgetSummaryUseCase,
+    private readonly getActiveBudgetSummaryUseCase: GetActiveBudgetSummaryUseCase,
     private readonly getBudgetExpensesUseCase: GetBudgetExpensesUseCase,
     private readonly upsertBudgetUseCase: UpsertBudgetUseCase,
     private readonly deleteBudgetUseCase: DeleteBudgetUseCase,
@@ -50,6 +52,11 @@ export class BudgetController {
       month: Number(query.month),
       year: Number(query.year),
     });
+  }
+
+  @Get("summary/active")
+  async activeSummary(@Req() req: FastifyRequest) {
+    return this.getActiveBudgetSummaryUseCase.execute({ userId: this.authUserId(req) });
   }
 
   @Get("expenses")

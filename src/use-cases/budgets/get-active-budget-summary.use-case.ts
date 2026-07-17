@@ -1,21 +1,24 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { BudgetRepository } from "../../repositories/budget.repository";
 import { computeBudgetSummary, type BudgetSummaryItem } from "../../utils/budget-summary";
+import { getBrazilTodayUtcMidnight } from "../../utils/timezone";
 
-export type GetBudgetSummaryInput = { userId: string; month: number; year: number };
-
-export type { BudgetSummaryItem };
+export type GetActiveBudgetSummaryInput = { userId: string };
 
 @Injectable()
-export class GetBudgetSummaryUseCase {
-  private readonly logger = new Logger(GetBudgetSummaryUseCase.name);
+export class GetActiveBudgetSummaryUseCase {
+  private readonly logger = new Logger(GetActiveBudgetSummaryUseCase.name);
 
   constructor(private readonly budgetRepository: BudgetRepository) {}
 
-  async execute(input: GetBudgetSummaryInput): Promise<BudgetSummaryItem[]> {
-    this.logger.log({ input }, "GetBudgetSummaryUseCase.execute");
+  async execute(input: GetActiveBudgetSummaryInput): Promise<BudgetSummaryItem[]> {
+    this.logger.log({ input }, "GetActiveBudgetSummaryUseCase.execute");
 
-    const budgets = await this.budgetRepository.findSummaryRows(input.userId, input.month, input.year);
+    const today = getBrazilTodayUtcMidnight();
+    const month = today.getUTCMonth() + 1;
+    const year = today.getUTCFullYear();
+
+    const budgets = await this.budgetRepository.findActiveSummaryRows(input.userId, month, year);
     if (budgets.length === 0) return [];
 
     const allInvoiceIds = [...new Set(budgets.flatMap((b) => b.cardInvoices.map((ci) => ci.cardInvoiceId)))];
@@ -28,7 +31,7 @@ export class GetBudgetSummaryUseCase {
     );
 
     const result = computeBudgetSummary(budgets, expenses);
-    this.logger.log({ count: result.length }, "GetBudgetSummaryUseCase.execute done");
+    this.logger.log({ count: result.length }, "GetActiveBudgetSummaryUseCase.execute done");
     return result;
   }
 }

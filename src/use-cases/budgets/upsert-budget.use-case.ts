@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { Budget } from "../../generated/prisma/client/client";
 import { BudgetRepository } from "../../repositories/budget.repository";
 import { AppError } from "../../utils/app-error";
+import { invoicePeriod, periodKey, samePeriod } from "../../utils/invoice-period";
 
 export type UpsertBudgetInput = {
   userId: string;
@@ -35,12 +36,21 @@ export class UpsertBudgetUseCase {
       throw new AppError("Não pode ter duas faturas do mesmo banco", 400);
     }
 
-    const invoiceMonths = invoices.map((inv) => ({
-      month: new Date(inv.closingDate).getMonth() + 1,
-      year: new Date(inv.closingDate).getFullYear(),
-    }));
-    if (new Set(invoiceMonths.map((m) => `${m.month}-${m.year}`)).size > 1) {
+    const budgetPeriod = { month: input.month, year: input.year };
+    const invoicePeriods = invoices.map((inv) => invoicePeriod(inv.closingDate));
+
+    if (new Set(invoicePeriods.map(periodKey)).size > 1) {
       throw new AppError("Todas as faturas devem ser do mesmo mês", 400);
+    }
+
+    const mismatched = invoices.filter(
+      (_, i) => !samePeriod(invoicePeriods[i], budgetPeriod),
+    );
+    if (mismatched.length > 0) {
+      throw new AppError(
+        "As faturas selecionadas não pertencem ao período do orçamento (mês/ano). O orçamento deve rastrear faturas que fecham no mesmo mês.",
+        400,
+      );
     }
 
     const result = await this.budgetRepository.upsert(

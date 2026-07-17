@@ -10,7 +10,10 @@ export type BudgetSummaryItem = {
   spent: number;
   percentage: number;
   banks: string[];
+  month: number;
+  year: number;
   closed: boolean;
+  partiallyClosed: boolean;
 };
 
 @Injectable()
@@ -40,7 +43,10 @@ export class GetBudgetSummaryUseCase {
         .filter((e) => e.cardInvoiceId != null && invoiceSet.has(e.cardInvoiceId) && e.category === b.category)
         .reduce((acc, e) => acc + Number(e.amount), 0);
       const budgetAmount = Number(b.amount);
-      const closed = b.cardInvoices.length > 0 && b.cardInvoices.every((ci) => ci.cardInvoice.isClosed);
+      const hasInvoices = b.cardInvoices.length > 0;
+      const closed = hasInvoices && b.cardInvoices.every((ci) => ci.cardInvoice.isClosed);
+      const partiallyClosed =
+        hasInvoices && !closed && b.cardInvoices.some((ci) => ci.cardInvoice.isClosed);
       return {
         id: b.id,
         category: b.category,
@@ -48,7 +54,10 @@ export class GetBudgetSummaryUseCase {
         spent,
         percentage: budgetAmount > 0 ? Math.round((spent / budgetAmount) * 100) : 0,
         banks: b.cardInvoices.map((ci) => ci.bank),
+        month: b.month,
+        year: b.year,
         closed,
+        partiallyClosed,
       };
     });
 

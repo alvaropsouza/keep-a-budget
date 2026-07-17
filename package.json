@@ -15,7 +15,7 @@
     "data:encrypt-users": "tsx scripts/encryptExistingUserData.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --import tsx --test test/budget/invoice-period.spec.ts test/budget/upsert-budget.use-case.spec.ts test/budget/get-budget-summary.use-case.spec.ts"
   },
   "keywords": [],
   "overrides": {

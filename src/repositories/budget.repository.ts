@@ -10,6 +10,8 @@ type BudgetSummaryRow = {
   id: string;
   category: string;
   amount: unknown;
+  month: number;
+  year: number;
   cardInvoices: {
     cardInvoiceId: string;
     bank: string;
@@ -50,6 +52,8 @@ export class BudgetRepository {
         id: true,
         category: true,
         amount: true,
+        month: true,
+        year: true,
         cardInvoices: {
           select: {
             cardInvoiceId: true,

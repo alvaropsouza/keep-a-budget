@@ -2,7 +2,21 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { Budget } from "../../generated/prisma/client/client";
 import { BudgetRepository } from "../../repositories/budget.repository";
 import { AppError } from "../../utils/app-error";
-import { invoicePeriod, periodKey, samePeriod } from "../../utils/invoice-period";
+
+type Period = { month: number; year: number };
+
+function invoicePeriod(closingDate: Date): Period {
+  const date = closingDate instanceof Date ? closingDate : new Date(closingDate);
+  return { month: date.getUTCMonth() + 1, year: date.getUTCFullYear() };
+}
+
+function periodKey(period: Period): string {
+  return `${period.year}-${String(period.month).padStart(2, "0")}`;
+}
+
+function samePeriod(a: Period, b: Period): boolean {
+  return a.month === b.month && a.year === b.year;
+}
 
 export type UpsertBudgetInput = {
   userId: string;

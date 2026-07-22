@@ -23,14 +23,10 @@ export class AdvanceInvoicePaymentUseCase {
     await runWithTransaction(async (tx) => {
       const invoice = await this.invoiceRepository.findByIdOrThrow(input.id, input.userId, tx);
 
-      const currentBalance = invoice.balance ?? 0;
-      const advancedAmount = invoice.advance ?? 0;
-      const availableBalance = currentBalance - advancedAmount;
+      const availableBalance = invoice.balance ?? 0;
 
       if (input.amount > availableBalance) {
         throw new AppError("Advance amount cannot exceed available balance", 400, {
-          currentBalance,
-          advancedAmount,
           availableBalance,
           requestedAmount: input.amount,
         });

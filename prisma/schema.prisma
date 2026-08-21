@@ -305,10 +305,26 @@ model Vehicle {
     nextOilChangeKm Int?      @map("next_oil_change_km")
     notes           String?
     photoUrl        String?   @map("photo_url")
-    createdAt       DateTime  @default(now()) @map("created_at")
-    updatedAt       DateTime  @updatedAt @map("updated_at")
+    createdAt       DateTime          @default(now()) @map("created_at")
+    updatedAt       DateTime          @updatedAt @map("updated_at")
+    revisions       VehicleRevision[]
 
     @@unique([userId, plate], map: "vehicles_user_id_plate_unique")
     @@index([userId], map: "vehicles_user_id_idx")
     @@map("vehicles")
+}
+
+model VehicleRevision {
+    id          String   @id @default(uuid()) @db.Uuid
+    vehicleId   String   @map("vehicle_id") @db.Uuid
+    vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+    date        DateTime @db.Date
+    km          Int?
+    description String?
+    files       String[]
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @updatedAt @map("updated_at")
+
+    @@index([vehicleId], map: "vehicle_revisions_vehicle_id_idx")
+    @@map("vehicle_revisions")
 }

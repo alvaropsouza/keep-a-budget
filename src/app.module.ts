@@ -13,6 +13,7 @@ import { IrDocumentModule } from "./modules/ir-documents.module";
 import { BudgetModule } from "./modules/budgets.module";
 import { CategoryModule } from "./modules/categories.module";
 import { VehiclesModule } from "./modules/vehicles.module";
+import { VehicleRevisionsModule } from "./modules/vehicle-revisions.module";
 import { IrStocksModule } from "./modules/ir-stocks.module";
 
 @Module({
@@ -31,6 +32,7 @@ import { IrStocksModule } from "./modules/ir-stocks.module";
     BudgetModule,
     CategoryModule,
     VehiclesModule,
+    VehicleRevisionsModule,
   ],
   controllers: [HealthController],
 })

@@ -7,6 +7,7 @@ import { CreateVehicleRevisionUseCase } from "../use-cases/vehicles/create-vehic
 import { ListVehicleRevisionsUseCase } from "../use-cases/vehicles/list-vehicle-revisions.use-case";
 import { DeleteVehicleRevisionUseCase } from "../use-cases/vehicles/delete-vehicle-revision.use-case";
 import { DeleteRevisionFileUseCase } from "../use-cases/vehicles/delete-revision-file.use-case";
+import { GetRevisionFileUseCase } from "../use-cases/vehicles/get-revision-file.use-case";
 import { AuthModule } from "./auth.module";
 
 @Module({
@@ -20,6 +21,7 @@ import { AuthModule } from "./auth.module";
     ListVehicleRevisionsUseCase,
     DeleteVehicleRevisionUseCase,
     DeleteRevisionFileUseCase,
+    GetRevisionFileUseCase,
   ],
 })
 export class VehicleRevisionsModule {}

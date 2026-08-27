@@ -8,9 +8,9 @@ import { name, version, description } from "../package.json";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import { AppModule } from "./app.module";
-import connectDB from "./config/database";
 import validateEnv from "./config/validateEnv";
-import { fastifyLoggerConfig } from "./config/logger";
+import logger, { fastifyLoggerConfig } from "./config/logger";
+import { prisma, setupCacheMiddleware } from "./config/prisma";
 import { setupS3Bucket } from "./utils/s3-setup";
 import { invoiceClosureJob } from "./jobs/invoice-closure.job";
 import { sessionCleanupJob } from "./jobs/session-cleanup.job";
@@ -18,7 +18,6 @@ import corsPlugin from "./plugins/cors";
 import helmetPlugin from "./plugins/helmet";
 import { AppErrorFilter } from "./filters/app-error.filter";
 import { CacheService } from "./services/cache.service";
-import { setupCacheMiddleware } from "./config/prisma";
 
 async function bootstrap(): Promise<void> {
   validateEnv();
@@ -56,8 +55,14 @@ async function bootstrap(): Promise<void> {
     SwaggerModule.setup("api/docs", app, document);
   }
 
-  await connectDB();
-  
+  try {
+    await prisma.$connect();
+    logger.info("Prisma connected successfully");
+  } catch (error) {
+    logger.error({ error }, "Database connection error");
+    process.exit(1);
+  }
+
   const cacheService = app.get(CacheService);
   setupCacheMiddleware(cacheService);
   

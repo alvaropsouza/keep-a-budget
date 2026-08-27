@@ -4,13 +4,15 @@ import {
   Post,
   Delete,
   Param,
+  Query,
+  Res,
   HttpCode,
   HttpStatus,
   UseGuards,
   Req,
   BadRequestException,
 } from "@nestjs/common";
-import { FastifyRequest } from "fastify";
+import { FastifyRequest, FastifyReply } from "fastify";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { AppError } from "../utils/app-error";
@@ -19,6 +21,7 @@ import { CreateVehicleRevisionUseCase } from "../use-cases/vehicles/create-vehic
 import { ListVehicleRevisionsUseCase } from "../use-cases/vehicles/list-vehicle-revisions.use-case";
 import { DeleteVehicleRevisionUseCase } from "../use-cases/vehicles/delete-vehicle-revision.use-case";
 import { DeleteRevisionFileUseCase } from "../use-cases/vehicles/delete-revision-file.use-case";
+import { GetRevisionFileUseCase } from "../use-cases/vehicles/get-revision-file.use-case";
 import { CreateVehicleRevisionDto } from "../dto/vehicle-revision.dto";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
@@ -32,6 +35,7 @@ export class VehicleRevisionsController {
     private readonly listVehicleRevisionsUseCase: ListVehicleRevisionsUseCase,
     private readonly deleteVehicleRevisionUseCase: DeleteVehicleRevisionUseCase,
     private readonly deleteRevisionFileUseCase: DeleteRevisionFileUseCase,
+    private readonly getRevisionFileUseCase: GetRevisionFileUseCase,
   ) {}
 
   @Get()
@@ -61,6 +65,29 @@ export class VehicleRevisionsController {
       data: dto,
       files,
     });
+  }
+
+  @Get(":id/file")
+  async getFile(
+    @Param("vehicleId") vehicleId: string,
+    @Param("id") id: string,
+    @Query("src") src: string,
+    @Req() req: FastifyRequest,
+    @Res() reply: FastifyReply,
+  ) {
+    if (!src) throw new AppError("Missing file reference", 400);
+
+    const { buffer, contentType } = await this.getRevisionFileUseCase.execute({
+      vehicleId,
+      revisionId: id,
+      userId: this.authUserId(req),
+      fileRef: src,
+    });
+
+    void reply
+      .header("Content-Type", contentType)
+      .header("Cache-Control", "private, max-age=300")
+      .send(buffer);
   }
 
   @Delete(":id")

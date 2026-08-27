@@ -1,7 +1,5 @@
 import { validate } from "class-validator";
 import { plainToInstance, type ClassConstructor } from "class-transformer";
-import { FastifyReply } from "fastify";
-import logger from "../config/logger";
 
 export async function validateDto(
   dtoClass: ClassConstructor<object>,
@@ -24,31 +22,4 @@ export async function validateDto(
   }
 
   return { valid: true };
-}
-
-export function createValidationErrorResponse(
-  errors: Record<string, string[]>
-): Record<string, unknown> {
-  return {
-    statusCode: 400,
-    error: "Validation Error",
-    message: "Invalid request body",
-    details: errors,
-  };
-}
-
-export async function validateAndRespond(
-  dtoClass: ClassConstructor<object>,
-  data: unknown,
-  reply: FastifyReply
-): Promise<boolean> {
-  const { valid, errors } = await validateDto(dtoClass, data);
-
-  if (!valid) {
-    logger.warn({ errors }, "Validation failed");
-    reply.status(400).send(createValidationErrorResponse(errors || {}));
-    return false;
-  }
-
-  return true;
 }

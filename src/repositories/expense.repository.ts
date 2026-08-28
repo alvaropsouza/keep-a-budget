@@ -93,7 +93,7 @@ export class ExpenseRepository {
           ? { updatedAt: { gte: filter.updatedAtGte, lte: filter.updatedAtLte } }
           : {}),
       },
-      orderBy: { date: "desc" },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     });
     return rows.map(mapExpense);
   }

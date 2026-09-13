@@ -137,7 +137,7 @@ src/
     logger.ts          # logger Pino
     prisma.ts          # cliente Prisma singleton com cache middleware
     s3.ts              # S3Client singleton
-    validateEnv.ts     # validação de env vars no boot
+    validate-env.ts    # validação de env vars no boot
 
   dto/                 # DTOs: validação (class-validator) + docs (ApiProperty)
     auth.dto.ts

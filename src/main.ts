@@ -8,7 +8,7 @@ import { name, version, description } from "../package.json";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import { AppModule } from "./app.module";
-import validateEnv from "./config/validateEnv";
+import validateEnv from "./config/validate-env";
 import logger, { fastifyLoggerConfig } from "./config/logger";
 import { prisma, setupCacheMiddleware } from "./config/prisma";
 import { setupS3Bucket } from "./utils/s3-setup";

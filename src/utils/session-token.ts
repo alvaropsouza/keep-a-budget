@@ -1,6 +1,6 @@
 import { FastifyRequest } from "fastify";
 
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? "kab_session";
+export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? "kab_session";
 
 const readCookieValue = (
   cookieHeader: string | undefined,

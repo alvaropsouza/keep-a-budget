@@ -20,7 +20,7 @@ import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { RateLimitGuard } from "../guards/rate-limit.guard";
 
 const loginRateLimit = new RateLimitGuard(10, 15 * 60 * 1000, "Too many login attempts. Try again in 15 minutes.");
-import { resolveSessionToken } from "../utils/session-token";
+import { resolveSessionToken, SESSION_COOKIE_NAME } from "../utils/session-token";
 import type { AuthSession } from "../interfaces/auth";
 import { RequestOtpUseCase } from "../use-cases/auth/request-otp.use-case";
 import { VerifyOtpUseCase } from "../use-cases/auth/verify-otp.use-case";
@@ -30,7 +30,6 @@ import { ListSessionsUseCase } from "../use-cases/auth/list-sessions.use-case";
 import { RevokeSessionUseCase } from "../use-cases/auth/revoke-session.use-case";
 import { RevokeOtherSessionsUseCase } from "../use-cases/auth/revoke-other-sessions.use-case";
 
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? "kab_session";
 const IS_PROD = process.env.NODE_ENV === "production";
 
 const buildCookie = (token: string, expiresAt: Date): string => {

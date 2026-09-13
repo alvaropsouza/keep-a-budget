@@ -8,6 +8,11 @@ import type { IIrDocument } from "../../interfaces/ir-document";
 
 export type ExportIrZipInput = { year: number; userId: string };
 
+const CSV_FORMULA_TRIGGERS = ["=", "+", "-", "@", "\t", "\r"];
+
+const sanitizeCsvField = (value: string): string =>
+  CSV_FORMULA_TRIGGERS.some((trigger) => value.startsWith(trigger)) ? `'${value}` : value;
+
 @Injectable()
 export class ExportIrZipUseCase {
   private readonly logger = new Logger(ExportIrZipUseCase.name);
@@ -79,18 +84,20 @@ export class ExportIrZipUseCase {
 
     const expenseRows = expenses.map((e) => {
       const date = e.date.toISOString().split("T")[0];
-      const description = (e.description ?? "").replace(/,/g, ";");
+      const description = sanitizeCsvField((e.description ?? "").replace(/,/g, ";"));
+      const category = sanitizeCsvField(e.category);
       const amount = e.amount.toFixed(2).replace(".", ",");
       const receiptFile = expenseReceiptById.get(e.id)?.filename ?? "Sem recibo";
-      return `Despesa cartão,${date},${description},${e.category},${amount},${receiptFile}`;
+      return `Despesa cartão,${date},${description},${category},${amount},${receiptFile}`;
     });
 
     const documentRows = irDocuments.map((doc) => {
       const date = doc.date.toISOString().split("T")[0];
-      const description = (doc.description ?? "").replace(/,/g, ";");
+      const description = sanitizeCsvField((doc.description ?? "").replace(/,/g, ";"));
+      const category = sanitizeCsvField(doc.category);
       const amount = doc.amount.toFixed(2).replace(".", ",");
       const receiptFile = `pix/${date}-${doc.category}-${doc.id.slice(0, 8)}`;
-      return `PIX/Débito,${date},${description},${doc.category},${amount},${receiptFile}`;
+      return `PIX/Débito,${date},${description},${category},${amount},${receiptFile}`;
     });
 
     return BOM + [header, ...expenseRows, ...documentRows].join("\n");

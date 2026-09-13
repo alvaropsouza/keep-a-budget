@@ -9,9 +9,9 @@ import { ExtraIncomesModule } from "./modules/extra-incomes.module";
 import { PaymentMethodsModule } from "./modules/payment-methods.module";
 import { CacheModule } from "./modules/cache.module";
 import { AiModule } from "./modules/ai.module";
-import { IrDocumentModule } from "./modules/ir-documents.module";
-import { BudgetModule } from "./modules/budgets.module";
-import { CategoryModule } from "./modules/categories.module";
+import { IrDocumentsModule } from "./modules/ir-documents.module";
+import { BudgetsModule } from "./modules/budgets.module";
+import { CategoriesModule } from "./modules/categories.module";
 import { VehiclesModule } from "./modules/vehicles.module";
 import { VehicleRevisionsModule } from "./modules/vehicle-revisions.module";
 import { IrStocksModule } from "./modules/ir-stocks.module";
@@ -27,10 +27,10 @@ import { IrStocksModule } from "./modules/ir-stocks.module";
     ExtraIncomesModule,
     PaymentMethodsModule,
     AiModule,
-    IrDocumentModule,
+    IrDocumentsModule,
     IrStocksModule,
-    BudgetModule,
-    CategoryModule,
+    BudgetsModule,
+    CategoriesModule,
     VehiclesModule,
     VehicleRevisionsModule,
   ],

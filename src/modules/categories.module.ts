@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { CategoryController } from "./categories.controller";
+import { CategoriesController } from "./categories.controller";
 import { CategoryRepository } from "../repositories/category.repository";
 import { ListCategoriesUseCase } from "../use-cases/categories/list-categories.use-case";
 import { CreateCategoryUseCase } from "../use-cases/categories/create-category.use-case";
@@ -10,7 +10,7 @@ import { AuthModule } from "./auth.module";
 
 @Module({
   imports: [AuthModule],
-  controllers: [CategoryController],
+  controllers: [CategoriesController],
   providers: [
     CategoryRepository,
     ListCategoriesUseCase,
@@ -21,4 +21,4 @@ import { AuthModule } from "./auth.module";
   ],
   exports: [CategoryRepository],
 })
-export class CategoryModule {}
+export class CategoriesModule {}

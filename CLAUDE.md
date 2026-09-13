@@ -166,6 +166,7 @@ src/
 
   interfaces/          # tipos TypeScript puros (sem decorators)
     card-invoice.ts
+    car-photo.ts
     expense.ts
     fixed-expense.ts
     user.ts
@@ -205,6 +206,8 @@ src/
 
   services/            # integrações externas APENAS
     ai.service.ts      # Anthropic Claude API
+    brapi.service.ts   # Brapi (cotações B3)
+    cache.service.ts   # cache em memória
     resend.service.ts  # Resend
     remove-bg.service.ts # RemoveBG API
     s3.service.ts      # AWS S3

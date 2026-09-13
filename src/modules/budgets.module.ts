@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { BudgetController } from "./budgets.controller";
+import { BudgetsController } from "./budgets.controller";
 import { BudgetRepository } from "../repositories/budget.repository";
 import { S3Service } from "../services/s3.service";
 import { ListBudgetsUseCase } from "../use-cases/budgets/list-budgets.use-case";
@@ -12,7 +12,7 @@ import { AuthModule } from "./auth.module";
 
 @Module({
   imports: [AuthModule],
-  controllers: [BudgetController],
+  controllers: [BudgetsController],
   providers: [
     BudgetRepository,
     S3Service,
@@ -25,4 +25,4 @@ import { AuthModule } from "./auth.module";
   ],
   exports: [BudgetRepository],
 })
-export class BudgetModule {}
+export class BudgetsModule {}

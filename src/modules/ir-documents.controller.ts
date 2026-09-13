@@ -25,7 +25,7 @@ import { DeleteIrDocumentUseCase } from "../use-cases/ir-documents/delete-ir-doc
 @ApiTags("ir-documents")
 @UseGuards(SessionAuthGuard)
 @Controller("ir-documents")
-export class IrDocumentController {
+export class IrDocumentsController {
   constructor(
     private readonly listIrDocumentsUseCase: ListIrDocumentsUseCase,
     private readonly createIrDocumentUseCase: CreateIrDocumentUseCase,

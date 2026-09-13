@@ -26,7 +26,7 @@ import { DeleteBudgetUseCase } from "../use-cases/budgets/delete-budget.use-case
 @ApiTags("budgets")
 @UseGuards(SessionAuthGuard)
 @Controller("budgets")
-export class BudgetController {
+export class BudgetsController {
   constructor(
     private readonly listBudgetsUseCase: ListBudgetsUseCase,
     private readonly getBudgetSummaryUseCase: GetBudgetSummaryUseCase,

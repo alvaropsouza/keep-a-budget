@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { CarPhotoResponse } from "../../dto/car-image.dto";
+import type { CarPhotoResponse } from "../../interfaces/car-photo";
 import { RemoveBgService } from "../../services/remove-bg.service";
 
 export type UploadCarPhotoInput = {

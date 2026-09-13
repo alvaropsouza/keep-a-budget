@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { ExpensesController } from "./expenses.controller";
 import { AuthModule } from "./auth.module";
 import { InvoicesModule } from "./invoices.module";
-import { IrDocumentModule } from "./ir-documents.module";
+import { IrDocumentsModule } from "./ir-documents.module";
 import { ExpenseRepository } from "../repositories/expense.repository";
 import { InvoiceRepository } from "../repositories/invoice.repository";
 import { PaymentMethodRepository } from "../repositories/payment-method.repository";
@@ -19,7 +19,7 @@ import { GetIrSummaryUseCase } from "../use-cases/expenses/get-ir-summary.use-ca
 import { ExportIrZipUseCase } from "../use-cases/expenses/export-ir-zip.use-case";
 
 @Module({
-  imports: [AuthModule, InvoicesModule, IrDocumentModule],
+  imports: [AuthModule, InvoicesModule, IrDocumentsModule],
   controllers: [ExpensesController],
   providers: [
     ExpenseRepository,

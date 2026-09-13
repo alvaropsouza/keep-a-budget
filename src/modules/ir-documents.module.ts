@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "./auth.module";
-import { IrDocumentController } from "./ir-documents.controller";
+import { IrDocumentsController } from "./ir-documents.controller";
 import { IrDocumentRepository } from "../repositories/ir-document.repository";
 import { S3Service } from "../services/s3.service";
 import { ListIrDocumentsUseCase } from "../use-cases/ir-documents/list-ir-documents.use-case";
@@ -10,7 +10,7 @@ import { GetIrDocumentsByYearUseCase } from "../use-cases/ir-documents/get-ir-do
 
 @Module({
   imports: [AuthModule],
-  controllers: [IrDocumentController],
+  controllers: [IrDocumentsController],
   providers: [
     IrDocumentRepository,
     S3Service,
@@ -21,4 +21,4 @@ import { GetIrDocumentsByYearUseCase } from "../use-cases/ir-documents/get-ir-do
   ],
   exports: [GetIrDocumentsByYearUseCase],
 })
-export class IrDocumentModule {}
+export class IrDocumentsModule {}

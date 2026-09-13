@@ -25,7 +25,7 @@ import { RestoreDefaultCategoriesUseCase } from "../use-cases/categories/restore
 @ApiTags("categories")
 @UseGuards(SessionAuthGuard)
 @Controller("categories")
-export class CategoryController {
+export class CategoriesController {
   constructor(
     private readonly listCategoriesUseCase: ListCategoriesUseCase,
     private readonly createCategoryUseCase: CreateCategoryUseCase,

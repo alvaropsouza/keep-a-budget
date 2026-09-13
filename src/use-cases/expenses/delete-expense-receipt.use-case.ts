@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ExpenseRepository } from "../../repositories/expense.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import type { IExpense } from "../../interfaces/expense";
 
 export type DeleteExpenseReceiptInput = { id: string; userId: string };

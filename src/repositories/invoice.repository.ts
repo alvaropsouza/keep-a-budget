@@ -6,7 +6,7 @@ import type { ICardInvoice } from "../interfaces/card-invoice";
 import { InvoiceStatusEnum } from "../enums/invoice-status.enum";
 import type { IExpense } from "../interfaces/expense";
 import { ExpenseTypeEnum } from "../enums/expense-type.enum";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { runWithTransaction, type TxClient } from "../utils/run-with-transaction";
 import { getBrazilTodayUtcMidnight } from "../utils/timezone";
 

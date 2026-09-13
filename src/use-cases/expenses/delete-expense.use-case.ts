@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ExpenseRepository } from "../../repositories/expense.repository";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 
 export type DeleteExpenseInput = { id: string; userId: string };

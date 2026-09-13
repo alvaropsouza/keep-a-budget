@@ -5,7 +5,7 @@ import { prisma } from "../config/prisma";
 import type { IUser } from "../interfaces/user";
 import { normalizeCpf, normalizeRg } from "../utils/br-documents";
 import { blindIndex, decryptField, encryptField } from "../utils/encryption";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { CacheService } from "../services/cache.service";
 
 const mapUser = (row: User): IUser => ({

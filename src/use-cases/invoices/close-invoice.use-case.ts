@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import type { ICardInvoice } from "../../interfaces/card-invoice";
 import { InvoiceStatusEnum } from "../../enums/invoice-status.enum";
 

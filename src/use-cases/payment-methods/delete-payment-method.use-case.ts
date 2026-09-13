@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PaymentMethodRepository } from "../../repositories/payment-method.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 
 export type DeletePaymentMethodInput = { id: string; userId: string };
 

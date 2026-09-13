@@ -20,7 +20,7 @@ import {
 } from "../dto/fixed-expense.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { ListFixedExpensesUseCase } from "../use-cases/fixed-expenses/list-fixed-expenses.use-case";
 import { GetFixedExpenseByIdUseCase } from "../use-cases/fixed-expenses/get-fixed-expense-by-id.use-case";
 import { CreateFixedExpenseUseCase } from "../use-cases/fixed-expenses/create-fixed-expense.use-case";

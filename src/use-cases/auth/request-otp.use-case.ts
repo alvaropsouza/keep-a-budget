@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { SessionRepository } from "../../repositories/session.repository";
 import { ResendService } from "../../services/resend.service";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import {
   normalizeEmail,
   createOtpCode,

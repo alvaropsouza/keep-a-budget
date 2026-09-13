@@ -20,7 +20,7 @@ import {
   PaymentMethodQueryParamsDto,
 } from "../dto/payment-method.dto";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { ListPaymentMethodsUseCase } from "../use-cases/payment-methods/list-payment-methods.use-case";
 import { CreatePaymentMethodUseCase } from "../use-cases/payment-methods/create-payment-method.use-case";
 import { UpdatePaymentMethodUseCase } from "../use-cases/payment-methods/update-payment-method.use-case";

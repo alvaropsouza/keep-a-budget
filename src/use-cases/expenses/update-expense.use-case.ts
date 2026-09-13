@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ExpenseRepository, UpdateExpenseData } from "../../repositories/expense.repository";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 import type { IExpense } from "../../interfaces/expense";
 

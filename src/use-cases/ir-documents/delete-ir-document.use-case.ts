@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { IrDocumentRepository } from "../../repositories/ir-document.repository";
 import { S3Service } from "../../services/s3.service";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 
 export type DeleteIrDocumentInput = { id: string; userId: string };
 

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { BudgetRepository } from "../../repositories/budget.repository";
 import { S3Service } from "../../services/s3.service";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import type { IExpense } from "../../interfaces/expense";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 

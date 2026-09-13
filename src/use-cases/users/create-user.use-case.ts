@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { IUser } from "../../interfaces/user";
 import { UserRepository } from "../../repositories/user.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import { isValidCpf, isValidRg } from "../../utils/br-documents";
 
 export type CreateUserInput = {

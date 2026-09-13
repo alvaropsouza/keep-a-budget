@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { Category } from "../../generated/prisma/client/client";
 import { CategoryRepository } from "../../repositories/category.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 
 export type CreateCategoryInput = { userId: string; name: string; icon: string };
 

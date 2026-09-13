@@ -15,7 +15,7 @@ import { FastifyRequest } from "fastify";
 import { ApiTags } from "@nestjs/swagger";
 import { CreateExtraIncomeDto, ExtraIncomeQueryParamsDto } from "../dto/extra-income.dto";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { ListExtraIncomesUseCase } from "../use-cases/extra-incomes/list-extra-incomes.use-case";
 import { CreateExtraIncomeUseCase } from "../use-cases/extra-incomes/create-extra-income.use-case";
 import { DeleteExtraIncomeUseCase } from "../use-cases/extra-incomes/delete-extra-income.use-case";

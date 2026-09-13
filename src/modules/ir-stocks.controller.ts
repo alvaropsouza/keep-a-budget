@@ -19,7 +19,7 @@ import { ApiTags } from "@nestjs/swagger";
 import { validateDto } from "../utils/validation";
 import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validate-upload";
 import { readMultipart } from "../utils/read-multipart";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { ListStockTransactionsUseCase } from "../use-cases/ir-stocks/list-stock-transactions.use-case";
 import { CreateStockTransactionUseCase } from "../use-cases/ir-stocks/create-stock-transaction.use-case";
 import { DeleteStockTransactionUseCase } from "../use-cases/ir-stocks/delete-stock-transaction.use-case";

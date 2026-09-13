@@ -1,7 +1,7 @@
 import fp from "fastify-plugin";
 import { SessionRepository } from "../repositories/session.repository";
 import { AuthenticateTokenUseCase } from "../use-cases/auth/authenticate-token.use-case";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { resolveSessionToken } from "../utils/session-token";
 import type { AuthUser } from "../interfaces/auth";
 

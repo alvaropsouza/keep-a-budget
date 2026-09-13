@@ -15,7 +15,7 @@ import {
 import { FastifyRequest, FastifyReply } from "fastify";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { readMultipartFiles } from "../utils/read-multipart";
 import { CreateVehicleRevisionUseCase } from "../use-cases/vehicles/create-vehicle-revision.use-case";
 import { ListVehicleRevisionsUseCase } from "../use-cases/vehicles/list-vehicle-revisions.use-case";

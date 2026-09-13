@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { Budget } from "../../generated/prisma/client/client";
 import { BudgetRepository } from "../../repositories/budget.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 
 export type DeleteBudgetInput = { id: string; userId: string };
 

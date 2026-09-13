@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { VehicleRepository } from "../../repositories/vehicle.repository";
 import { VehicleRevisionRepository } from "../../repositories/vehicle-revision.repository";
 import { S3Service } from "../../services/s3.service";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import type { IVehicleRevision } from "../../interfaces/vehicle-revision";
 
 export type DeleteRevisionFileInput = {

@@ -13,7 +13,7 @@ import {
 import { FastifyRequest } from "fastify";
 import { IrDocumentQueryDto, CreateIrDocumentDto } from "../dto/ir-document.dto";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { ApiTags } from "@nestjs/swagger";
 import { validateDto } from "../utils/validation";
 import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validate-upload";

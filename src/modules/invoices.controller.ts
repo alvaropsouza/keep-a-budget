@@ -23,7 +23,7 @@ import {
 import { BanksEnum } from "../enums/banks.enum";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { readMultipart, type MultipartFile } from "../utils/read-multipart";
 import { ListInvoicesUseCase } from "../use-cases/invoices/list-invoices.use-case";
 import { GetInvoiceSummaryUseCase } from "../use-cases/invoices/get-invoice-summary.use-case";

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { VehicleRepository } from "../../repositories/vehicle.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import type { IVehicle } from "../../interfaces/vehicle";
 import type { UpdateVehicleDto } from "../../dto/vehicle.dto";
 

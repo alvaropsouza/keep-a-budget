@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PaymentMethodRepository } from "../../repositories/payment-method.repository";
 import { PaymentMethodTypeEnum } from "../../enums/payment-method-type.enum";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import type { IPaymentMethod } from "../../interfaces/payment-method";
 import type { CreatePaymentMethodDto } from "../../dto/payment-method.dto";
 

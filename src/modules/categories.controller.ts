@@ -15,7 +15,7 @@ import { FastifyRequest } from "fastify";
 import { CreateCategoryDto, UpdateCategoryDto } from "../dto/category.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { ListCategoriesUseCase } from "../use-cases/categories/list-categories.use-case";
 import { CreateCategoryUseCase } from "../use-cases/categories/create-category.use-case";
 import { UpdateCategoryUseCase } from "../use-cases/categories/update-category.use-case";

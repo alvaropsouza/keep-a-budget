@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { AiService, type ParsedStockTicketResponse } from "../../services/ai.service";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 
 export type ParseStockTicketInput = { buffer: Buffer; mimeType: string };
 

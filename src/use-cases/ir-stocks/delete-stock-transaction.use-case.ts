@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { StockTransactionRepository } from "../../repositories/stock-transaction.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 
 export type DeleteStockTransactionInput = { id: string; userId: string };
 

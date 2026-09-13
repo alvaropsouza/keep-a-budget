@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { timingSafeEqual } from "node:crypto";
 import { SessionRepository } from "../../repositories/session.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import type { AuthSession, SessionContext } from "../../interfaces/auth";
 import {
   normalizeEmail,

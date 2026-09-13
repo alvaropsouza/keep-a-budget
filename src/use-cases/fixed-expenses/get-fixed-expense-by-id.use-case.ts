@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { FixedExpenseRepository } from "../../repositories/fixed-expense.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import type { IFixedExpense } from "../../interfaces/fixed-expense";
 
 export type GetFixedExpenseByIdInput = { id: string; userId: string };

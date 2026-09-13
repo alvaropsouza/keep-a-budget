@@ -15,7 +15,7 @@ import { FastifyRequest } from "fastify";
 import { UpsertBudgetDto, BudgetQueryDto } from "../dto/budget.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { ListBudgetsUseCase } from "../use-cases/budgets/list-budgets.use-case";
 import { GetBudgetSummaryUseCase } from "../use-cases/budgets/get-budget-summary.use-case";
 import { GetActiveBudgetSummaryUseCase } from "../use-cases/budgets/get-active-budget-summary.use-case";

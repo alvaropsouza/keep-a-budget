@@ -1,5 +1,5 @@
 import { randomBytes, randomInt, createHash } from "node:crypto";
-import { AppError } from "./app-error";
+import { AppError } from "../errors/app-error";
 import type { SessionContext } from "../interfaces/auth";
 
 export const SESSION_DURATION_DAYS = Number(process.env.SESSION_DURATION_DAYS ?? "30");

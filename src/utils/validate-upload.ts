@@ -1,4 +1,4 @@
-import { AppError } from "./app-error";
+import { AppError } from "../errors/app-error";
 
 export type AllowedUploadType =
   | "image/jpeg"

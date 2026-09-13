@@ -3,7 +3,7 @@ import { ExpenseRepository } from "../../repositories/expense.repository";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { PaymentMethodRepository } from "../../repositories/payment-method.repository";
 import { S3Service } from "../../services/s3.service";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 import { PaymentMethodTypeEnum } from "../../enums/payment-method-type.enum";

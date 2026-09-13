@@ -15,7 +15,7 @@ import {
 import { FastifyRequest } from "fastify";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 import { validateUpload } from "../utils/validate-upload";
 import { readMultipart } from "../utils/read-multipart";
 import { CreateVehicleDto, UpdateVehicleDto } from "../dto/vehicle.dto";

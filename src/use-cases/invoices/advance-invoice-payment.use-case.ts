@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { ExpenseRepository } from "../../repositories/expense.repository";
-import { AppError } from "../../utils/app-error";
+import { AppError } from "../../errors/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 import type { ICardInvoice } from "../../interfaces/card-invoice";

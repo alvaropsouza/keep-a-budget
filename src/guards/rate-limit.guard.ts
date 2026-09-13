@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
-import { AppError } from "../utils/app-error";
+import { AppError } from "../errors/app-error";
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {

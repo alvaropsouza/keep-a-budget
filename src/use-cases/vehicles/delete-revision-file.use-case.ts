@@ -3,6 +3,7 @@ import { VehicleRepository } from "../../repositories/vehicle.repository";
 import { VehicleRevisionRepository } from "../../repositories/vehicle-revision.repository";
 import { S3Service } from "../../services/s3.service";
 import { AppError } from "../../errors/app-error";
+import { extractS3Key } from "../../utils/s3-upload";
 import type { IVehicleRevision } from "../../interfaces/vehicle-revision";
 
 export type DeleteRevisionFileInput = {
@@ -31,10 +32,11 @@ export class DeleteRevisionFileUseCase {
     const revision = await this.revisionRepository.findById(input.revisionId);
     if (!revision || revision.vehicleId !== input.vehicleId) throw new AppError("Resource not found", 404);
 
-    if (!revision.files.includes(input.s3Key)) throw new AppError("File not found", 404);
+    const s3Key = extractS3Key(input.s3Key);
+    if (!revision.files.includes(s3Key)) throw new AppError("File not found", 404);
 
-    await this.s3Service.deleteObject(input.s3Key);
-    const updated = await this.revisionRepository.removeFile(input.revisionId, input.s3Key);
+    await this.s3Service.deleteObject(s3Key);
+    const updated = await this.revisionRepository.removeFile(input.revisionId, s3Key);
 
     this.logger.log({ revisionId: input.revisionId }, "DeleteRevisionFileUseCase.execute done");
     return updated;

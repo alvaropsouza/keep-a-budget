@@ -17,6 +17,7 @@ export interface IExpense {
     total?: number;
   };
   cardInvoiceId?: string | null;
+  fixedExpenseId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

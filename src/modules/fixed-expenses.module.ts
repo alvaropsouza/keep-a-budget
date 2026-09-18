@@ -7,10 +7,15 @@ import { CreateFixedExpenseUseCase } from "../use-cases/fixed-expenses/create-fi
 import { UpdateFixedExpenseUseCase } from "../use-cases/fixed-expenses/update-fixed-expense.use-case";
 import { DeleteFixedExpenseUseCase } from "../use-cases/fixed-expenses/delete-fixed-expense.use-case";
 import { GetTotalFixedExpensesUseCase } from "../use-cases/fixed-expenses/get-total-fixed-expenses.use-case";
+import { LinkFixedExpensesToInvoiceUseCase } from "../use-cases/fixed-expenses/link-fixed-expenses-to-invoice.use-case";
+import { AutoLaunchFixedExpensesUseCase } from "../use-cases/fixed-expenses/auto-launch-fixed-expenses.use-case";
+import { ListLaunchableFixedExpensesUseCase } from "../use-cases/fixed-expenses/list-launchable-fixed-expenses.use-case";
 import { AuthModule } from "./auth.module";
+import { InvoicesModule } from "./invoices.module";
+import { CategoriesModule } from "./categories.module";
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, InvoicesModule, CategoriesModule],
   controllers: [FixedExpensesController],
   providers: [
     FixedExpenseRepository,
@@ -20,6 +25,9 @@ import { AuthModule } from "./auth.module";
     UpdateFixedExpenseUseCase,
     DeleteFixedExpenseUseCase,
     GetTotalFixedExpensesUseCase,
+    LinkFixedExpensesToInvoiceUseCase,
+    AutoLaunchFixedExpensesUseCase,
+    ListLaunchableFixedExpensesUseCase,
   ],
   exports: [FixedExpenseRepository, GetTotalFixedExpensesUseCase],
 })

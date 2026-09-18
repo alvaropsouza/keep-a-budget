@@ -10,12 +10,15 @@ export const DEFAULT_CATEGORIES: { name: string; icon: string }[] = [
   { name: "Saúde", icon: "Pill" },
   { name: "Educação", icon: "GraduationCap" },
   { name: "Contas", icon: "FileText" },
+  { name: "Despesas Fixas", icon: "Repeat" },
   { name: "Eletrônicos", icon: "Laptop" },
   { name: "Viagem", icon: "Plane" },
   { name: "Outros", icon: "Package" },
 ];
 
 export const PROTECTED_CATEGORY_NAME = "Outros";
+
+export const FIXED_EXPENSE_CATEGORY = { name: "Despesas Fixas", icon: "Repeat" };
 
 @Injectable()
 export class CategoryRepository {
@@ -30,6 +33,18 @@ export class CategoryRepository {
         isDefault: true,
         sortOrder: index,
       })),
+    });
+  }
+
+  async ensureExists(userId: string, name: string, icon: string): Promise<Category> {
+    const existing = await this.findByNameInsensitive(userId, name);
+    if (existing) return existing;
+
+    const sortOrder = (await this.findLastSortOrder(userId)) + 1;
+    return prisma.category.upsert({
+      where: { userId_name: { userId, name } },
+      update: {},
+      create: { userId, name, icon, isDefault: true, sortOrder },
     });
   }
 

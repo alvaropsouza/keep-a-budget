@@ -14,6 +14,7 @@ import { prisma, setupCacheMiddleware } from "./config/prisma";
 import { setupS3Bucket } from "./utils/s3-setup";
 import { invoiceClosureJob } from "./jobs/invoice-closure.job";
 import { sessionCleanupJob } from "./jobs/session-cleanup.job";
+import { fixedExpenseAutoLaunchJob } from "./jobs/fixed-expense-auto-launch.job";
 import corsPlugin from "./plugins/cors";
 import helmetPlugin from "./plugins/helmet";
 import { AppErrorFilter } from "./filters/app-error.filter";
@@ -70,6 +71,7 @@ async function bootstrap(): Promise<void> {
 
   await invoiceClosureJob.start();
   await sessionCleanupJob.start();
+  await fixedExpenseAutoLaunchJob.start();
 
   const port = Number.parseInt(process.env.PORT || "3000", 10);
   const host = process.env.HOST || "0.0.0.0";

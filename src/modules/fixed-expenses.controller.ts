@@ -17,6 +17,8 @@ import {
   CreateFixedExpenseDto,
   UpdateFixedExpenseDto,
   FixedExpenseQueryParamsDto,
+  LinkFixedExpensesDto,
+  LaunchableFixedExpensesQueryDto,
 } from "../dto/fixed-expense.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
@@ -27,6 +29,8 @@ import { CreateFixedExpenseUseCase } from "../use-cases/fixed-expenses/create-fi
 import { UpdateFixedExpenseUseCase } from "../use-cases/fixed-expenses/update-fixed-expense.use-case";
 import { DeleteFixedExpenseUseCase } from "../use-cases/fixed-expenses/delete-fixed-expense.use-case";
 import { GetTotalFixedExpensesUseCase } from "../use-cases/fixed-expenses/get-total-fixed-expenses.use-case";
+import { LinkFixedExpensesToInvoiceUseCase } from "../use-cases/fixed-expenses/link-fixed-expenses-to-invoice.use-case";
+import { ListLaunchableFixedExpensesUseCase } from "../use-cases/fixed-expenses/list-launchable-fixed-expenses.use-case";
 
 @ApiTags("fixed-expenses")
 @UseGuards(SessionAuthGuard)
@@ -39,6 +43,8 @@ export class FixedExpensesController {
     private readonly updateFixedExpenseUseCase: UpdateFixedExpenseUseCase,
     private readonly deleteFixedExpenseUseCase: DeleteFixedExpenseUseCase,
     private readonly getTotalFixedExpensesUseCase: GetTotalFixedExpensesUseCase,
+    private readonly linkFixedExpensesToInvoiceUseCase: LinkFixedExpensesToInvoiceUseCase,
+    private readonly listLaunchableFixedExpensesUseCase: ListLaunchableFixedExpensesUseCase,
   ) {}
 
   @Get()
@@ -50,6 +56,20 @@ export class FixedExpensesController {
   async getTotal(@Req() req: FastifyRequest) {
     const total = await this.getTotalFixedExpensesUseCase.execute({ userId: this.authUserId(req) });
     return { total };
+  }
+
+  @Get("launchable")
+  async launchable(@Query() query: LaunchableFixedExpensesQueryDto, @Req() req: FastifyRequest) {
+    return this.listLaunchableFixedExpensesUseCase.execute({
+      cardInvoiceId: query.cardInvoiceId,
+      userId: this.authUserId(req),
+    });
+  }
+
+  @Post("link")
+  @HttpCode(HttpStatus.CREATED)
+  async link(@Body() body: LinkFixedExpensesDto, @Req() req: FastifyRequest) {
+    return this.linkFixedExpensesToInvoiceUseCase.execute({ ...body, userId: this.authUserId(req) });
   }
 
   @Get(":id")

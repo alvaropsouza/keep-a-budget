@@ -28,6 +28,7 @@ export type CreateExpenseData = {
   receipt?: string | null;
   irDeductible?: boolean;
   cardInvoiceId?: string | null;
+  fixedExpenseId?: string | null;
   installmentCurrent?: number | null;
   installmentTotal?: number | null;
 };
@@ -64,6 +65,7 @@ const mapExpense = (row: Prisma.ExpenseGetPayload<true>): IExpense => ({
       ? { current: row.installmentCurrent ?? undefined, total: row.installmentTotal ?? undefined }
       : undefined,
   cardInvoiceId: row.cardInvoiceId,
+  fixedExpenseId: row.fixedExpenseId,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -123,6 +125,7 @@ export class ExpenseRepository {
         installmentCurrent: data.installmentCurrent ?? null,
         installmentTotal: data.installmentTotal ?? null,
         cardInvoiceId: data.cardInvoiceId ?? null,
+        fixedExpenseId: data.fixedExpenseId ?? null,
         userId: data.userId,
       },
     });

@@ -13,7 +13,9 @@ export class GetTotalFixedExpensesUseCase {
     this.logger.log({ input }, "GetTotalFixedExpensesUseCase.execute");
 
     const active = await this.fixedExpenseRepository.findMany(input.userId, true);
-    const total = active.reduce((sum, e) => sum + e.amount, 0);
+    const total = active
+      .filter((e) => e.linkedInvoiceIds.length === 0)
+      .reduce((sum, e) => sum + e.amount, 0);
 
     this.logger.log({ total }, "GetTotalFixedExpensesUseCase.execute done");
     return total;

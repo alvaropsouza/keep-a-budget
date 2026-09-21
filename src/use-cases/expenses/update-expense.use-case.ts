@@ -32,12 +32,31 @@ export class UpdateExpenseUseCase {
         }
       }
 
-      const updated = await this.expenseRepository.update(id, data, tx);
+      const isMovingDate = data.date !== undefined && data.date.getTime() !== old.date.getTime();
+      let targetInvoiceId = old.cardInvoiceId;
+
+      if (isMovingDate && old.cardInvoiceId) {
+        const target = await this.invoiceRepository.ensureForDate(data.bank ?? old.bank, data.date!, userId, tx);
+        if (target.isClosed) {
+          throw new AppError("A fatura da nova data está fechada. Reabra a fatura antes de mover a despesa.", 400);
+        }
+        targetInvoiceId = target.id;
+      }
+
+      const updated = await this.expenseRepository.update(
+        id,
+        targetInvoiceId === old.cardInvoiceId ? data : { ...data, cardInvoiceId: targetInvoiceId },
+        tx,
+      );
       if (!updated) throw new AppError("Resource not found", 404);
 
-      if (data.amount !== undefined && data.amount !== old.amount && updated.cardInvoiceId) {
-        const delta = data.amount - old.amount;
-        await this.invoiceRepository.updateBalance(updated.cardInvoiceId, delta, tx);
+      const newAmount = data.amount ?? old.amount;
+
+      if (targetInvoiceId !== old.cardInvoiceId) {
+        if (old.cardInvoiceId) await this.invoiceRepository.updateBalance(old.cardInvoiceId, -old.amount, tx);
+        if (targetInvoiceId) await this.invoiceRepository.updateBalance(targetInvoiceId, newAmount, tx);
+      } else if (data.amount !== undefined && data.amount !== old.amount && updated.cardInvoiceId) {
+        await this.invoiceRepository.updateBalance(updated.cardInvoiceId, data.amount - old.amount, tx);
       }
 
       return updated;

@@ -97,7 +97,13 @@ export class ExpensesController {
 
   @Put(":id")
   async update(@Param("id") id: string, @Body() body: UpdateExpenseDto, @Req() req: FastifyRequest) {
-    return this.updateExpenseUseCase.execute({ ...body, id, userId: this.authUserId(req) });
+    const { date, ...rest } = body;
+    return this.updateExpenseUseCase.execute({
+      ...rest,
+      ...(date ? { date: new Date(date) } : {}),
+      id,
+      userId: this.authUserId(req),
+    });
   }
 
   @Delete(":id")
@@ -148,7 +154,7 @@ export class ExpensesController {
         description: fields.description,
         installmentTotal: fields.installmentTotal ? Number.parseInt(fields.installmentTotal) : undefined,
         installmentStartNumber: fields.installmentStartNumber ? Number.parseInt(fields.installmentStartNumber) : undefined,
-        installmentStartDate: fields.installmentStartDate,
+        date: fields.date,
         receipt: fields.receipt,
         irDeductible: fields.irDeductible === "true",
       };

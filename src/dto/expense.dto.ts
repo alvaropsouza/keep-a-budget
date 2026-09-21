@@ -46,7 +46,7 @@ export class CreateExpenseDto {
   @ApiPropertyOptional({ format: "date-time" })
   @IsDateString()
   @IsOptional()
-  installmentStartDate?: string;
+  date?: string;
 
   @ApiPropertyOptional()
   @IsString()
@@ -85,6 +85,11 @@ export class UpdateExpenseDto {
   @IsUUID()
   @IsOptional()
   cardInvoiceId?: string;
+
+  @ApiPropertyOptional({ format: "date-time" })
+  @IsDateString()
+  @IsOptional()
+  date?: string;
 
   @ApiPropertyOptional()
   @IsBoolean()

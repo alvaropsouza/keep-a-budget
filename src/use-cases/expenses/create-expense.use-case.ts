@@ -18,7 +18,7 @@ export type CreateExpenseInput = {
   description?: string;
   installmentTotal?: number;
   installmentStartNumber?: number;
-  installmentStartDate?: string;
+  date?: string;
   receipt?: string;
   irDeductible?: boolean;
   file?: { buffer: Buffer; filename: string; mimetype: string; userEmail?: string };
@@ -46,7 +46,7 @@ export class CreateExpenseUseCase {
       throw new AppError(`Forma de pagamento "${input.bank}" está desativada.`, 400);
     }
 
-    const { installmentTotal, installmentStartDate, installmentStartNumber } = input;
+    const { installmentTotal, date, installmentStartNumber } = input;
 
     if (installmentStartNumber && (!installmentTotal || installmentStartNumber > installmentTotal)) {
       throw new AppError("installmentStartNumber must be less than or equal to installmentTotal", 400);
@@ -58,7 +58,7 @@ export class CreateExpenseUseCase {
       if (!isCard) {
         throw new AppError("Parcelamento só está disponível para cartão de crédito", 400);
       }
-      return this.createInstallments(input, paymentMethod, installmentTotal, installmentStartDate, installmentStartNumber);
+      return this.createInstallments(input, paymentMethod, installmentTotal, date, installmentStartNumber);
     }
 
     return this.createSingle(input, paymentMethod);
@@ -71,7 +71,7 @@ export class CreateExpenseUseCase {
   }
 
   private async createSingle(input: CreateExpenseInput, paymentMethod: IPaymentMethod): Promise<IExpense> {
-    const expenseDate = input.installmentStartDate ? new Date(input.installmentStartDate) : new Date();
+    const expenseDate = input.date ? new Date(input.date) : new Date();
     const isCard = paymentMethod.type === PaymentMethodTypeEnum.CREDIT_CARD;
 
     const expense = await runWithTransaction(async (tx) => {

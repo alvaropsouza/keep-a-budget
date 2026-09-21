@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { InvoiceStatus, Prisma } from "../generated/prisma/client/client";
 import { prisma } from "../config/prisma";
 import type { IFixedExpense } from "../interfaces/fixed-expense";
+import type { TxClient } from "../utils/run-with-transaction";
 
 const linkInclude = {
   expenses: {
@@ -123,8 +124,9 @@ export class FixedExpenseRepository {
     return row ? mapFixedExpense(row) : null;
   }
 
-  async delete(id: string): Promise<IFixedExpense | null> {
-    const row = await prisma.fixedExpense
+  async delete(id: string, tx?: TxClient): Promise<IFixedExpense | null> {
+    const db = tx ?? prisma;
+    const row = await db.fixedExpense
       .delete({ where: { id }, include: linkInclude })
       .catch(() => null);
     return row ? mapFixedExpense(row) : null;

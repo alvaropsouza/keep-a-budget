@@ -90,8 +90,11 @@ export class FixedExpensesController {
 
   @Delete(":id")
   async delete(@Param("id") id: string, @Req() req: FastifyRequest) {
-    await this.deleteFixedExpenseUseCase.execute({ id, userId: this.authUserId(req) });
-    return { message: "Fixed expense deleted successfully" };
+    const { removedExpenses } = await this.deleteFixedExpenseUseCase.execute({
+      id,
+      userId: this.authUserId(req),
+    });
+    return { message: "Fixed expense deleted successfully", removedExpenses };
   }
 
   private authUserId(req: FastifyRequest): string {

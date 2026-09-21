@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "../generated/prisma/client/client";
+import { InvoiceStatus, Prisma } from "../generated/prisma/client/client";
 import { prisma } from "../config/prisma";
 import type { IExpense } from "../interfaces/expense";
 import { ExpenseTypeEnum } from "../enums/expense-type.enum";
@@ -151,6 +151,17 @@ export class ExpenseRepository {
       })
       .catch(() => null);
     return row ? mapExpense(row) : null;
+  }
+
+  async findRemovableByFixedExpense(fixedExpenseId: string, tx?: TxClient): Promise<IExpense[]> {
+    const db = tx ?? prisma;
+    const rows = await db.expense.findMany({
+      where: {
+        fixedExpenseId,
+        OR: [{ cardInvoiceId: null }, { cardInvoice: { status: { not: InvoiceStatus.CLOSED } } }],
+      },
+    });
+    return rows.map(mapExpense);
   }
 
   async delete(id: string, tx?: TxClient): Promise<IExpense | null> {

@@ -67,6 +67,12 @@ export class S3Service {
     await s3Client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
   }
 
+  async deleteObjects(keysOrUrls: string[]): Promise<void> {
+    const results = await Promise.allSettled(keysOrUrls.map((key) => this.deleteObject(key)));
+    const failed = results.filter((result) => result.status === "rejected").length;
+    if (failed > 0) logger.error({ failed, total: keysOrUrls.length }, "Failed to delete objects from S3");
+  }
+
   generateKey(fileName: string, prefix?: string, userEmail?: string): string {
     return generateS3Key(fileName, prefix, userEmail);
   }

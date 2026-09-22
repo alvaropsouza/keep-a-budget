@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { ExpenseRepository } from "../../repositories/expense.repository";
+import { S3Service } from "../../services/s3.service";
 import { AppError } from "../../errors/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 import { parseInvoiceCsv, toSupportedCsvBank } from "../../utils/invoice-csv-parser";
@@ -21,6 +22,7 @@ export class ImportExpensesFromCsvUseCase {
   constructor(
     private readonly invoiceRepository: InvoiceRepository,
     private readonly expenseRepository: ExpenseRepository,
+    private readonly s3Service: S3Service,
   ) {}
 
   async execute(input: ImportExpensesFromCsvInput): Promise<ICardInvoice> {
@@ -46,15 +48,16 @@ export class ImportExpensesFromCsvUseCase {
       input.excludeIndexes ? new Set(input.excludeIndexes) : undefined,
     );
 
-    await runWithTransaction(async (tx) => {
+    const replacedReceipts = await runWithTransaction(async (tx) => {
       const existingTotal = await this.expenseRepository.sumAmountByInvoice(input.id, ExpenseTypeEnum.EXPENSE, tx);
+      const receipts = await this.expenseRepository.findReceiptKeysByInvoice(input.id, ExpenseTypeEnum.EXPENSE, tx);
 
       await this.expenseRepository.deleteByInvoiceType(input.id, ExpenseTypeEnum.EXPENSE, tx);
       await this.invoiceRepository.updateBalance(input.id, -existingTotal, tx);
 
       if (rows.length === 0) {
         this.logger.warn({ invoiceId: input.id }, "CSV import produced no valid expenses");
-        return;
+        return receipts;
       }
 
       await this.expenseRepository.createMany(
@@ -75,7 +78,11 @@ export class ImportExpensesFromCsvUseCase {
 
       const newTotal = rows.reduce((sum, r) => sum + r.amount, 0);
       await this.invoiceRepository.updateBalance(input.id, newTotal, tx);
+
+      return receipts;
     }, { operationName: "invoice.importFromCsv", metadata: { invoiceId: input.id } });
+
+    if (replacedReceipts.length > 0) await this.s3Service.deleteObjects(replacedReceipts);
 
     const result = await this.invoiceRepository.findWithExpenses(input.id, input.userId);
     this.logger.log({ id: result.id, imported: rows.length }, "ImportExpensesFromCsvUseCase.execute done");

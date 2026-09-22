@@ -199,6 +199,15 @@ export class ExpenseRepository {
     return Number(result._sum.amount ?? 0);
   }
 
+  async findReceiptKeysByInvoice(invoiceId: string, type?: ExpenseTypeEnum, tx?: TxClient): Promise<string[]> {
+    const db = tx ?? prisma;
+    const rows = await db.expense.findMany({
+      where: { cardInvoiceId: invoiceId, receipt: { not: null }, ...(type ? { type } : {}) },
+      select: { receipt: true },
+    });
+    return rows.flatMap((row) => (row.receipt ? [row.receipt] : []));
+  }
+
   async deleteByInvoiceType(invoiceId: string, type: ExpenseTypeEnum, tx?: TxClient): Promise<void> {
     const db = tx ?? prisma;
     await db.expense.deleteMany({ where: { cardInvoiceId: invoiceId, type } });

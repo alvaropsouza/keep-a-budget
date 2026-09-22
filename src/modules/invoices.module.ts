@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { InvoicesController } from "./invoices.controller";
 import { InvoiceRepository } from "../repositories/invoice.repository";
 import { ExpenseRepository } from "../repositories/expense.repository";
+import { S3Service } from "../services/s3.service";
 import { AuthModule } from "./auth.module";
 import { ListInvoicesUseCase } from "../use-cases/invoices/list-invoices.use-case";
 import { GetInvoiceSummaryUseCase } from "../use-cases/invoices/get-invoice-summary.use-case";
@@ -22,6 +23,7 @@ import { CloseExpiredInvoicesUseCase } from "../use-cases/invoices/close-expired
   providers: [
     InvoiceRepository,
     ExpenseRepository,
+    S3Service,
     ListInvoicesUseCase,
     GetInvoiceSummaryUseCase,
     GetInvoiceByIdUseCase,

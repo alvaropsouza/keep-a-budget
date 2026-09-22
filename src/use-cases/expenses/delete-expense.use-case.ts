@@ -3,6 +3,7 @@ import { ExpenseRepository } from "../../repositories/expense.repository";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { AppError } from "../../errors/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
+import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 
 export type DeleteExpenseInput = { id: string; userId: string };
 
@@ -32,7 +33,11 @@ export class DeleteExpenseUseCase {
       await this.expenseRepository.delete(input.id, tx);
 
       if (expense.cardInvoiceId) {
-        await this.invoiceRepository.updateBalance(expense.cardInvoiceId, -expense.amount, tx);
+        if (expense.type === ExpenseTypeEnum.ADVANCE) {
+          await this.invoiceRepository.applyAdvance(expense.cardInvoiceId, -expense.amount, tx);
+        } else {
+          await this.invoiceRepository.updateBalance(expense.cardInvoiceId, -expense.amount, tx);
+        }
       }
     }, { operationName: "expense.delete", metadata: { expenseId: input.id } });
 

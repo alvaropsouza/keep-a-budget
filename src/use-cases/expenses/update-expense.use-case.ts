@@ -1,8 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ExpenseRepository, UpdateExpenseData } from "../../repositories/expense.repository";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
+import { PaymentMethodRepository } from "../../repositories/payment-method.repository";
 import { AppError } from "../../errors/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
+import { PaymentMethodTypeEnum } from "../../enums/payment-method-type.enum";
+import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 import type { IExpense } from "../../interfaces/expense";
 
 export type UpdateExpenseInput = UpdateExpenseData & { id: string; userId: string };
@@ -14,6 +17,7 @@ export class UpdateExpenseUseCase {
   constructor(
     private readonly expenseRepository: ExpenseRepository,
     private readonly invoiceRepository: InvoiceRepository,
+    private readonly paymentMethodRepository: PaymentMethodRepository,
   ) {}
 
   async execute(input: UpdateExpenseInput): Promise<IExpense> {
@@ -25,6 +29,10 @@ export class UpdateExpenseUseCase {
       const old = await this.expenseRepository.findById(id, userId, tx);
       if (!old) throw new AppError("Resource not found", 404);
 
+      if (old.type === ExpenseTypeEnum.ADVANCE) {
+        throw new AppError("Adiantamentos não podem ser editados. Exclua o adiantamento e lance novamente.", 400);
+      }
+
       if (old.cardInvoiceId) {
         const invoice = await this.invoiceRepository.findById(old.cardInvoiceId.toString(), undefined, tx);
         if (invoice?.isClosed) {
@@ -32,15 +40,35 @@ export class UpdateExpenseUseCase {
         }
       }
 
+      const nextBank = data.bank ?? old.bank;
+      const nextDate = data.date ?? old.date;
+      const isMovingBank = nextBank !== old.bank;
       const isMovingDate = data.date !== undefined && data.date.getTime() !== old.date.getTime();
+
       let targetInvoiceId = old.cardInvoiceId;
 
-      if (isMovingDate && old.cardInvoiceId) {
-        const target = await this.invoiceRepository.ensureForDate(data.bank ?? old.bank, data.date!, userId, tx);
-        if (target.isClosed) {
-          throw new AppError("A fatura da nova data está fechada. Reabra a fatura antes de mover a despesa.", 400);
+      if (isMovingBank || isMovingDate) {
+        const paymentMethod = await this.paymentMethodRepository.findByName(userId, nextBank, tx);
+        if (!paymentMethod) {
+          throw new AppError(`Forma de pagamento "${nextBank}" não cadastrada. Cadastre em Configurações.`, 400);
         }
-        targetInvoiceId = target.id;
+        if (!paymentMethod.isActive) {
+          throw new AppError(`Forma de pagamento "${nextBank}" está desativada.`, 400);
+        }
+
+        if (paymentMethod.type === PaymentMethodTypeEnum.CREDIT_CARD) {
+          const cycle =
+            paymentMethod.closingDay && paymentMethod.dueDay
+              ? { closingDay: paymentMethod.closingDay, dueDay: paymentMethod.dueDay }
+              : undefined;
+          const target = await this.invoiceRepository.ensureForDate(nextBank, nextDate, userId, tx, cycle);
+          if (target.isClosed) {
+            throw new AppError("A fatura de destino está fechada. Reabra a fatura antes de mover a despesa.", 400);
+          }
+          targetInvoiceId = target.id;
+        } else {
+          targetInvoiceId = null;
+        }
       }
 
       const updated = await this.expenseRepository.update(

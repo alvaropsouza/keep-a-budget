@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Category } from "../generated/prisma/client/client";
 import { prisma } from "../config/prisma";
+import type { TxClient } from "../utils/run-with-transaction";
 
 export const DEFAULT_CATEGORIES: { name: string; icon: string }[] = [
   { name: "Alimentação", icon: "UtensilsCrossed" },
@@ -17,6 +18,8 @@ export const DEFAULT_CATEGORIES: { name: string; icon: string }[] = [
 ];
 
 export const PROTECTED_CATEGORY_NAME = "Outros";
+
+export const PROTECTED_CATEGORY_ICON = "Package";
 
 export const FIXED_EXPENSE_CATEGORY = { name: "Despesas Fixas", icon: "Repeat" };
 
@@ -91,12 +94,36 @@ export class CategoryRepository {
   async update(
     id: string,
     data: { name?: string; icon?: string; isHidden?: boolean; isDefault?: boolean; sortOrder?: number },
+    tx?: TxClient,
   ): Promise<Category> {
-    return prisma.category.update({ where: { id }, data });
+    const db = tx ?? prisma;
+    return db.category.update({ where: { id }, data });
   }
 
-  async delete(id: string): Promise<Category> {
-    return prisma.category.delete({ where: { id } });
+  async renameUsages(userId: string, oldName: string, newName: string, tx: TxClient): Promise<void> {
+    await tx.expense.updateMany({ where: { userId, category: oldName }, data: { category: newName } });
+    await tx.fixedExpense.updateMany({ where: { userId, category: oldName }, data: { category: newName } });
+    await tx.irDocument.updateMany({ where: { userId, category: oldName }, data: { category: newName } });
+
+    const periodKey = (row: { month: number; year: number }): string => `${row.year}-${row.month}`;
+    const taken = await tx.budget.findMany({
+      where: { userId, category: newName },
+      select: { month: true, year: true },
+    });
+    const takenPeriods = new Set(taken.map(periodKey));
+    const current = await tx.budget.findMany({
+      where: { userId, category: oldName },
+      select: { id: true, month: true, year: true },
+    });
+    const movableIds = current.filter((row) => !takenPeriods.has(periodKey(row))).map((row) => row.id);
+    if (movableIds.length > 0) {
+      await tx.budget.updateMany({ where: { id: { in: movableIds } }, data: { category: newName } });
+    }
+  }
+
+  async delete(id: string, tx?: TxClient): Promise<Category> {
+    const db = tx ?? prisma;
+    return db.category.delete({ where: { id } });
   }
 
   async restoreDefaults(userId: string, existing: Category[]): Promise<void> {

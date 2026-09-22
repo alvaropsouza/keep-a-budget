@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { Category } from "../../generated/prisma/client/client";
 import { CategoryRepository, PROTECTED_CATEGORY_NAME } from "../../repositories/category.repository";
 import { AppError } from "../../errors/app-error";
+import { runWithTransaction } from "../../utils/run-with-transaction";
 
 export type UpdateCategoryInput = { id: string; userId: string; name?: string; icon?: string };
 
@@ -38,7 +39,17 @@ export class UpdateCategoryUseCase {
       patch.name = trimmed;
     }
 
-    const result = await this.categoryRepository.update(input.id, patch);
+    const renamedTo = patch.name && patch.name !== category.name ? patch.name : null;
+
+    const result = renamedTo
+      ? await runWithTransaction(
+          async (tx) => {
+            await this.categoryRepository.renameUsages(input.userId, category.name, renamedTo, tx);
+            return this.categoryRepository.update(input.id, patch, tx);
+          },
+          { operationName: "category.rename", metadata: { from: category.name, to: renamedTo } },
+        )
+      : await this.categoryRepository.update(input.id, patch);
     this.logger.log({ id: result.id }, "UpdateCategoryUseCase.execute done");
     return result;
   }

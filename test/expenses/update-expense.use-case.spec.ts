@@ -4,8 +4,11 @@ import { prisma } from "../../src/config/prisma";
 import { UpdateExpenseUseCase } from "../../src/use-cases/expenses/update-expense.use-case";
 import type { ExpenseRepository, UpdateExpenseData } from "../../src/repositories/expense.repository";
 import type { InvoiceRepository } from "../../src/repositories/invoice.repository";
+import type { PaymentMethodRepository } from "../../src/repositories/payment-method.repository";
 import type { IExpense } from "../../src/interfaces/expense";
 import type { ICardInvoice } from "../../src/interfaces/card-invoice";
+import type { IPaymentMethod } from "../../src/interfaces/payment-method";
+import { PaymentMethodTypeEnum } from "../../src/enums/payment-method-type.enum";
 
 type TransactionRunner = <T>(operation: (tx: unknown) => Promise<T>) => Promise<T>;
 
@@ -21,7 +24,15 @@ const existing = {
   cardInvoiceId: "inv-old",
 } as IExpense;
 
-const buildUseCase = (targetInvoice: ICardInvoice) => {
+const cardMethod = {
+  name: "Nubank",
+  type: PaymentMethodTypeEnum.CREDIT_CARD,
+  isActive: true,
+  closingDay: 10,
+  dueDay: 17,
+} as IPaymentMethod;
+
+const buildUseCase = (targetInvoice: ICardInvoice, paymentMethod: IPaymentMethod | null = cardMethod) => {
   const balanceDeltas: Array<[string, number]> = [];
   let updatePayload: UpdateExpenseData | null = null;
 
@@ -29,7 +40,11 @@ const buildUseCase = (targetInvoice: ICardInvoice) => {
     findById: async () => existing,
     update: async (id: string, data: UpdateExpenseData) => {
       updatePayload = data;
-      return { ...existing, ...data, cardInvoiceId: data.cardInvoiceId ?? existing.cardInvoiceId };
+      return {
+        ...existing,
+        ...data,
+        cardInvoiceId: data.cardInvoiceId !== undefined ? data.cardInvoiceId : existing.cardInvoiceId,
+      };
     },
   } as unknown as ExpenseRepository;
 
@@ -41,8 +56,12 @@ const buildUseCase = (targetInvoice: ICardInvoice) => {
     },
   } as unknown as InvoiceRepository;
 
+  const paymentMethodRepository = {
+    findByName: async () => paymentMethod,
+  } as unknown as PaymentMethodRepository;
+
   return {
-    useCase: new UpdateExpenseUseCase(expenseRepository, invoiceRepository),
+    useCase: new UpdateExpenseUseCase(expenseRepository, invoiceRepository, paymentMethodRepository),
     balanceDeltas,
     getUpdatePayload: () => updatePayload,
   };
@@ -87,7 +106,46 @@ test("moving to a closed invoice is rejected", async () => {
 
   await assert.rejects(
     useCase.execute({ id: "exp-1", userId: "user-1", date: new Date("2026-11-05T00:00:00.000Z") }),
-    /fatura da nova data/i,
+    /fatura de destino/i,
+  );
+  assert.deepEqual(balanceDeltas, []);
+});
+
+test("changing only the bank moves the expense to the new card invoice", async () => {
+  const { useCase, balanceDeltas, getUpdatePayload } = buildUseCase({
+    id: "inv-other-bank",
+    isClosed: false,
+  } as ICardInvoice);
+
+  const updated = await useCase.execute({ id: "exp-1", userId: "user-1", bank: "XP" });
+
+  assert.equal(updated.cardInvoiceId, "inv-other-bank");
+  assert.equal(getUpdatePayload()?.cardInvoiceId, "inv-other-bank");
+  assert.deepEqual(balanceDeltas, [
+    ["inv-old", -100],
+    ["inv-other-bank", 100],
+  ]);
+});
+
+test("changing the bank to a non-card method detaches the expense from the invoice", async () => {
+  const { useCase, balanceDeltas, getUpdatePayload } = buildUseCase(
+    { id: "inv-new", isClosed: false } as ICardInvoice,
+    { name: "Pix", type: PaymentMethodTypeEnum.PIX, isActive: true } as IPaymentMethod,
+  );
+
+  const updated = await useCase.execute({ id: "exp-1", userId: "user-1", bank: "Pix" });
+
+  assert.equal(updated.cardInvoiceId, null);
+  assert.equal(getUpdatePayload()?.cardInvoiceId, null);
+  assert.deepEqual(balanceDeltas, [["inv-old", -100]]);
+});
+
+test("changing the bank to an unknown payment method is rejected", async () => {
+  const { useCase, balanceDeltas } = buildUseCase({ id: "inv-new", isClosed: false } as ICardInvoice, null);
+
+  await assert.rejects(
+    useCase.execute({ id: "exp-1", userId: "user-1", bank: "Fantasma" }),
+    /não cadastrada/i,
   );
   assert.deepEqual(balanceDeltas, []);
 });

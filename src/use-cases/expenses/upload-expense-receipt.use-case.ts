@@ -34,6 +34,14 @@ export class UploadExpenseReceiptUseCase {
 
     await this.expenseRepository.update(input.id, { receipt: s3Key });
 
+    if (existing.receipt && existing.receipt !== s3Key) {
+      try {
+        await this.s3Service.deleteObject(existing.receipt);
+      } catch (err) {
+        this.logger.error({ err, id: input.id }, "Failed to delete replaced receipt from S3");
+      }
+    }
+
     const signedUrl = await this.s3Service.getSignedUrl(s3Key);
     this.logger.log({ id: input.id }, "UploadExpenseReceiptUseCase.execute done");
     return { ...existing, receipt: signedUrl };

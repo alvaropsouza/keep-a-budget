@@ -6,6 +6,7 @@ import type { ExpenseRepository } from "../../src/repositories/expense.repositor
 import type { InvoiceRepository } from "../../src/repositories/invoice.repository";
 import type { IExpense } from "../../src/interfaces/expense";
 import type { ICardInvoice } from "../../src/interfaces/card-invoice";
+import type { S3Service } from "../../src/services/s3.service";
 import { ExpenseTypeEnum } from "../../src/enums/expense-type.enum";
 
 type TransactionRunner = <T>(operation: (tx: unknown) => Promise<T>) => Promise<T>;
@@ -16,6 +17,7 @@ Object.defineProperty(prisma, "$transaction", { value: runInline, configurable: 
 const buildUseCase = (expense: IExpense) => {
   const balanceDeltas: Array<[string, number]> = [];
   const advanceDeltas: Array<[string, number]> = [];
+  const deletedObjects: string[] = [];
 
   const expenseRepository = {
     findById: async () => expense,
@@ -32,7 +34,18 @@ const buildUseCase = (expense: IExpense) => {
     },
   } as unknown as InvoiceRepository;
 
-  return { useCase: new DeleteExpenseUseCase(expenseRepository, invoiceRepository), balanceDeltas, advanceDeltas };
+  const s3Service = {
+    deleteObject: async (key: string) => {
+      deletedObjects.push(key);
+    },
+  } as unknown as S3Service;
+
+  return {
+    useCase: new DeleteExpenseUseCase(expenseRepository, invoiceRepository, s3Service),
+    balanceDeltas,
+    advanceDeltas,
+    deletedObjects,
+  };
 };
 
 test("deleting a regular expense subtracts it from the invoice balance", async () => {
@@ -61,4 +74,31 @@ test("deleting an advance gives the balance back and clears the advance", async 
 
   assert.deepEqual(advanceDeltas, [["inv-1", -250]]);
   assert.deepEqual(balanceDeltas, []);
+});
+
+test("deleting an expense also removes its receipt from storage", async () => {
+  const { useCase, deletedObjects } = buildUseCase({
+    id: "exp-2",
+    amount: 40,
+    type: ExpenseTypeEnum.EXPENSE,
+    cardInvoiceId: "inv-1",
+    receipt: "receipts/user/nota.pdf",
+  } as IExpense);
+
+  await useCase.execute({ id: "exp-2", userId: "user-1" });
+
+  assert.deepEqual(deletedObjects, ["receipts/user/nota.pdf"]);
+});
+
+test("deleting an expense without receipt touches no storage", async () => {
+  const { useCase, deletedObjects } = buildUseCase({
+    id: "exp-3",
+    amount: 40,
+    type: ExpenseTypeEnum.EXPENSE,
+    cardInvoiceId: "inv-1",
+  } as IExpense);
+
+  await useCase.execute({ id: "exp-3", userId: "user-1" });
+
+  assert.deepEqual(deletedObjects, []);
 });

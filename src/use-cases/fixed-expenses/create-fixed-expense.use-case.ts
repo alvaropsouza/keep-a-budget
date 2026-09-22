@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { FixedExpenseRepository } from "../../repositories/fixed-expense.repository";
 import { PaymentMethodRepository } from "../../repositories/payment-method.repository";
-import { assertUsablePaymentMethod } from "./assert-usable-payment-method";
+import { assertUsablePaymentMethod } from "../payment-methods/assert-usable-payment-method";
 import type { IFixedExpense } from "../../interfaces/fixed-expense";
 import type { CreateFixedExpenseDto } from "../../dto/fixed-expense.dto";
 

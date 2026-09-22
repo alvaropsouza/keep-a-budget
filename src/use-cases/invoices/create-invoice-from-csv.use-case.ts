@@ -1,14 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InvoiceRepository } from "../../repositories/invoice.repository";
 import { ExpenseRepository } from "../../repositories/expense.repository";
+import { PaymentMethodRepository } from "../../repositories/payment-method.repository";
+import { AppError } from "../../errors/app-error";
+import { assertUsablePaymentMethod } from "../payment-methods/assert-usable-payment-method";
 import { runWithTransaction } from "../../utils/run-with-transaction";
-import { parseInvoiceCsv } from "../../utils/invoice-csv-parser";
+import { parseInvoiceCsv, toSupportedCsvBank } from "../../utils/invoice-csv-parser";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
-import { BanksEnum } from "../../enums/banks.enum";
 import type { ICardInvoice } from "../../interfaces/card-invoice";
 
 export type CreateInvoiceFromCsvInput = {
-  bank: BanksEnum;
+  bank: string;
   closingDate: string;
   dueDate: string;
   csvContent: string;
@@ -23,13 +25,29 @@ export class CreateInvoiceFromCsvUseCase {
   constructor(
     private readonly invoiceRepository: InvoiceRepository,
     private readonly expenseRepository: ExpenseRepository,
+    private readonly paymentMethodRepository: PaymentMethodRepository,
   ) {}
 
   async execute(input: CreateInvoiceFromCsvInput): Promise<ICardInvoice> {
     this.logger.log({ bank: input.bank, userId: input.userId }, "CreateInvoiceFromCsvUseCase.execute");
 
+    await assertUsablePaymentMethod(this.paymentMethodRepository, input.userId, input.bank, {
+      requireCreditCard: true,
+    });
+
+    const closingDate = new Date(input.closingDate);
+    const dueDate = new Date(input.dueDate);
+    if (dueDate < closingDate) {
+      throw new AppError("O vencimento não pode ser anterior ao fechamento da fatura.", 400);
+    }
+
+    const csvBank = toSupportedCsvBank(input.bank);
+    if (!csvBank) {
+      throw new AppError("Importação de CSV está disponível apenas para faturas Nubank e XP", 400);
+    }
+
     const rows = parseInvoiceCsv(
-      input.bank,
+      csvBank,
       input.csvContent,
       input.excludeIndexes ? new Set(input.excludeIndexes) : undefined,
     );
@@ -38,8 +56,8 @@ export class CreateInvoiceFromCsvUseCase {
       const invoice = await this.invoiceRepository.create(
         {
           bank: input.bank,
-          closingDate: new Date(input.closingDate),
-          dueDate: new Date(input.dueDate),
+          closingDate,
+          dueDate,
           balance: 0,
           userId: input.userId,
         },

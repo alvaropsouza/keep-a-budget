@@ -68,28 +68,10 @@ export class GetStockPositionsUseCase {
     const transactions = await this.stockTransactionRepository.findManyByUserId(input.userId);
     const endOfYear = new Date(Date.UTC(input.year, 11, 31));
 
-    this.logger.log(
-      {
-        total: transactions.length,
-        compras: transactions.filter(t => t.type === "COMPRA").length,
-        vendas: transactions.filter(t => t.type === "VENDA").length,
-        skipped: transactions.filter(t => t.date > endOfYear).length,
-      },
-      "GetStockPositionsUseCase transactions",
-    );
-
     const positions = new Map<string, PositionState>();
     for (const tx of transactions) {
       if (tx.date > endOfYear) continue;
-      if (tx.type === "VENDA") {
-        const key = findPositionKey(positions, tx.ticker, tx.broker);
-        const before = positions.get(key)?.quantity ?? 0;
-        applyTransaction(positions, tx);
-        const after = positions.get(key)?.quantity ?? 0;
-        this.logger.log({ ticker: tx.ticker, broker: tx.broker, qty: tx.quantity, before, after, key }, "VENDA applied");
-      } else {
-        applyTransaction(positions, tx);
-      }
+      applyTransaction(positions, tx);
     }
 
     const result: IStockPosition[] = [];

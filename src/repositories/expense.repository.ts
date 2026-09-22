@@ -204,6 +204,11 @@ export class ExpenseRepository {
     return Number(result._sum.amount ?? 0);
   }
 
+  async updateBankByInvoice(invoiceId: string, bank: string, tx?: TxClient): Promise<void> {
+    const db = tx ?? prisma;
+    await db.expense.updateMany({ where: { cardInvoiceId: invoiceId }, data: { bank } });
+  }
+
   async findReceiptKeysByUser(userId: string): Promise<string[]> {
     const rows = await prisma.expense.findMany({
       where: { userId, receipt: { not: null } },

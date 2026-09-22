@@ -20,7 +20,6 @@ import {
   AdvanceInvoiceDto,
   CloseInvoiceDto,
 } from "../dto/invoice.dto";
-import { BanksEnum } from "../enums/banks.enum";
 import { ApiTags } from "@nestjs/swagger";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
 import { AppError } from "../errors/app-error";
@@ -45,10 +44,9 @@ const readCsvContent = (file?: MultipartFile): string | null => {
   return file.buffer.toString("utf-8");
 };
 
-const parseBank = (value?: string): BanksEnum | null => {
-  const raw = String(value ?? "").toUpperCase();
-  if (raw === BanksEnum.XP || raw === BanksEnum.NUBANK) return raw as BanksEnum;
-  return null;
+const parseBank = (value?: string): string | null => {
+  const raw = String(value ?? "").trim();
+  return raw.length > 0 ? raw : null;
 };
 
 const parseExcludeIndexes = (value?: string): number[] | undefined => {

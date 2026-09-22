@@ -45,9 +45,9 @@ export class GetStockGainsByMonthUseCase {
         const txMonth = tx.date.getUTCMonth() + 1;
 
         if (txYear === input.year) {
-          const grossRevenue = tx.quantity * tx.unitPrice - tx.fees;
+          const grossRevenue = tx.quantity * tx.unitPrice;
           const costBasis = tx.quantity * pos.averageCost;
-          const netGain = grossRevenue - costBasis;
+          const netGain = grossRevenue - tx.fees - costBasis;
           const mKey = buildMonthKey(txMonth, tx.operationType);
 
           monthlyGross.set(mKey, (monthlyGross.get(mKey) ?? 0) + grossRevenue);

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertUsablePaymentMethod } from "../../src/use-cases/fixed-expenses/assert-usable-payment-method";
+import { assertUsablePaymentMethod } from "../../src/use-cases/payment-methods/assert-usable-payment-method";
 import type { PaymentMethodRepository } from "../../src/repositories/payment-method.repository";
 import type { IPaymentMethod } from "../../src/interfaces/payment-method";
 

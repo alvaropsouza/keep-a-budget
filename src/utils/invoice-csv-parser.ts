@@ -108,7 +108,7 @@ export function parseXpCsv(
     const amount = parseBrazilianCurrency(rawAmount);
 
     // Skip zero-amount entries
-    if (amount === 0) continue;
+    if (Number.isNaN(amount) || amount === 0) continue;
 
     rows.push({
       date: parseBrazilianDate(rawDate),

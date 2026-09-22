@@ -2,6 +2,7 @@ import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req, BadReques
 import { FastifyRequest } from "fastify";
 import { ParseExpenseDto } from "../dto/parse-expense.dto";
 import { SessionAuthGuard } from "../guards/session-auth.guard";
+import { RateLimitGuard } from "../guards/rate-limit.guard";
 import { ApiTags } from "@nestjs/swagger";
 import { validateDto } from "../utils/validation";
 import { validateUpload, RECEIPT_UPLOAD_RULES } from "../utils/validate-upload";
@@ -13,8 +14,14 @@ import { ParseStockTicketUseCase } from "../use-cases/ai/parse-stock-ticket.use-
 
 const MAX_EXPENSE_IMAGES = 10;
 
+const aiRateLimit = new RateLimitGuard(
+  30,
+  60 * 60 * 1000,
+  "Muitas análises por IA em pouco tempo. Tente novamente em alguns minutos.",
+);
+
 @ApiTags("ai")
-@UseGuards(SessionAuthGuard)
+@UseGuards(SessionAuthGuard, aiRateLimit)
 @Controller("ai")
 export class AiController {
   constructor(

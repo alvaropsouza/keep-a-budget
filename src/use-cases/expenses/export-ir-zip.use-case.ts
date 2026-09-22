@@ -13,6 +13,9 @@ const CSV_FORMULA_TRIGGERS = ["=", "+", "-", "@", "\t", "\r"];
 const sanitizeCsvField = (value: string): string =>
   CSV_FORMULA_TRIGGERS.some((trigger) => value.startsWith(trigger)) ? `'${value}` : value;
 
+export const sanitizeFileSegment = (value: string): string =>
+  value.replace(/[\\/:*?"<>|]/g, "-").trim() || "sem-categoria";
+
 @Injectable()
 export class ExportIrZipUseCase {
   private readonly logger = new Logger(ExportIrZipUseCase.name);
@@ -39,7 +42,8 @@ export class ExportIrZipUseCase {
           const buffer = await this.s3Service.downloadObject(key);
           const ext = key.split(".").pop() ?? "jpg";
           const dateStr = e.date.toISOString().split("T")[0];
-          return { buffer, filename: `despesas/${dateStr}-${e.category}-${e.id.slice(0, 8)}.${ext}`, sourceId: e.id };
+          const category = sanitizeFileSegment(e.category);
+          return { buffer, filename: `despesas/${dateStr}-${category}-${e.id.slice(0, 8)}.${ext}`, sourceId: e.id };
         }),
     );
 
@@ -49,12 +53,20 @@ export class ExportIrZipUseCase {
         const buffer = await this.s3Service.downloadObject(key);
         const ext = key.split(".").pop() ?? "pdf";
         const dateStr = doc.date.toISOString().split("T")[0];
-        return { buffer, filename: `pix/${dateStr}-${doc.category}-${doc.id.slice(0, 8)}.${ext}`, sourceId: doc.id };
+        const category = sanitizeFileSegment(doc.category);
+        return { buffer, filename: `pix/${dateStr}-${category}-${doc.id.slice(0, 8)}.${ext}`, sourceId: doc.id };
       }),
     );
 
     const expenseReceiptById = new Map(expenseReceiptDownloads.map((r) => [r.sourceId, r]));
-    const csvContent = this.buildCsv(input.year, expenses, irDocuments, expenseReceiptById);
+    const documentReceiptById = new Map(documentReceiptDownloads.map((r) => [r.sourceId, r]));
+    const csvContent = this.buildCsv(
+      input.year,
+      expenses,
+      irDocuments,
+      expenseReceiptById,
+      documentReceiptById,
+    );
 
     const { ZipArchive } = await import("archiver");
     const result = await new Promise<Buffer>((resolve, reject) => {
@@ -78,6 +90,7 @@ export class ExportIrZipUseCase {
     expenses: IExpense[],
     irDocuments: IIrDocument[],
     expenseReceiptById: Map<string, { filename: string }>,
+    documentReceiptById: Map<string, { filename: string }>,
   ): string {
     const BOM = "﻿";
     const header = "Tipo,Data,Descrição,Categoria,Valor (R$),Arquivo do Recibo";
@@ -96,7 +109,7 @@ export class ExportIrZipUseCase {
       const description = sanitizeCsvField((doc.description ?? "").replace(/,/g, ";"));
       const category = sanitizeCsvField(doc.category);
       const amount = doc.amount.toFixed(2).replace(".", ",");
-      const receiptFile = `pix/${date}-${doc.category}-${doc.id.slice(0, 8)}`;
+      const receiptFile = documentReceiptById.get(doc.id)?.filename ?? "Sem recibo";
       return `PIX/Débito,${date},${description},${category},${amount},${receiptFile}`;
     });
 

@@ -1,5 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { FixedExpenseRepository } from "../../repositories/fixed-expense.repository";
+import { PaymentMethodRepository } from "../../repositories/payment-method.repository";
+import { assertUsablePaymentMethod } from "./assert-usable-payment-method";
 import { AppError } from "../../errors/app-error";
 import type { IFixedExpense } from "../../interfaces/fixed-expense";
 import type { UpdateFixedExpenseDto } from "../../dto/fixed-expense.dto";
@@ -10,7 +12,10 @@ export type UpdateFixedExpenseInput = UpdateFixedExpenseDto & { id: string; user
 export class UpdateFixedExpenseUseCase {
   private readonly logger = new Logger(UpdateFixedExpenseUseCase.name);
 
-  constructor(private readonly fixedExpenseRepository: FixedExpenseRepository) {}
+  constructor(
+    private readonly fixedExpenseRepository: FixedExpenseRepository,
+    private readonly paymentMethodRepository: PaymentMethodRepository,
+  ) {}
 
   async execute(input: UpdateFixedExpenseInput): Promise<IFixedExpense> {
     this.logger.log({ input }, "UpdateFixedExpenseUseCase.execute");
@@ -20,6 +25,8 @@ export class UpdateFixedExpenseUseCase {
     if (existing.userId && existing.userId !== input.userId) {
       throw new AppError("Unauthorized to update this fixed expense", 403);
     }
+
+    await assertUsablePaymentMethod(this.paymentMethodRepository, input.userId, input.paymentMethodName);
 
     const { id, userId, ...data } = input;
     const result = await this.fixedExpenseRepository.update(id, data);

@@ -9,6 +9,8 @@ export type ExpenseFilter = {
   bank?: string;
   category?: string;
   cardInvoiceId?: string;
+  dateGte?: Date;
+  dateLte?: Date;
   amountGte?: number;
   amountLte?: number;
   createdAtGte?: Date;
@@ -85,6 +87,9 @@ export class ExpenseRepository {
         ...(filter.bank ? { bank: filter.bank } : {}),
         ...(filter.category ? { category: filter.category } : {}),
         ...(filter.cardInvoiceId ? { cardInvoiceId: filter.cardInvoiceId } : {}),
+        ...(filter.dateGte !== undefined || filter.dateLte !== undefined
+          ? { date: { gte: filter.dateGte, lte: filter.dateLte } }
+          : {}),
         ...(filter.amountGte !== undefined || filter.amountLte !== undefined
           ? { amount: { gte: filter.amountGte, lte: filter.amountLte } }
           : {}),
@@ -197,6 +202,14 @@ export class ExpenseRepository {
       _sum: { amount: true },
     });
     return Number(result._sum.amount ?? 0);
+  }
+
+  async findReceiptKeysByUser(userId: string): Promise<string[]> {
+    const rows = await prisma.expense.findMany({
+      where: { userId, receipt: { not: null } },
+      select: { receipt: true },
+    });
+    return rows.flatMap((row) => (row.receipt ? [row.receipt] : []));
   }
 
   async findReceiptKeysByInvoice(invoiceId: string, type?: ExpenseTypeEnum, tx?: TxClient): Promise<string[]> {

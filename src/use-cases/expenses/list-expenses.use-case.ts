@@ -23,6 +23,8 @@ export class ListExpensesUseCase {
       bank: q.bank,
       category: q.category,
       cardInvoiceId: q.cardInvoiceId,
+      dateGte: q.startDate ? new Date(q.startDate) : undefined,
+      dateLte: q.endDate ? new Date(q.endDate) : undefined,
       amountGte: q.minAmount !== undefined ? Number(q.minAmount) : undefined,
       amountLte: q.maxAmount !== undefined ? Number(q.maxAmount) : undefined,
       createdAtGte: q.createdStartDate ? new Date(q.createdStartDate) : undefined,

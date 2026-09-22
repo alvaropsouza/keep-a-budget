@@ -138,6 +138,16 @@ export class ExpenseQueryParamsDto {
   @ApiPropertyOptional({ format: "date-time" })
   @IsDateString()
   @IsOptional()
+  startDate?: string;
+
+  @ApiPropertyOptional({ format: "date-time" })
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @ApiPropertyOptional({ format: "date-time" })
+  @IsDateString()
+  @IsOptional()
   createdStartDate?: string;
 
   @ApiPropertyOptional({ format: "date-time" })

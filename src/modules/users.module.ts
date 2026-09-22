@@ -3,6 +3,10 @@ import { UsersController } from "./users.controller";
 import { AuthModule } from "./auth.module";
 import { CacheModule } from "./cache.module";
 import { UserRepository } from "../repositories/user.repository";
+import { ExpenseRepository } from "../repositories/expense.repository";
+import { IrDocumentRepository } from "../repositories/ir-document.repository";
+import { VehicleRevisionRepository } from "../repositories/vehicle-revision.repository";
+import { S3Service } from "../services/s3.service";
 import { GetUserByIdUseCase } from "../use-cases/users/get-user-by-id.use-case";
 import { GetUserByEmailUseCase } from "../use-cases/users/get-user-by-email.use-case";
 import { CreateUserUseCase } from "../use-cases/users/create-user.use-case";
@@ -14,6 +18,10 @@ import { DeleteUserUseCase } from "../use-cases/users/delete-user.use-case";
   controllers: [UsersController],
   providers: [
     UserRepository,
+    ExpenseRepository,
+    IrDocumentRepository,
+    VehicleRevisionRepository,
+    S3Service,
     GetUserByIdUseCase,
     GetUserByEmailUseCase,
     CreateUserUseCase,

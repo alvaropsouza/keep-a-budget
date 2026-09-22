@@ -76,6 +76,10 @@ export class PaymentMethodRepository {
   async renameUsages(userId: string, oldName: string, newName: string, tx: TxClient): Promise<void> {
     await tx.expense.updateMany({ where: { userId, bank: oldName }, data: { bank: newName } });
     await tx.cardInvoice.updateMany({ where: { userId, bank: oldName }, data: { bank: newName } });
+    await tx.fixedExpense.updateMany({
+      where: { userId, paymentMethodName: oldName },
+      data: { paymentMethodName: newName },
+    });
   }
 
   async delete(id: string): Promise<IPaymentMethod | null> {
@@ -84,10 +88,11 @@ export class PaymentMethodRepository {
   }
 
   async countUsages(userId: string, name: string): Promise<number> {
-    const [expenses, invoices] = await Promise.all([
+    const [expenses, invoices, fixedExpenses] = await Promise.all([
       prisma.expense.count({ where: { userId, bank: name } }),
       prisma.cardInvoice.count({ where: { userId, bank: name } }),
+      prisma.fixedExpense.count({ where: { userId, paymentMethodName: name } }),
     ]);
-    return expenses + invoices;
+    return expenses + invoices + fixedExpenses;
   }
 }

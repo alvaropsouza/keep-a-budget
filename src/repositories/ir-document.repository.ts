@@ -28,6 +28,11 @@ export class IrDocumentRepository {
     return rows.map(mapDocument);
   }
 
+  async findReceiptKeysByUser(userId: string): Promise<string[]> {
+    const rows = await prisma.irDocument.findMany({ where: { userId }, select: { receipt: true } });
+    return rows.map((row) => row.receipt);
+  }
+
   async findById(id: string): Promise<IIrDocument | null> {
     const row = await prisma.irDocument.findUnique({ where: { id } });
     return row ? mapDocument(row) : null;

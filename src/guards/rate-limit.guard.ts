@@ -23,8 +23,8 @@ export class RateLimitGuard implements CanActivate {
 
   canActivate(ctx: ExecutionContext): boolean {
     const req = ctx.switchToHttp().getRequest<FastifyRequest>();
-    const ip = req.ip ?? "unknown";
-    const key = `${ip}:${req.url}`;
+    const identity = req.authUser?.userId ?? req.ip ?? "unknown";
+    const key = `${identity}:${req.url}`;
     const now = Date.now();
     this.sweep(now);
     const entry = this.store.get(key);

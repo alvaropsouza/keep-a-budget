@@ -33,6 +33,14 @@ export class VehicleRevisionRepository {
     return rows.map(mapRevision);
   }
 
+  async findFileKeysByUser(userId: string): Promise<string[]> {
+    const rows = await prisma.vehicleRevision.findMany({
+      where: { vehicle: { userId } },
+      select: { files: true },
+    });
+    return rows.flatMap((row) => row.files);
+  }
+
   async findById(id: string): Promise<IVehicleRevision | null> {
     const row = await prisma.vehicleRevision.findUnique({ where: { id } });
     return row ? mapRevision(row) : null;

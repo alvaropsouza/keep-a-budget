@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { VehiclesController } from "./vehicles.controller";
 import { RemoveBgService } from "../services/remove-bg.service";
 import { VehicleRepository } from "../repositories/vehicle.repository";
+import { VehicleRevisionRepository } from "../repositories/vehicle-revision.repository";
+import { S3Service } from "../services/s3.service";
 import { UploadCarPhotoUseCase } from "../use-cases/vehicles/upload-car-photo.use-case";
 import { ListVehiclesUseCase } from "../use-cases/vehicles/list-vehicles.use-case";
 import { GetVehicleByIdUseCase } from "../use-cases/vehicles/get-vehicle-by-id.use-case";
@@ -16,6 +18,8 @@ import { AuthModule } from "./auth.module";
   providers: [
     RemoveBgService,
     VehicleRepository,
+    VehicleRevisionRepository,
+    S3Service,
     UploadCarPhotoUseCase,
     ListVehiclesUseCase,
     GetVehicleByIdUseCase,

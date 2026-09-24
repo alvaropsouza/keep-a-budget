@@ -2,8 +2,13 @@ import { Injectable } from "@nestjs/common";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ParsedExpenseResponse } from "../dto/parse-expense.dto";
 
-const CATEGORIES = ["Alimentação", "Transporte", "Lazer", "Compras", "Saúde", "Educação", "Contas", "Eletrônicos", "Viagem", "Outros"];
-const BANKS = ["NUBANK", "XP"];
+const DEFAULT_CATEGORIES = ["Alimentação", "Transporte", "Lazer", "Compras", "Saúde", "Educação", "Contas", "Eletrônicos", "Viagem", "Outros"];
+const DEFAULT_BANKS = ["Nubank", "XP"];
+
+export type UserVocabulary = { banks: string[]; categories: string[] };
+
+const optionsOf = (values: string[], fallback: string[]): string[] =>
+  values.length > 0 ? values : fallback;
 
 export interface ParsedIrReceiptResponse {
   date: string | null;
@@ -24,16 +29,22 @@ export interface ParsedStockTicketResponse {
   fees: number | null;
 }
 
-const ITEM_SCHEMA = `{"bank":"${BANKS.join("|")}|null","amount":number|null,"date":"YYYY-MM-DD"|null,"category":"${CATEGORIES.join("|")}|null","description":"string|null","installmentTotal":number|null}`;
+const itemSchemaFor = (vocabulary?: UserVocabulary): string => {
+  const banks = optionsOf(vocabulary?.banks ?? [], DEFAULT_BANKS);
+  const categories = optionsOf(vocabulary?.categories ?? [], DEFAULT_CATEGORIES);
+  return `{"bank":"${banks.join("|")}|null","amount":number|null,"date":"YYYY-MM-DD"|null,"category":"${categories.join("|")}|null","description":"string|null","installmentTotal":number|null}`;
+};
 
-const SYSTEM_PROMPT = `Extrai despesa de comprovante ou texto PT-BR. Retorne JSON puro, sem markdown, sem explicações.
-Schema (objeto único): ${ITEM_SCHEMA}
-Banco — prioridade: logo > cor dominante > texto institucional. NUBANK = fundo branco, roxo/violeta (#820AD1) em destaques, logo "Nu" circle ou texto "Nubank", Nu Pagamentos, Nu Financeira. XP = fundo preto/escuro, texto branco, logo "XP" minimalista, variações aceitas: XP Investimentos, XP Inc, Banco XP, Rico. bank=null se banco não suportado, imagem ilegível ou sinais insuficientes.
+const systemPromptFor = (vocabulary?: UserVocabulary): string => `Extrai despesa de comprovante ou texto PT-BR. Retorne JSON puro, sem markdown, sem explicações.
+Schema (objeto único): ${itemSchemaFor(vocabulary)}
+bank e category: use exatamente um dos valores listados no schema, ou null. Nunca invente valor fora da lista.
+Banco — prioridade: logo > cor dominante > texto institucional. Pistas: Nubank = fundo branco, roxo/violeta (#820AD1), logo "Nu" ou texto "Nubank", Nu Pagamentos, Nu Financeira. XP = fundo preto/escuro, texto branco, logo "XP", variações: XP Investimentos, XP Inc, Banco XP, Rico. Mapeie a pista para o valor da lista que corresponder; bank=null se nenhum valor da lista corresponder, imagem ilegível ou sinais insuficientes.
 Datas relativas: resolver com a data fornecida. Valores em reais: "R$ 1.200,50"→1200.50.`;
 
-const IMAGE_SYSTEM_PROMPT = `Extrai TODAS as transações visíveis em comprovante ou extrato bancário PT-BR. Retorne JSON puro, sem markdown, sem explicações.
-Schema (array obrigatório — mesmo com uma única transação): [${ITEM_SCHEMA}]
-Banco — prioridade: logo > cor dominante > texto institucional. NUBANK = fundo branco, roxo/violeta (#820AD1) em destaques, logo "Nu" circle ou texto "Nubank", Nu Pagamentos, Nu Financeira. XP = fundo preto/escuro, texto branco, logo "XP" minimalista, variações: XP Investimentos, XP Inc, Banco XP, Rico. bank=null se banco não suportado ou sinais insuficientes.
+const imageSystemPromptFor = (vocabulary?: UserVocabulary): string => `Extrai TODAS as transações visíveis em comprovante ou extrato bancário PT-BR. Retorne JSON puro, sem markdown, sem explicações.
+Schema (array obrigatório — mesmo com uma única transação): [${itemSchemaFor(vocabulary)}]
+bank e category: use exatamente um dos valores listados no schema, ou null. Nunca invente valor fora da lista.
+Banco — prioridade: logo > cor dominante > texto institucional. Pistas: Nubank = fundo branco, roxo/violeta (#820AD1), logo "Nu" ou texto "Nubank", Nu Pagamentos, Nu Financeira. XP = fundo preto/escuro, texto branco, logo "XP", variações: XP Investimentos, XP Inc, Banco XP, Rico. Mapeie a pista para o valor da lista que corresponder; bank=null se nenhum valor da lista corresponder ou sinais insuficientes.
 Regras: uma entrada por transação; nunca agregar; valores "R$ 1.200,50"→1200.50; datas relativas resolver com data fornecida; imagem ilegível → [].`;
 
 function parseJsonResponse(raw: string): ParsedExpenseResponse {
@@ -70,7 +81,11 @@ export class AiService {
     this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
 
-  async parseExpenseFromImage(imageBuffer: Buffer, mimeType: string): Promise<ParsedExpenseResponse[]> {
+  async parseExpenseFromImage(
+    imageBuffer: Buffer,
+    mimeType: string,
+    vocabulary?: UserVocabulary,
+  ): Promise<ParsedExpenseResponse[]> {
     const today = new Date().toISOString().split("T")[0];
     const base64 = imageBuffer.toString("base64");
 
@@ -96,7 +111,7 @@ export class AiService {
     const message = await this.client.messages.create({
       model: isImage ? MODEL_FAST : MODEL_PDF,
       max_tokens: 1024,
-      system: IMAGE_SYSTEM_PROMPT,
+      system: imageSystemPromptFor(vocabulary),
       messages: [{
         role: "user",
         content: [
@@ -114,11 +129,15 @@ export class AiService {
     return parseJsonArrayResponse(content.text);
   }
 
-  async parseIrReceiptFromFile(fileBuffer: Buffer, mimeType: string): Promise<ParsedIrReceiptResponse> {
+  async parseIrReceiptFromFile(
+    fileBuffer: Buffer,
+    mimeType: string,
+    vocabulary?: UserVocabulary,
+  ): Promise<ParsedIrReceiptResponse> {
     const today = new Date().toISOString().split("T")[0];
     const base64 = fileBuffer.toString("base64");
     const irSystemPrompt = `Extrai dados de comprovante PIX/TED/débito para declaração IR. Retorne JSON puro, sem markdown, sem explicações.
-Schema: {"date":"YYYY-MM-DD|null","category":"${CATEGORIES.join("|")}|null","amount":number|null,"description":"string|null"}
+Schema: {"date":"YYYY-MM-DD|null","category":"${optionsOf(vocabulary?.categories ?? [], DEFAULT_CATEGORIES).join("|")}|null","amount":number|null,"description":"string|null"}
 Regras: date=data do pagamento, amount=valor em reais (ex "R$ 1.200,50"→1200.50), category=categoria mais adequada ao beneficiário, description=nome do beneficiário/prestador.`;
 
     const isImage = mimeType.startsWith("image/");
@@ -213,13 +232,13 @@ Regras:
     return parseJsonResponse(content.text) as unknown as ParsedStockTicketResponse;
   }
 
-  async parseExpense(text: string): Promise<ParsedExpenseResponse> {
+  async parseExpense(text: string, vocabulary?: UserVocabulary): Promise<ParsedExpenseResponse> {
     const today = new Date().toISOString().split("T")[0];
 
     const message = await this.client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 200,
-      system: SYSTEM_PROMPT,
+      system: systemPromptFor(vocabulary),
       messages: [{ role: "user", content: `Data atual: ${today}\n\nTexto: ${text}` }],
     });
 

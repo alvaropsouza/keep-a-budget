@@ -5,7 +5,11 @@ import { PaymentMethodRepository } from "../../repositories/payment-method.repos
 import { AppError } from "../../errors/app-error";
 import { assertUsablePaymentMethod } from "../payment-methods/assert-usable-payment-method";
 import { runWithTransaction } from "../../utils/run-with-transaction";
-import { parseInvoiceCsv, toSupportedCsvBank } from "../../utils/invoice-csv-parser";
+import {
+  parseInvoiceCsv,
+  toSupportedCsvBank,
+  type SupportedCsvBank,
+} from "../../utils/invoice-csv-parser";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 import type { ICardInvoice } from "../../interfaces/card-invoice";
 
@@ -41,7 +45,7 @@ export class CreateInvoiceFromCsvUseCase {
       throw new AppError("O vencimento não pode ser anterior ao fechamento da fatura.", 400);
     }
 
-    const csvBank = toSupportedCsvBank(input.bank);
+    const csvBank: SupportedCsvBank | null = toSupportedCsvBank(input.bank);
     if (!csvBank) {
       throw new AppError("Importação de CSV está disponível apenas para faturas Nubank e XP", 400);
     }

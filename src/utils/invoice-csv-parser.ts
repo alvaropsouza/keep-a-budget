@@ -10,6 +10,8 @@ export interface InvoiceCsvRow {
 
 export type SupportedCsvBank = "XP" | "NUBANK";
 
+export const SUPPORTED_CSV_BANKS: readonly SupportedCsvBank[] = ["NUBANK", "XP"];
+
 export function toSupportedCsvBank(bank: string): SupportedCsvBank | null {
   const raw = bank.toUpperCase();
   return raw === "XP" || raw === "NUBANK" ? raw : null;

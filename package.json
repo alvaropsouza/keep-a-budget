@@ -15,7 +15,7 @@
     "data:encrypt-users": "tsx scripts/encryptExistingUserData.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "test": "node --import tsx --test test/budget/invoice-period.spec.ts test/budget/upsert-budget.use-case.spec.ts test/budget/get-budget-summary.use-case.spec.ts test/budget/get-active-budget-summary.use-case.spec.ts test/fixed-expenses/fixed-expense-cycle.spec.ts test/fixed-expenses/delete-fixed-expense.use-case.spec.ts test/expenses/update-expense.use-case.spec.ts test/expenses/delete-expense.use-case.spec.ts test/categories/update-category.use-case.spec.ts test/categories/delete-category.use-case.spec.ts test/guards/rate-limit.guard.spec.ts test/payment-methods/assert-usable-payment-method.spec.ts test/expenses/export-ir-zip.spec.ts test/vehicles/delete-vehicle.use-case.spec.ts test/users/delete-user.use-case.spec.ts test/ir-stocks/get-stock-gains-by-month.spec.ts test/invoices/update-invoice.use-case.spec.ts test/invoices/invoice-csv-parser.spec.ts test/invoices/create-invoice-from-csv.use-case.spec.ts"
+    "test": "node --import tsx --test \"test/**/*.spec.ts\""
   },
   "keywords": [],
   "overrides": {

@@ -33,9 +33,9 @@ export class AiController {
 
   @Post("parse-expense")
   @HttpCode(HttpStatus.OK)
-  async parseExpense(@Body() body: ParseExpenseDto) {
+  async parseExpense(@Body() body: ParseExpenseDto, @Req() req: FastifyRequest) {
     await validateDto(ParseExpenseDto, body);
-    return this.parseExpenseUseCase.execute({ text: body.text });
+    return this.parseExpenseUseCase.execute({ text: body.text, userId: req.authUser!.userId });
   }
 
   @Post("parse-expense-image")
@@ -49,7 +49,7 @@ export class AiController {
       buffer: file.buffer,
       mimeType: validateUpload(file.buffer, RECEIPT_UPLOAD_RULES),
     }));
-    return this.parseExpenseImagesUseCase.execute({ items });
+    return this.parseExpenseImagesUseCase.execute({ items, userId: req.authUser!.userId });
   }
 
   @Post("parse-ir-receipt")
@@ -58,7 +58,11 @@ export class AiController {
     const { file } = await readMultipart(req);
     if (!file) throw new BadRequestException("Arquivo não enviado");
     const detectedMime = validateUpload(file.buffer, RECEIPT_UPLOAD_RULES);
-    return this.parseIrReceiptUseCase.execute({ buffer: file.buffer, mimeType: detectedMime });
+    return this.parseIrReceiptUseCase.execute({
+      buffer: file.buffer,
+      mimeType: detectedMime,
+      userId: req.authUser!.userId,
+    });
   }
 
   @Post("parse-stock-ticket")

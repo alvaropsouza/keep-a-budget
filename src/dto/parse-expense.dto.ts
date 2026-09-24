@@ -10,7 +10,7 @@ export class ParseExpenseDto {
 }
 
 export interface ParsedExpenseResponse {
-  bank: "NUBANK" | "XP" | null;
+  bank: string | null;
   amount: number | null;
   date: string | null;
   category: string | null;

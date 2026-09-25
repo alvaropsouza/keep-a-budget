@@ -31,3 +31,24 @@ test("Nubank amounts quoted with a decimal comma are parsed whole", () => {
   );
   assert.equal(rows[0].date.toISOString(), "2026-09-10T00:00:00.000Z");
 });
+
+test("rows with an unreadable date are skipped instead of reaching the database", () => {
+  const xp = [
+    "data;descricao;categoria;valor;parcela",
+    "10/09/2026;Mercado;Alimentação;R$ 150,00;",
+    "TOTAL;Resumo da fatura;;R$ 999,00;",
+    "32/13/2026;Data impossível;Outros;R$ 10,00;",
+  ].join("\n");
+
+  assert.deepEqual(
+    parseInvoiceCsv("XP", xp).map((r) => r.description),
+    ["Mercado"],
+  );
+
+  const nubank = ["date,title,amount", "2026-09-10,Padaria,214.89", "total,Resumo,999.00"].join("\n");
+
+  assert.deepEqual(
+    parseInvoiceCsv("NUBANK", nubank).map((r) => r.description),
+    ["Padaria"],
+  );
+});

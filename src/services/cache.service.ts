@@ -28,6 +28,7 @@ export class CacheService {
    * @param ttl TTL em ms (opcional; se não definido, cache não expira por tempo)
    */
   set<T>(key: string, value: T, tags: string[] = [], ttl?: number): void {
+    this.delete(key);
     const tagSet = new Set(tags);
     this.cache.set(key, { value, tags: tagSet, createdAt: Date.now(), ttl });
 
@@ -56,13 +57,6 @@ export class CacheService {
     }
 
     return entry.value;
-  }
-
-  /**
-   * Verifica se chave existe no cache.
-   */
-  has(key: string): boolean {
-    return this.cache.has(key);
   }
 
   /**
@@ -106,27 +100,5 @@ export class CacheService {
 
     keysToDelete.forEach((key) => this.delete(key));
     return keysToDelete.size;
-  }
-
-  /**
-   * Limpa todo o cache.
-   */
-  clear(): void {
-    this.cache.clear();
-    this.tagIndex.clear();
-  }
-
-  /**
-   * Retorna estatísticas do cache.
-   */
-  stats() {
-    return {
-      totalKeys: this.cache.size,
-      totalTags: this.tagIndex.size,
-      memory: Math.round((Buffer.byteLength(JSON.stringify({
-        cache: Array.from(this.cache.entries()),
-        tagIndex: Array.from(this.tagIndex.entries()),
-      })) / 1024 / 1024) * 100) / 100, // MB
-    };
   }
 }

@@ -7,6 +7,7 @@ import {
   createOtpCode,
   hashOtpCode,
   OTP_RESEND_COOLDOWN_MS,
+  OTP_TTL_MS,
 } from "../../utils/auth-tokens";
 
 export type RequestOtpInput = { email: string };
@@ -38,7 +39,7 @@ export class RequestOtpUseCase {
 
     const code = createOtpCode();
     const codeHash = hashOtpCode(user.id, code);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
     await this.sessionRepository.replaceOtp(user.id, codeHash, expiresAt);
 

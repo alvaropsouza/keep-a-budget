@@ -119,6 +119,8 @@ model Expense {
 
     @@unique([fixedExpenseId, cardInvoiceId], map: "expenses_fixed_expense_card_invoice_unique")
     @@index([userId], map: "expenses_user_id_idx")
+    @@index([userId, date], map: "expenses_user_id_date_idx")
+    @@index([cardInvoiceId], map: "expenses_card_invoice_id_idx")
     @@map("expenses")
 }
 

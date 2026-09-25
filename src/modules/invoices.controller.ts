@@ -52,7 +52,9 @@ const parseBank = (value?: string): string | null => {
 const parseExcludeIndexes = (value?: string): number[] | undefined => {
   if (!value) return undefined;
   try {
-    return JSON.parse(value) as number[];
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return undefined;
+    return parsed.filter((index): index is number => Number.isInteger(index));
   } catch {
     return undefined;
   }

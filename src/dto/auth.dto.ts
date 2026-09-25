@@ -1,4 +1,10 @@
-import { IsEmail, IsString, Matches, MinLength } from "class-validator";
+import {
+  IsEmail,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 export class RequestOtpDto {
@@ -22,6 +28,7 @@ export class AuthenticateDto {
   @ApiProperty()
   @IsString()
   @MinLength(16)
+  @MaxLength(256)
   token!: string;
 }
 

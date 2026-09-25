@@ -67,3 +67,13 @@ test("a month at the exemption ceiling stays exempt", async () => {
   assert.equal(may.grossRevenue, 20000);
   assert.equal(may.isExempt, true);
 });
+
+test("a ticker bought at one broker and sold at another keeps its cost basis", async () => {
+  const boughtAtXp = buy("2026-01-10T00:00:00.000Z", 100, 10);
+  const soldAtRico = { ...sell("2026-03-10T00:00:00.000Z", 100, 15), broker: "Rico" } as IStockTransaction;
+
+  const [march] = await buildUseCase([boughtAtXp, soldAtRico]).execute({ userId: "user-1", year: 2026 });
+
+  assert.equal(march.grossRevenue, 1500);
+  assert.equal(march.netGain, 500);
+});

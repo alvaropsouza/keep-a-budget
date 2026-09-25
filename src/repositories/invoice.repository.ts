@@ -242,7 +242,10 @@ export class InvoiceRepository {
   }
 
   async findAllOpen(): Promise<ICardInvoice[]> {
-    const rows = await prisma.cardInvoice.findMany({ where: { status: InvoiceStatus.OPEN } });
+    const rows = await prisma.cardInvoice.findMany({
+      where: { status: InvoiceStatus.OPEN },
+      orderBy: { closingDate: "asc" },
+    });
     return rows.map((row) => mapInvoice(row));
   }
 

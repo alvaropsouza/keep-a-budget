@@ -1,3 +1,5 @@
+import { getBrazilTodayUtcMidnight } from "./timezone";
+
 export type FixedExpenseCycleInput = {
   dueDay?: number;
   recurrenceMonths: number;
@@ -35,7 +37,7 @@ export const expenseDateForInvoice = (fixed: FixedExpenseCycleInput, closingDate
   const cycleDate = cycleDateForInvoice(fixed, closingDate);
   if (fixed.dueDay) return cycleDate;
 
-  const today = startOfUtcDay(new Date());
+  const today = getBrazilTodayUtcMidnight();
   return today < cycleDate ? today : cycleDate;
 };
 

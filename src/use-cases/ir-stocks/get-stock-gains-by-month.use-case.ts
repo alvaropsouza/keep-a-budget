@@ -14,6 +14,15 @@ function buildMonthKey(month: number, operationType: StockOperationType): MonthK
   return `${month}-${operationType}`;
 }
 
+function findPositionKey(positions: Map<string, PositionState>, ticker: string, broker: string): string {
+  const exact = `${ticker}::${broker}`;
+  if (positions.has(exact)) return exact;
+  for (const key of positions.keys()) {
+    if (key.startsWith(`${ticker}::`)) return key;
+  }
+  return exact;
+}
+
 @Injectable()
 export class GetStockGainsByMonthUseCase {
   private readonly logger = new Logger(GetStockGainsByMonthUseCase.name);
@@ -30,9 +39,8 @@ export class GetStockGainsByMonthUseCase {
     const monthlyNetGain = new Map<MonthKey, number>();
 
     for (const tx of allTransactions) {
-      const key = `${tx.ticker}::${tx.broker}`;
-
       if (tx.type === "COMPRA") {
+        const key = `${tx.ticker}::${tx.broker}`;
         const pos = positions.get(key) ?? { quantity: 0, averageCost: 0 };
         const totalCost = pos.quantity * pos.averageCost + tx.quantity * tx.unitPrice + tx.fees;
         const totalQty = pos.quantity + tx.quantity;
@@ -40,6 +48,7 @@ export class GetStockGainsByMonthUseCase {
         pos.quantity = totalQty;
         positions.set(key, pos);
       } else {
+        const key = findPositionKey(positions, tx.ticker, tx.broker);
         const pos = positions.get(key) ?? { quantity: 0, averageCost: 0 };
         const txYear = tx.date.getUTCFullYear();
         const txMonth = tx.date.getUTCMonth() + 1;

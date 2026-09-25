@@ -16,6 +16,21 @@ const sanitizeCsvField = (value: string): string =>
 export const sanitizeFileSegment = (value: string): string =>
   value.replace(/[\\/:*?"<>|]/g, "-").trim() || "sem-categoria";
 
+const CONCURRENT_DOWNLOADS = 5;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  transform: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let start = 0; start < items.length; start += limit) {
+    const batch = await Promise.all(items.slice(start, start + limit).map(transform));
+    results.push(...batch);
+  }
+  return results;
+}
+
 @Injectable()
 export class ExportIrZipUseCase {
   private readonly logger = new Logger(ExportIrZipUseCase.name);
@@ -34,28 +49,30 @@ export class ExportIrZipUseCase {
       this.getIrDocumentsByYearUseCase.execute({ userId: input.userId, year: input.year }),
     ]);
 
-    const expenseReceiptDownloads = await Promise.all(
-      expenses
-        .filter((e) => e.receipt)
-        .map(async (e) => {
+    const expenseReceiptDownloads = await mapWithConcurrency(
+      expenses.filter((e) => e.receipt),
+      CONCURRENT_DOWNLOADS,
+      async (e) => {
           const key = extractS3Key(e.receipt!);
           const buffer = await this.s3Service.downloadObject(key);
           const ext = key.split(".").pop() ?? "jpg";
           const dateStr = e.date.toISOString().split("T")[0];
           const category = sanitizeFileSegment(e.category);
-          return { buffer, filename: `despesas/${dateStr}-${category}-${e.id.slice(0, 8)}.${ext}`, sourceId: e.id };
-        }),
+        return { buffer, filename: `despesas/${dateStr}-${category}-${e.id.slice(0, 8)}.${ext}`, sourceId: e.id };
+      },
     );
 
-    const documentReceiptDownloads = await Promise.all(
-      irDocuments.map(async (doc) => {
+    const documentReceiptDownloads = await mapWithConcurrency(
+      irDocuments,
+      CONCURRENT_DOWNLOADS,
+      async (doc) => {
         const key = extractS3Key(doc.receipt);
         const buffer = await this.s3Service.downloadObject(key);
         const ext = key.split(".").pop() ?? "pdf";
         const dateStr = doc.date.toISOString().split("T")[0];
         const category = sanitizeFileSegment(doc.category);
         return { buffer, filename: `pix/${dateStr}-${category}-${doc.id.slice(0, 8)}.${ext}`, sourceId: doc.id };
-      }),
+      },
     );
 
     const expenseReceiptById = new Map(expenseReceiptDownloads.map((r) => [r.sourceId, r]));

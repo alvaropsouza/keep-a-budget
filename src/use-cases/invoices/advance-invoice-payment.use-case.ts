@@ -5,6 +5,7 @@ import { AppError } from "../../errors/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 import type { ICardInvoice } from "../../interfaces/card-invoice";
+import { getBrazilTodayUtcMidnight } from "../../utils/timezone";
 
 export type AdvanceInvoicePaymentInput = { id: string; amount: number; userId: string };
 
@@ -39,7 +40,7 @@ export class AdvanceInvoicePaymentUseCase {
           bank: invoice.bank,
           type: ExpenseTypeEnum.ADVANCE,
           category: "Advance",
-          date: new Date(),
+          date: getBrazilTodayUtcMidnight(),
           amount: input.amount,
           description: "Advance payment",
           cardInvoiceId: invoice.id,

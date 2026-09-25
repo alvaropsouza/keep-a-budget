@@ -1,11 +1,12 @@
 import {
-  IsString,
-  IsOptional,
+  IsDate,
   IsEmail,
   IsNumber,
-  Min,
-  IsDate,
+  IsOptional,
+  IsString,
   Matches,
+  MaxLength,
+  Min,
 } from "class-validator";
 import { Transform } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
@@ -19,10 +20,12 @@ const RG_PATTERN = /^[0-9A-Za-z]{5,20}$/;
 export class CreateUserDto {
   @ApiProperty({ example: "João" })
   @IsString()
+  @MaxLength(120)
   name!: string;
 
   @ApiProperty({ example: "Silva" })
   @IsString()
+  @MaxLength(120)
   lastName!: string;
 
   @ApiProperty({ example: "joao@example.com" })
@@ -32,6 +35,7 @@ export class CreateUserDto {
   @ApiPropertyOptional({ example: "11999999999" })
   @IsString()
   @IsOptional()
+  @MaxLength(20)
   phone?: string;
 
   @ApiPropertyOptional({ example: "12345678901", description: "11 dígitos sem pontuação" })
@@ -70,11 +74,13 @@ export class UpdateUserDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   name?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   lastName?: string;
 
   @ApiPropertyOptional()
@@ -85,6 +91,7 @@ export class UpdateUserDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(20)
   phone?: string;
 
   @ApiPropertyOptional({ description: "11 dígitos sem pontuação" })

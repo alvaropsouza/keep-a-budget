@@ -1,6 +1,10 @@
 import { validate } from "class-validator";
 import { plainToInstance, type ClassConstructor } from "class-transformer";
 
+export const MAX_DECIMAL_12_2 = 9_999_999_999.99;
+export const MAX_DECIMAL_12_4 = 99_999_999.9999;
+export const MAX_DECIMAL_18_6 = 999_999_999_999.999999;
+
 export async function validateDto(
   dtoClass: ClassConstructor<object>,
   data: unknown

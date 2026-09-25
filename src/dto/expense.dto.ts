@@ -1,34 +1,41 @@
 import {
-  IsString,
-  IsNumber,
-  IsOptional,
-  IsUUID,
-  Min,
-  IsDateString,
   IsBoolean,
+  IsDateString,
+  IsNumber,
   IsNumberString,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
   MinLength,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { MAX_DECIMAL_12_2 } from "../utils/validation";
 
 export class CreateExpenseDto {
   @ApiProperty({ example: "Nubank", description: "Nome de uma forma de pagamento cadastrada" })
   @IsString()
   @MinLength(1)
+  @MaxLength(120)
   bank!: string;
 
   @ApiProperty({ example: "Alimentação" })
   @IsString()
+  @MaxLength(120)
   category!: string;
 
   @ApiProperty({ minimum: 0, example: 59.9 })
   @IsNumber()
   @Min(0)
+  @Max(MAX_DECIMAL_12_2)
   amount!: number;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   description?: string;
 
   @ApiPropertyOptional({ minimum: 1, example: 12 })
@@ -51,6 +58,7 @@ export class CreateExpenseDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(2048)
   receipt?: string;
 
   @ApiPropertyOptional()
@@ -63,22 +71,26 @@ export class UpdateExpenseDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   bank?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   category?: string;
 
   @ApiPropertyOptional({ minimum: 0 })
   @IsNumber()
   @IsOptional()
   @Min(0)
+  @Max(MAX_DECIMAL_12_2)
   amount?: number;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   description?: string;
 
   @ApiPropertyOptional({ format: "uuid" })
@@ -113,11 +125,13 @@ export class ExpenseQueryParamsDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   bank?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   category?: string;
 
   @ApiPropertyOptional({ format: "uuid" })
@@ -128,11 +142,13 @@ export class ExpenseQueryParamsDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(20)
   minAmount?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(20)
   maxAmount?: string;
 
   @ApiPropertyOptional({ format: "date-time" })

@@ -1,15 +1,18 @@
 import {
+  IsBoolean,
   IsDate,
   IsDateString,
-  IsOptional,
   IsNumber,
+  IsOptional,
   IsString,
+  Max,
+  MaxLength,
   Min,
   MinLength,
-  IsBoolean,
 } from "class-validator";
 import { Transform } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { MAX_DECIMAL_12_2 } from "../utils/validation";
 
 const toDate = (value: unknown): Date | undefined => {
   if (!value) return undefined;
@@ -22,6 +25,7 @@ export class CreateInvoiceDto {
   @ApiProperty({ example: "Nubank", description: "Nome de um cartão cadastrado" })
   @IsString()
   @MinLength(1)
+  @MaxLength(120)
   bank!: string;
 
   @ApiProperty({ format: "date-time" })
@@ -45,6 +49,7 @@ export class UpdateInvoiceDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   bank?: string;
 
   @ApiPropertyOptional({ format: "date-time" })
@@ -75,6 +80,7 @@ export class InvoiceQueryParamsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   bank?: string;
 
   @ApiPropertyOptional({ format: "date-time" })
@@ -122,6 +128,7 @@ export class AdvanceInvoiceDto {
   @ApiProperty({ minimum: 0.01 })
   @IsNumber()
   @Min(0.01)
+  @Max(MAX_DECIMAL_12_2)
   amount!: number;
 }
 

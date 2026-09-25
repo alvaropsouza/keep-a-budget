@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { prisma } from "../config/prisma";
 import type { UserSession } from "../generated/prisma/client/client";
 import type { SessionSummary } from "../interfaces/auth";
+import { REVOKED_RETENTION_MS } from "../utils/auth-tokens";
 
 export type AuthUserRecord = {
   id: string;
@@ -138,7 +139,7 @@ export class SessionRepository {
 
   async purgeStale(): Promise<number> {
     const now = new Date();
-    const revokedCutoff = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
+    const revokedCutoff = new Date(Date.now() - REVOKED_RETENTION_MS);
     const result = await prisma.userSession.deleteMany({
       where: {
         OR: [{ expiresAt: { lt: now } }, { revokedAt: { lt: revokedCutoff } }],

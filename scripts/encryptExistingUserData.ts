@@ -1,6 +1,7 @@
 import "dotenv/config";
-import { prisma } from "../src/lib/prisma";
+import { prisma } from "../src/config/prisma";
 import { blindIndex, encryptField, isEncrypted } from "../src/utils/encryption";
+import { normalizeRg } from "../src/utils/br-documents";
 
 // One-shot backfill: encrypt plaintext salary/rg left behind by the
 // 20260617130000_encrypt_user_salary_rg migration. Safe to re-run — rows
@@ -17,8 +18,9 @@ async function main(): Promise<void> {
     }
 
     if (user.rg != null && !isEncrypted(user.rg)) {
-      data.rg = encryptField(user.rg);
-      data.rgHash = blindIndex(user.rg);
+      const normalizedRg = normalizeRg(user.rg);
+      data.rg = encryptField(normalizedRg);
+      data.rgHash = blindIndex(normalizedRg);
     }
 
     if (Object.keys(data).length > 0) {

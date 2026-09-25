@@ -49,6 +49,8 @@ export const RECEIPT_UPLOAD_RULES: { allowed: AllowedUploadType[]; maxBytes: num
   maxBytes: 10 * 1024 * 1024,
 };
 
+export const MAX_UPLOAD_FILES = 10;
+
 export const validateUpload = (
   buffer: Buffer,
   options: { allowed: AllowedUploadType[]; maxBytes: number },

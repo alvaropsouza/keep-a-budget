@@ -1,4 +1,14 @@
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min, MinLength } from "class-validator";
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from "class-validator";
 import { Transform } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { PaymentMethodTypeEnum } from "../enums/payment-method-type.enum";
@@ -15,6 +25,7 @@ export class CreatePaymentMethodDto {
   @ApiProperty({ example: "Nubank" })
   @IsString()
   @MinLength(1)
+  @MaxLength(120)
   name!: string;
 
   @ApiProperty({ enum: PaymentMethodTypeEnum })
@@ -24,6 +35,7 @@ export class CreatePaymentMethodDto {
   @ApiPropertyOptional({ example: "#820AD1" })
   @IsString()
   @IsOptional()
+  @MaxLength(40)
   color?: string;
 
   @ApiPropertyOptional({ minimum: 1, maximum: 31, example: 7 })
@@ -46,11 +58,13 @@ export class UpdatePaymentMethodDto {
   @IsString()
   @MinLength(1)
   @IsOptional()
+  @MaxLength(120)
   name?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(40)
   color?: string;
 
   @ApiPropertyOptional({ minimum: 1, maximum: 31 })

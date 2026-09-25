@@ -1,16 +1,29 @@
-import { IsDateString, IsInt, IsNumber, IsOptional, IsString, Max, Min, MinLength } from "class-validator";
+import {
+  IsDateString,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { MAX_DECIMAL_12_2 } from "../utils/validation";
 
 export class CreateExtraIncomeDto {
   @ApiProperty({ example: "Freela de site" })
   @IsString()
   @MinLength(1)
+  @MaxLength(500)
   description!: string;
 
   @ApiProperty({ minimum: 0.01, example: 1500 })
   @IsNumber()
   @Min(0.01)
+  @Max(MAX_DECIMAL_12_2)
   amount!: number;
 
   @ApiProperty({ example: "2026-07-08" })

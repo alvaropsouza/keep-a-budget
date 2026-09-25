@@ -10,8 +10,6 @@ export interface InvoiceCsvRow {
 
 export type SupportedCsvBank = "XP" | "NUBANK";
 
-export const SUPPORTED_CSV_BANKS: readonly SupportedCsvBank[] = ["NUBANK", "XP"];
-
 export function toSupportedCsvBank(bank: string): SupportedCsvBank | null {
   const raw = bank.toUpperCase();
   return raw === "XP" || raw === "NUBANK" ? raw : null;
@@ -65,14 +63,22 @@ function parseBrazilianCurrency(raw: string): number {
   return Number.parseFloat(cleaned);
 }
 
-function parseBrazilianDate(raw: string): Date {
-  const [day, month, year] = raw.trim().split("/").map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
+function toUtcDate(year: number, month: number, day: number): Date | null {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const rolledOver =
+    date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day;
+  return rolledOver ? null : date;
 }
 
-function parseIsoDate(raw: string): Date {
+function parseBrazilianDate(raw: string): Date | null {
+  const [day, month, year] = raw.trim().split("/").map(Number);
+  return toUtcDate(year, month, day);
+}
+
+function parseIsoDate(raw: string): Date | null {
   const [year, month, day] = raw.trim().split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
+  return toUtcDate(year, month, day);
 }
 
 function parseInstallment(
@@ -112,8 +118,11 @@ export function parseXpCsv(
     // Skip zero-amount entries
     if (Number.isNaN(amount) || amount === 0) continue;
 
+    const date = parseBrazilianDate(rawDate);
+    if (!date) continue;
+
     rows.push({
-      date: parseBrazilianDate(rawDate),
+      date,
       description: rawDescription.trim(),
       amount,
       installment: parseInstallment(rawInstallment),
@@ -171,8 +180,11 @@ export function parseNubankCsv(
     const amount = parseNubankAmount(rawAmount);
     if (Number.isNaN(amount) || amount === 0) continue;
 
+    const date = parseIsoDate(rawDate);
+    if (!date) continue;
+
     rows.push({
-      date: parseIsoDate(rawDate),
+      date,
       description: rawDescription,
       amount,
       installment: parseNubankInstallment(rawDescription),

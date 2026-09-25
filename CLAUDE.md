@@ -133,25 +133,20 @@ src/
   app.module.ts        # raiz: importa todos os módulos
 
   config/              # configuração e singletons
-    database.ts        # DatabaseModule (PrismaService)
-    logger.ts          # logger Pino
+    logger.ts          # logger Pino (com redação de PII)
     prisma.ts          # cliente Prisma singleton com cache middleware
     s3.ts              # S3Client singleton
     validate-env.ts    # validação de env vars no boot
 
   dto/                 # DTOs: validação (class-validator) + docs (ApiProperty)
-    auth.dto.ts
-    budget.dto.ts
-    category.dto.ts
-    fixed-expense.dto.ts
-    invoice.dto.ts
-    ir-document.dto.ts
-    parse-expense.dto.ts
-    user.dto.ts
+    auth · budget · category · expense · extra-income · fixed-expense
+    invoice · ir-document · parse-expense · payment-method
+    stock-transaction · user · vehicle · vehicle-revision
 
   enums/
-    banks.enum.ts
     expense-type.enum.ts
+    invoice-status.enum.ts
+    payment-method-type.enum.ts
 
   errors/              # classes de erro de domínio (extends AppError)
     app-error.ts
@@ -160,34 +155,24 @@ src/
     app-error.filter.ts  # converte AppError → HTTP response
 
   guards/              # NestJS guards (CanActivate)
-    login-rate-limit.guard.ts
-    registration-rate-limit.guard.ts
+    rate-limit.guard.ts   # instanciado por rota com (max, janela, mensagem)
     session-auth.guard.ts
 
   interfaces/          # tipos TypeScript puros (sem decorators)
-    card-invoice.ts
-    car-photo.ts
-    expense.ts
-    fixed-expense.ts
-    user.ts
+    auth · card-invoice · car-photo · expense · extra-income · fixed-expense
+    ir-document · payment-method · stock-transaction · user
+    vehicle · vehicle-revision
 
   jobs/                # crons (node-cron)
+    fixed-expense-auto-launch.job.ts
     invoice-closure.job.ts
     session-cleanup.job.ts
 
   modules/             # módulos NestJS (plural, kebab-case) — estrutura flat
-    ai.controller.ts / ai.module.ts
-    auth.controller.ts / auth.module.ts
-    budgets.controller.ts / budgets.module.ts
-    cache.module.ts
-    categories.controller.ts / categories.module.ts
-    expenses.controller.ts / expenses.module.ts
-    fixed-expenses.controller.ts / fixed-expenses.module.ts
+    ai · auth · budgets · cache · categories · expenses · extra-incomes
+    fixed-expenses · invoices · ir-documents · ir-stocks · payment-methods
+    users · vehicles · vehicle-revisions
     health.controller.ts          # registrado direto no AppModule, sem módulo próprio
-    invoices.controller.ts / invoices.module.ts
-    ir-documents.controller.ts / ir-documents.module.ts
-    users.controller.ts / users.module.ts
-    vehicles.controller.ts / vehicles.module.ts
 
   plugins/             # plugins Fastify (registrados via app.register)
     cors.ts
@@ -195,40 +180,28 @@ src/
     helmet.ts
 
   repositories/        # acesso ao banco — só Prisma, sem lógica
-    budget.repository.ts
-    category.repository.ts
-    expense.repository.ts
-    fixed-expense.repository.ts
-    invoice.repository.ts
-    ir-document.repository.ts
-    user.repository.ts
-    vehicle.repository.ts
+    budget · category · expense · extra-income · fixed-expense · invoice
+    ir-document · payment-method · session · stock-transaction
+    user · vehicle · vehicle-revision
 
   services/            # integrações externas APENAS
     ai.service.ts      # Anthropic Claude API
     brapi.service.ts   # Brapi (cotações B3)
     cache.service.ts   # cache em memória
-    resend.service.ts  # Resend
     remove-bg.service.ts # RemoveBG API
+    resend.service.ts  # Resend
     s3.service.ts      # AWS S3
 
   types/
     fastify.d.ts       # augmenta FastifyRequest com authUser
 
   use-cases/           # lógica de negócio e orquestração
-    budgets/
-      create-budget.use-case.ts
-      list-budgets.use-case.ts
-      ...
-    expenses/
-      create-expense.use-case.ts
-      ...
+    ai/ auth/ budgets/ categories/ expenses/ extra-incomes/ fixed-expenses/
+    invoices/ ir-documents/ ir-stocks/ payment-methods/ users/ vehicles/
 
   utils/               # helpers puros (sem injeção)
-    encryption.ts
-    read-multipart.ts
-    validate-upload.ts
-    ...
+    encryption.ts · read-multipart.ts · validate-upload.ts · timezone.ts
+    fixed-expense-cycle.ts · invoice-csv-parser.ts · validation.ts · ...
 
   generated/           # Prisma client gerado — NÃO editar à mão
     prisma/
@@ -236,6 +209,11 @@ src/
 prisma/
   schema.prisma
   migrations/
+
+scripts/               # operacionais, type-checados via tsconfig.scripts.json
+  check-arch.mjs
+  encryptExistingUserData.ts
+  migrate-to-prod.ts
 ```
 
 ### Convenções de nomenclatura
@@ -277,7 +255,10 @@ Documentação via decorators nos DTOs e controllers — sem schemas manuais:
 
 ```bash
 pnpm run dev              # nest start --watch
-pnpm run build            # prisma generate && nest build
+pnpm run build            # prisma generate && check:arch && check:scripts && nest build
+pnpm test                 # node --test em test/**/*.spec.ts
+pnpm run check:arch       # controller não pode importar service/repository
+pnpm run check:scripts    # type-check da pasta scripts/
 pnpm run prisma:generate  # gera client Prisma
 pnpm run prisma:migrate   # prisma migrate dev
 ```
@@ -300,6 +281,6 @@ pnpm run prisma:migrate   # prisma migrate dev
 - **`any` proibido** — nenhuma forma (`: any`, `as any`, `Record<string, any>`, `Promise<any>`, `<any>`). Tipar com o tipo real; quando desconhecido (erro de `catch`, body de request), usar `unknown` + narrowing (`instanceof`, type guard, `validateDto`).
 - **Sem casts de conveniência (`as Type`)** — não usar `as` para calar o compilador. Tipar na origem: DTO, generic, retorno de service. `as` aceitável só em fronteiras reais: `JSON.parse`/SDK de terceiros sem tipo (cast estreito), narrowing de erro após checagem, e `as const`.
 - **Exceções de tipagem:** `src/generated/**` (Prisma gerado, não editar) e mappers de `$queryRaw` — tipo solto permitido, mas isolado num único mapper por tabela (ex: `mapExpense`, `mapUser`), nunca espalhado pelos services.
-- Upload: nunca confiar no mimetype do cliente — validar magic bytes via `src/utils/validateUpload.ts`.
+- Upload: nunca confiar no mimetype do cliente — validar magic bytes via `src/utils/validate-upload.ts`.
 - Recibos/comprovantes: pre-signed URL curta, validar ownership (prevenir IDOR).
 - Após mudar `prisma/schema.prisma`: rodar `prisma:generate`.

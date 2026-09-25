@@ -1,8 +1,10 @@
-import { test } from "node:test";
+import { mock, test } from "node:test";
+import { brazilTodayIso } from "../../src/utils/timezone";
 import assert from "node:assert/strict";
 import {
   cycleDateForInvoice,
   cycleEligibility,
+  expenseDateForInvoice,
   type FixedExpenseCycleInput,
 } from "../../src/utils/fixed-expense-cycle";
 
@@ -92,4 +94,19 @@ test("without startDate the anchor is the creation month", () => {
     reason: "OUT_OF_CYCLE",
   });
   assert.deepEqual(cycleEligibility(bimonthly, closing("2026-03-28")), { due: true });
+});
+
+test("expenseDateForInvoice uses the Brazilian day, not the UTC day, late at night", () => {
+  mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-25T02:00:00.000Z") });
+  try {
+    const noDueDay: FixedExpenseCycleInput = { recurrenceMonths: 1, createdAt: closing("2026-01-05") };
+    assert.deepEqual(expenseDateForInvoice(noDueDay, closing("2026-09-28")), closing("2026-09-24"));
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("brazilTodayIso reports the Brazilian day, not the UTC one", () => {
+  assert.equal(brazilTodayIso(new Date("2026-09-25T02:00:00.000Z")), "2026-09-24");
+  assert.equal(brazilTodayIso(new Date("2026-09-25T12:00:00.000Z")), "2026-09-25");
 });

@@ -19,7 +19,7 @@ const corsPlugin = fp(async (app) => {
       cb(null, allowedOrigins.includes(origin));
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Accept", "Authorization", "X-Device-Id"],
     exposedHeaders: ["Content-Disposition"],
   };

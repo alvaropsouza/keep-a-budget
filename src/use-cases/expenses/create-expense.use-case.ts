@@ -5,6 +5,7 @@ import { PaymentMethodRepository } from "../../repositories/payment-method.repos
 import { S3Service } from "../../services/s3.service";
 import { AppError } from "../../errors/app-error";
 import { runWithTransaction } from "../../utils/run-with-transaction";
+import { getBrazilTodayUtcMidnight } from "../../utils/timezone";
 import { ExpenseTypeEnum } from "../../enums/expense-type.enum";
 import { PaymentMethodTypeEnum } from "../../enums/payment-method-type.enum";
 import type { IPaymentMethod } from "../../interfaces/payment-method";
@@ -71,7 +72,7 @@ export class CreateExpenseUseCase {
   }
 
   private async createSingle(input: CreateExpenseInput, paymentMethod: IPaymentMethod): Promise<IExpense> {
-    const expenseDate = input.date ? new Date(input.date) : new Date();
+    const expenseDate = input.date ? new Date(input.date) : getBrazilTodayUtcMidnight();
     const isCard = paymentMethod.type === PaymentMethodTypeEnum.CREDIT_CARD;
 
     const expense = await runWithTransaction(async (tx) => {
@@ -137,7 +138,7 @@ export class CreateExpenseUseCase {
     }
 
     const result = await runWithTransaction(async (tx) => {
-      const baseDate = startDate ? new Date(startDate) : new Date();
+      const baseDate = startDate ? new Date(startDate) : getBrazilTodayUtcMidnight();
       const expenses: IExpense[] = [];
       const balancesByInvoice = new Map<string, number>();
 

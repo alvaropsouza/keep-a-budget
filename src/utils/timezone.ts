@@ -19,3 +19,7 @@ export function getBrazilTodayUtcMidnight(now: Date = new Date()): Date {
 
   return new Date(Date.UTC(year, month - 1, day));
 }
+
+export function brazilTodayIso(now: Date = new Date()): string {
+  return getBrazilTodayUtcMidnight(now).toISOString().slice(0, 10);
+}

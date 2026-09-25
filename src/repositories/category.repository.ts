@@ -2,26 +2,14 @@ import { Injectable } from "@nestjs/common";
 import type { Category } from "../generated/prisma/client/client";
 import { prisma } from "../config/prisma";
 import type { TxClient } from "../utils/run-with-transaction";
+import {
+  DEFAULT_CATEGORIES,
+  FIXED_EXPENSE_CATEGORY,
+  PROTECTED_CATEGORY_ICON,
+  PROTECTED_CATEGORY_NAME,
+} from "../utils/categories";
 
-export const DEFAULT_CATEGORIES: { name: string; icon: string }[] = [
-  { name: "Alimentação", icon: "UtensilsCrossed" },
-  { name: "Transporte", icon: "Car" },
-  { name: "Lazer", icon: "Clapperboard" },
-  { name: "Compras", icon: "ShoppingBag" },
-  { name: "Saúde", icon: "Pill" },
-  { name: "Educação", icon: "GraduationCap" },
-  { name: "Contas", icon: "FileText" },
-  { name: "Despesas Fixas", icon: "Repeat" },
-  { name: "Eletrônicos", icon: "Laptop" },
-  { name: "Viagem", icon: "Plane" },
-  { name: "Outros", icon: "Package" },
-];
-
-export const PROTECTED_CATEGORY_NAME = "Outros";
-
-export const PROTECTED_CATEGORY_ICON = "Package";
-
-export const FIXED_EXPENSE_CATEGORY = { name: "Despesas Fixas", icon: "Repeat" };
+export { DEFAULT_CATEGORIES, FIXED_EXPENSE_CATEGORY, PROTECTED_CATEGORY_ICON, PROTECTED_CATEGORY_NAME };
 
 @Injectable()
 export class CategoryRepository {

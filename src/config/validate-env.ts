@@ -6,6 +6,7 @@ const validateEnv = (): void => {
     "AWS_SECRET_ACCESS_KEY",
     "S3_BUCKET_NAME",
     "ENCRYPTION_KEY",
+    "RESEND_API_KEY",
   ];
 
   const missing = required.filter((key) => !process.env[key]);

@@ -6,6 +6,7 @@ import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { name, version, description } from "../package.json";
 import multipart from "@fastify/multipart";
+import { RECEIPT_UPLOAD_RULES, MAX_UPLOAD_FILES } from "./utils/validate-upload";
 import rateLimit from "@fastify/rate-limit";
 import { AppModule } from "./app.module";
 import validateEnv from "./config/validate-env";
@@ -44,7 +45,9 @@ async function bootstrap(): Promise<void> {
   await app.register(corsPlugin);
   await app.register(helmetPlugin);
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
-  await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
+  await app.register(multipart, {
+    limits: { fileSize: RECEIPT_UPLOAD_RULES.maxBytes, files: MAX_UPLOAD_FILES },
+  });
 
   if (process.env.NODE_ENV !== "production") {
     const swaggerConfig = new DocumentBuilder()
@@ -79,6 +82,29 @@ async function bootstrap(): Promise<void> {
   await app.listen({ port, host });
   const url = await app.getUrl();
   new Logger("Bootstrap").log(`Server listening at ${url}`);
+
+  let shuttingDown = false;
+  const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    const shutdownLogger = new Logger("Shutdown");
+    shutdownLogger.log(`${signal} received, closing gracefully`);
+    invoiceClosureJob.stop();
+    sessionCleanupJob.stop();
+    fixedExpenseAutoLaunchJob.stop();
+    try {
+      await app.close();
+      await prisma.$disconnect();
+      shutdownLogger.log("Shutdown complete");
+      process.exit(0);
+    } catch (error) {
+      shutdownLogger.error({ error }, "Shutdown failed");
+      process.exit(1);
+    }
+  };
+
+  process.on("SIGTERM", (signal) => void shutdown(signal));
+  process.on("SIGINT", (signal) => void shutdown(signal));
 }
 
 void bootstrap();

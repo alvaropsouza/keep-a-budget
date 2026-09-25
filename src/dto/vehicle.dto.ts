@@ -1,7 +1,18 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsDate, IsInt, Min, Max } from "class-validator";
+import {
+  IsDate,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from "class-validator";
 import { Transform } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { FuelType } from "../generated/prisma/client/client";
+import { MAX_DECIMAL_12_2 } from "../utils/validation";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -15,14 +26,17 @@ const toDate = (value: unknown): Date | undefined => {
 export class CreateVehicleDto {
   @ApiProperty({ example: "ABC-1234" })
   @IsString()
+  @MaxLength(10)
   plate!: string;
 
   @ApiProperty({ example: "Toyota" })
   @IsString()
+  @MaxLength(60)
   brand!: string;
 
   @ApiProperty({ example: "Corolla" })
   @IsString()
+  @MaxLength(60)
   model!: string;
 
   @ApiProperty({ example: 2020 })
@@ -34,11 +48,13 @@ export class CreateVehicleDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(20)
   renavam?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(30)
   chassis?: string;
 
   @ApiPropertyOptional({ example: 2021 })
@@ -51,6 +67,7 @@ export class CreateVehicleDto {
   @ApiPropertyOptional({ example: "Prata" })
   @IsString()
   @IsOptional()
+  @MaxLength(40)
   color?: string;
 
   @ApiPropertyOptional({ enum: FuelType })
@@ -68,6 +85,7 @@ export class CreateVehicleDto {
   @IsNumber()
   @IsOptional()
   @Min(0)
+  @Max(MAX_DECIMAL_12_2)
   ipvaValue?: number;
 
   @ApiPropertyOptional({ format: "date", example: "2025-12-31" })
@@ -103,6 +121,7 @@ export class CreateVehicleDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(1000)
   notes?: string;
 
   @ApiPropertyOptional()
@@ -115,16 +134,19 @@ export class UpdateVehicleDto {
   @ApiPropertyOptional({ example: "ABC-1234" })
   @IsString()
   @IsOptional()
+  @MaxLength(10)
   plate?: string;
 
   @ApiPropertyOptional({ example: "Toyota" })
   @IsString()
   @IsOptional()
+  @MaxLength(60)
   brand?: string;
 
   @ApiPropertyOptional({ example: "Corolla" })
   @IsString()
   @IsOptional()
+  @MaxLength(60)
   model?: string;
 
   @ApiPropertyOptional({ example: 2020 })
@@ -137,11 +159,13 @@ export class UpdateVehicleDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(20)
   renavam?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(30)
   chassis?: string;
 
   @ApiPropertyOptional({ example: 2021 })
@@ -154,6 +178,7 @@ export class UpdateVehicleDto {
   @ApiPropertyOptional({ example: "Prata" })
   @IsString()
   @IsOptional()
+  @MaxLength(40)
   color?: string;
 
   @ApiPropertyOptional({ enum: FuelType })
@@ -171,6 +196,7 @@ export class UpdateVehicleDto {
   @IsNumber()
   @IsOptional()
   @Min(0)
+  @Max(MAX_DECIMAL_12_2)
   ipvaValue?: number;
 
   @ApiPropertyOptional({ format: "date", example: "2025-12-31" })
@@ -206,6 +232,7 @@ export class UpdateVehicleDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(1000)
   notes?: string;
 
   @ApiPropertyOptional()

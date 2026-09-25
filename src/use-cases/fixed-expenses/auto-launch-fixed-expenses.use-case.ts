@@ -27,7 +27,12 @@ export class AutoLaunchFixedExpensesUseCase {
 
     const candidates = await this.fixedExpenseRepository.findAutoLaunchable();
     const openInvoices = await this.invoiceRepository.findAllOpen();
-    const invoiceByKey = new Map(openInvoices.map((invoice) => [this.key(invoice.userId, invoice.bank), invoice]));
+    const invoiceByKey = new Map<string, ICardInvoice>();
+    for (const invoice of openInvoices) {
+      const key = this.key(invoice.userId, invoice.bank);
+      const current = invoiceByKey.get(key);
+      if (!current || invoice.closingDate < current.closingDate) invoiceByKey.set(key, invoice);
+    }
 
     let launched = 0;
     let skipped = 0;

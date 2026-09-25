@@ -6,6 +6,7 @@ import { AppError } from "../../errors/app-error";
 import { validateUpload, RECEIPT_UPLOAD_RULES } from "../../utils/validate-upload";
 import type { CreateVehicleRevisionDto } from "../../dto/vehicle-revision.dto";
 import type { MultipartFile } from "../../utils/read-multipart";
+import { MAX_UPLOAD_FILES } from "../../utils/validate-upload";
 import type { IVehicleRevision } from "../../interfaces/vehicle-revision";
 
 export type CreateVehicleRevisionInput = {
@@ -32,7 +33,8 @@ export class CreateVehicleRevisionUseCase {
     const vehicle = await this.vehicleRepository.findById(input.vehicleId);
     if (!vehicle || vehicle.userId !== input.userId) throw new AppError("Resource not found", 404);
 
-    if (input.files.length > 10) throw new AppError("Máximo de 10 arquivos por revisão.", 400);
+    if (input.files.length > MAX_UPLOAD_FILES)
+      throw new AppError(`Máximo de ${MAX_UPLOAD_FILES} arquivos por revisão.`, 400);
 
     const revision = await this.revisionRepository.create(input.vehicleId, input.data);
 

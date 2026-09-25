@@ -1,8 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ParsedExpenseResponse } from "../dto/parse-expense.dto";
+import { brazilTodayIso } from "../utils/timezone";
+import { AI_SUGGESTABLE_CATEGORIES } from "../utils/categories";
 
-const DEFAULT_CATEGORIES = ["Alimentação", "Transporte", "Lazer", "Compras", "Saúde", "Educação", "Contas", "Eletrônicos", "Viagem", "Outros"];
+
 const DEFAULT_BANKS = ["Nubank", "XP"];
 
 export type UserVocabulary = { banks: string[]; categories: string[] };
@@ -31,7 +33,7 @@ export interface ParsedStockTicketResponse {
 
 const itemSchemaFor = (vocabulary?: UserVocabulary): string => {
   const banks = optionsOf(vocabulary?.banks ?? [], DEFAULT_BANKS);
-  const categories = optionsOf(vocabulary?.categories ?? [], DEFAULT_CATEGORIES);
+  const categories = optionsOf(vocabulary?.categories ?? [], AI_SUGGESTABLE_CATEGORIES);
   return `{"bank":"${banks.join("|")}|null","amount":number|null,"date":"YYYY-MM-DD"|null,"category":"${categories.join("|")}|null","description":"string|null","installmentTotal":number|null}`;
 };
 
@@ -47,10 +49,10 @@ bank e category: use exatamente um dos valores listados no schema, ou null. Nunc
 Banco — prioridade: logo > cor dominante > texto institucional. Pistas: Nubank = fundo branco, roxo/violeta (#820AD1), logo "Nu" ou texto "Nubank", Nu Pagamentos, Nu Financeira. XP = fundo preto/escuro, texto branco, logo "XP", variações: XP Investimentos, XP Inc, Banco XP, Rico. Mapeie a pista para o valor da lista que corresponder; bank=null se nenhum valor da lista corresponder ou sinais insuficientes.
 Regras: uma entrada por transação; nunca agregar; valores "R$ 1.200,50"→1200.50; datas relativas resolver com data fornecida; imagem ilegível → [].`;
 
-function parseJsonResponse(raw: string): ParsedExpenseResponse {
+function parseJsonResponse<T>(raw: string): T {
   const text = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
   try {
-    return JSON.parse(text) as ParsedExpenseResponse;
+    return JSON.parse(text) as T;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Falha ao interpretar resposta da IA: ${message}\nResposta recebida: ${raw}`);
@@ -71,14 +73,19 @@ function parseJsonArrayResponse(raw: string): ParsedExpenseResponse[] {
 }
 
 const MODEL_FAST = "claude-haiku-4-5";
-const MODEL_PDF = "claude-sonnet-4-6";
+const MODEL_PDF = "claude-sonnet-5";
+
+const ANTHROPIC_TIMEOUT_MS = 60_000;
 
 @Injectable()
 export class AiService {
   private readonly client: Anthropic;
 
   constructor() {
-    this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    this.client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      timeout: ANTHROPIC_TIMEOUT_MS,
+    });
   }
 
   async parseExpenseFromImage(
@@ -86,7 +93,7 @@ export class AiService {
     mimeType: string,
     vocabulary?: UserVocabulary,
   ): Promise<ParsedExpenseResponse[]> {
-    const today = new Date().toISOString().split("T")[0];
+    const today = brazilTodayIso();
     const base64 = imageBuffer.toString("base64");
 
     const isImage = mimeType.startsWith("image/");
@@ -134,10 +141,10 @@ export class AiService {
     mimeType: string,
     vocabulary?: UserVocabulary,
   ): Promise<ParsedIrReceiptResponse> {
-    const today = new Date().toISOString().split("T")[0];
+    const today = brazilTodayIso();
     const base64 = fileBuffer.toString("base64");
     const irSystemPrompt = `Extrai dados de comprovante PIX/TED/débito para declaração IR. Retorne JSON puro, sem markdown, sem explicações.
-Schema: {"date":"YYYY-MM-DD|null","category":"${optionsOf(vocabulary?.categories ?? [], DEFAULT_CATEGORIES).join("|")}|null","amount":number|null,"description":"string|null"}
+Schema: {"date":"YYYY-MM-DD|null","category":"${optionsOf(vocabulary?.categories ?? [], AI_SUGGESTABLE_CATEGORIES).join("|")}|null","amount":number|null,"description":"string|null"}
 Regras: date=data do pagamento, amount=valor em reais (ex "R$ 1.200,50"→1200.50), category=categoria mais adequada ao beneficiário, description=nome do beneficiário/prestador.`;
 
     const isImage = mimeType.startsWith("image/");
@@ -174,11 +181,11 @@ Regras: date=data do pagamento, amount=valor em reais (ex "R$ 1.200,50"→1200.5
 
     const content = message.content[0];
     if (content.type !== "text") throw new Error("Unexpected response type");
-    return parseJsonResponse(content.text) as unknown as ParsedIrReceiptResponse;
+    return parseJsonResponse<ParsedIrReceiptResponse>(content.text);
   }
 
   async parseStockTicket(fileBuffer: Buffer, mimeType: string): Promise<ParsedStockTicketResponse> {
-    const today = new Date().toISOString().split("T")[0];
+    const today = brazilTodayIso();
     const base64 = fileBuffer.toString("base64");
     const schema = `{"ticker":"string|null","companyName":"string|null","broker":"string|null","date":"YYYY-MM-DD|null","type":"COMPRA|VENDA|null","operationType":"NORMAL|DAY_TRADE|null","quantity":number|null,"unitPrice":number|null,"fees":number|null}`;
     const systemPrompt = `Extrai dados de nota de corretagem ou comprovante de operação em bolsa (B3/Brasil). Retorne JSON puro, sem markdown, sem explicações.
@@ -229,11 +236,11 @@ Regras:
 
     const content = message.content[0];
     if (content.type !== "text") throw new Error("Unexpected response type");
-    return parseJsonResponse(content.text) as unknown as ParsedStockTicketResponse;
+    return parseJsonResponse<ParsedStockTicketResponse>(content.text);
   }
 
   async parseExpense(text: string, vocabulary?: UserVocabulary): Promise<ParsedExpenseResponse> {
-    const today = new Date().toISOString().split("T")[0];
+    const today = brazilTodayIso();
 
     const message = await this.client.messages.create({
       model: "claude-haiku-4-5",
@@ -244,6 +251,6 @@ Regras:
 
     const content = message.content[0];
     if (content.type !== "text") throw new Error("Unexpected response type");
-    return parseJsonResponse(content.text);
+    return parseJsonResponse<ParsedExpenseResponse>(content.text);
   }
 }

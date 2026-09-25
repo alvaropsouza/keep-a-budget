@@ -1,18 +1,20 @@
 import {
-  IsString,
-  IsNumber,
-  IsOptional,
-  IsBoolean,
-  IsUUID,
+  ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsDate,
   IsIn,
-  ArrayNotEmpty,
-  Min,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
   Max,
+  MaxLength,
+  Min,
 } from "class-validator";
 import { Transform } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { MAX_DECIMAL_12_2 } from "../utils/validation";
 
 export const RECURRENCE_MONTH_OPTIONS = [1, 2, 3, 6, 12] as const;
 
@@ -51,21 +53,25 @@ const toOptionalBoolean = ({ value }: { value: unknown }): boolean | undefined =
 export class CreateFixedExpenseDto {
   @ApiProperty({ example: "Academia" })
   @IsString()
+  @MaxLength(120)
   name!: string;
 
   @ApiProperty({ minimum: 0, example: 99.9 })
   @IsNumber()
   @Min(0)
+  @Max(MAX_DECIMAL_12_2)
   amount!: number;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   description?: string;
 
   @ApiPropertyOptional({ example: "Contas" })
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   category?: string;
 
   @ApiPropertyOptional({ minimum: 1, maximum: 31, example: 10 })
@@ -114,22 +120,26 @@ export class UpdateFixedExpenseDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   name?: string;
 
   @ApiPropertyOptional({ minimum: 0 })
   @IsNumber()
   @IsOptional()
   @Min(0)
+  @Max(MAX_DECIMAL_12_2)
   amount?: number;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   description?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   category?: string;
 
   @ApiPropertyOptional({ minimum: 1, maximum: 31 })

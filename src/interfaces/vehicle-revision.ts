@@ -4,6 +4,7 @@ export interface IVehicleRevision {
   date: Date;
   km: number | null;
   description: string | null;
+  cost: number | null;
   files: string[];
   createdAt: Date;
   updatedAt: Date;

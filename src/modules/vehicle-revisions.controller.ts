@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Body,
   Delete,
   Param,
   Query,
@@ -19,10 +21,11 @@ import { AppError } from "../errors/app-error";
 import { readMultipartFiles } from "../utils/read-multipart";
 import { CreateVehicleRevisionUseCase } from "../use-cases/vehicles/create-vehicle-revision.use-case";
 import { ListVehicleRevisionsUseCase } from "../use-cases/vehicles/list-vehicle-revisions.use-case";
+import { UpdateVehicleRevisionUseCase } from "../use-cases/vehicles/update-vehicle-revision.use-case";
 import { DeleteVehicleRevisionUseCase } from "../use-cases/vehicles/delete-vehicle-revision.use-case";
 import { DeleteRevisionFileUseCase } from "../use-cases/vehicles/delete-revision-file.use-case";
 import { GetRevisionFileUseCase } from "../use-cases/vehicles/get-revision-file.use-case";
-import { CreateVehicleRevisionDto } from "../dto/vehicle-revision.dto";
+import { CreateVehicleRevisionDto, UpdateVehicleRevisionDto } from "../dto/vehicle-revision.dto";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 
@@ -33,6 +36,7 @@ export class VehicleRevisionsController {
   constructor(
     private readonly createVehicleRevisionUseCase: CreateVehicleRevisionUseCase,
     private readonly listVehicleRevisionsUseCase: ListVehicleRevisionsUseCase,
+    private readonly updateVehicleRevisionUseCase: UpdateVehicleRevisionUseCase,
     private readonly deleteVehicleRevisionUseCase: DeleteVehicleRevisionUseCase,
     private readonly deleteRevisionFileUseCase: DeleteRevisionFileUseCase,
     private readonly getRevisionFileUseCase: GetRevisionFileUseCase,
@@ -88,6 +92,16 @@ export class VehicleRevisionsController {
       .header("Content-Type", contentType)
       .header("Cache-Control", "private, max-age=300")
       .send(buffer);
+  }
+
+  @Put(":id")
+  async update(
+    @Param("vehicleId") vehicleId: string,
+    @Param("id") id: string,
+    @Body() body: UpdateVehicleRevisionDto,
+    @Req() req: FastifyRequest,
+  ) {
+    return this.updateVehicleRevisionUseCase.execute({ id, vehicleId, userId: this.authUserId(req), data: body });
   }
 
   @Delete(":id")

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { prisma } from "../config/prisma";
 import type { IVehicleRevision } from "../interfaces/vehicle-revision";
-import type { CreateVehicleRevisionDto } from "../dto/vehicle-revision.dto";
+import type { CreateVehicleRevisionDto, UpdateVehicleRevisionDto } from "../dto/vehicle-revision.dto";
 
 const mapRevision = (row: {
   id: string;
@@ -9,6 +9,7 @@ const mapRevision = (row: {
   date: Date;
   km: number | null;
   description: string | null;
+  cost: { toString(): string } | null;
   files: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -18,6 +19,7 @@ const mapRevision = (row: {
   date: row.date,
   km: row.km,
   description: row.description,
+  cost: row.cost !== null ? Number(row.cost) : null,
   files: row.files,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -53,7 +55,21 @@ export class VehicleRevisionRepository {
         date: new Date(data.date),
         km: data.km ?? null,
         description: data.description ?? null,
+        cost: data.cost ?? null,
         files: [],
+      },
+    });
+    return mapRevision(row);
+  }
+
+  async update(id: string, data: UpdateVehicleRevisionDto): Promise<IVehicleRevision> {
+    const row = await prisma.vehicleRevision.update({
+      where: { id },
+      data: {
+        date: new Date(data.date),
+        km: data.km ?? null,
+        description: data.description ?? null,
+        cost: data.cost ?? null,
       },
     });
     return mapRevision(row);

@@ -56,7 +56,7 @@ export const extractS3Key = (urlOrKey: string): string => {
       parts.shift();
     }
 
-    return parts.join("/");
+    return decodeURIComponent(parts.join("/"));
   } catch {
     // If URL parsing fails, assume it's already a key
     logger.warn({ urlOrKey }, "Failed to parse as URL, treating as S3 key");

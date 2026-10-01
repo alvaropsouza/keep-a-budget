@@ -44,7 +44,7 @@ export class GetRevisionFileUseCase {
     const revision = await this.revisionRepository.findById(input.revisionId);
     if (!revision || revision.vehicleId !== input.vehicleId) throw new AppError("Resource not found", 404);
 
-    const key = decodeURIComponent(extractS3Key(input.fileRef));
+    const key = extractS3Key(input.fileRef);
     if (!revision.files.includes(key)) throw new AppError("File not found", 404);
 
     const buffer = await this.s3Service.downloadObject(key);

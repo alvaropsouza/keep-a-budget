@@ -22,6 +22,7 @@ import { readMultipartFiles } from "../utils/read-multipart";
 import { CreateVehicleRevisionUseCase } from "../use-cases/vehicles/create-vehicle-revision.use-case";
 import { ListVehicleRevisionsUseCase } from "../use-cases/vehicles/list-vehicle-revisions.use-case";
 import { UpdateVehicleRevisionUseCase } from "../use-cases/vehicles/update-vehicle-revision.use-case";
+import { AddRevisionFilesUseCase } from "../use-cases/vehicles/add-revision-files.use-case";
 import { DeleteVehicleRevisionUseCase } from "../use-cases/vehicles/delete-vehicle-revision.use-case";
 import { DeleteRevisionFileUseCase } from "../use-cases/vehicles/delete-revision-file.use-case";
 import { GetRevisionFileUseCase } from "../use-cases/vehicles/get-revision-file.use-case";
@@ -37,6 +38,7 @@ export class VehicleRevisionsController {
     private readonly createVehicleRevisionUseCase: CreateVehicleRevisionUseCase,
     private readonly listVehicleRevisionsUseCase: ListVehicleRevisionsUseCase,
     private readonly updateVehicleRevisionUseCase: UpdateVehicleRevisionUseCase,
+    private readonly addRevisionFilesUseCase: AddRevisionFilesUseCase,
     private readonly deleteVehicleRevisionUseCase: DeleteVehicleRevisionUseCase,
     private readonly deleteRevisionFileUseCase: DeleteRevisionFileUseCase,
     private readonly getRevisionFileUseCase: GetRevisionFileUseCase,
@@ -104,6 +106,25 @@ export class VehicleRevisionsController {
     return this.updateVehicleRevisionUseCase.execute({ id, vehicleId, userId: this.authUserId(req), data: body });
   }
 
+  @Post(":id/files")
+  async addFiles(
+    @Param("vehicleId") vehicleId: string,
+    @Param("id") id: string,
+    @Req() req: FastifyRequest,
+  ) {
+    const { files } = await readMultipartFiles(req);
+    const user = req.authUser;
+    if (!user) throw new AppError("Unauthorized", 401);
+
+    return this.addRevisionFilesUseCase.execute({
+      revisionId: id,
+      vehicleId,
+      userId: user.userId,
+      userEmail: user.email,
+      files,
+    });
+  }
+
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteRevision(
@@ -114,19 +135,19 @@ export class VehicleRevisionsController {
     await this.deleteVehicleRevisionUseCase.execute({ id, vehicleId, userId: this.authUserId(req) });
   }
 
-  @Delete(":id/files/:encodedKey")
+  @Delete(":id/files")
   async deleteFile(
     @Param("vehicleId") vehicleId: string,
     @Param("id") id: string,
-    @Param("encodedKey") encodedKey: string,
+    @Query("src") src: string,
     @Req() req: FastifyRequest,
   ) {
-    const s3Key = decodeURIComponent(encodedKey);
+    if (!src) throw new AppError("Missing file reference", 400);
     return this.deleteRevisionFileUseCase.execute({
       revisionId: id,
       vehicleId,
       userId: this.authUserId(req),
-      s3Key,
+      s3Key: src,
     });
   }
 

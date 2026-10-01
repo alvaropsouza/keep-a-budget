@@ -36,12 +36,17 @@ export class CreateVehicleRevisionUseCase {
     if (input.files.length > MAX_UPLOAD_FILES)
       throw new AppError(`Máximo de ${MAX_UPLOAD_FILES} arquivos por revisão.`, 400);
 
-    const revision = await this.revisionRepository.create(input.vehicleId, input.data);
+    const validated = input.files.map((file) => ({ file, mimeType: validateUpload(file.buffer, RECEIPT_UPLOAD_RULES) }));
 
-    if (input.files.length > 0) {
-      const s3Keys: string[] = [];
-      for (const file of input.files) {
-        const mimeType = validateUpload(file.buffer, RECEIPT_UPLOAD_RULES);
+    const revision = await this.revisionRepository.create(input.vehicleId, input.data);
+    if (validated.length === 0) {
+      this.logger.log({ id: revision.id }, "CreateVehicleRevisionUseCase.execute done");
+      return revision;
+    }
+
+    const s3Keys: string[] = [];
+    try {
+      for (const { file, mimeType } of validated) {
         const key = await this.s3Service.upload(file.buffer, file.filename, mimeType, {
           keyPrefix: "vehicle-revisions",
           userEmail: input.userEmail,
@@ -51,9 +56,11 @@ export class CreateVehicleRevisionUseCase {
       const updated = await this.revisionRepository.appendFiles(revision.id, s3Keys);
       this.logger.log({ id: revision.id, files: s3Keys.length }, "CreateVehicleRevisionUseCase.execute done");
       return updated;
+    } catch (err) {
+      this.logger.error({ err, id: revision.id }, "CreateVehicleRevisionUseCase.execute failed");
+      await Promise.allSettled(s3Keys.map((key) => this.s3Service.deleteObject(key)));
+      await this.revisionRepository.delete(revision.id);
+      throw err;
     }
-
-    this.logger.log({ id: revision.id }, "CreateVehicleRevisionUseCase.execute done");
-    return revision;
   }
 }

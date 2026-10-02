@@ -16,7 +16,6 @@ export class FilesController {
       .header("Content-Type", contentType)
       .header("Content-Disposition", "inline")
       .header("Cache-Control", "private, max-age=3600")
-      .header("Content-Security-Policy", "frame-ancestors 'self'")
       .send(stream);
   }
 }

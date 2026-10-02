@@ -3,7 +3,7 @@ import { VehicleRepository } from "../../repositories/vehicle.repository";
 import { VehicleRevisionRepository } from "../../repositories/vehicle-revision.repository";
 import { S3Service } from "../../services/s3.service";
 import { AppError } from "../../errors/app-error";
-import { extractS3Key } from "../../utils/s3-upload";
+import { contentTypeForKey, extractS3Key } from "../../utils/s3-upload";
 
 export type GetRevisionFileInput = {
   vehicleId: string;
@@ -15,14 +15,6 @@ export type GetRevisionFileInput = {
 export type GetRevisionFileOutput = {
   buffer: Buffer;
   contentType: string;
-};
-
-const CONTENT_TYPES: Record<string, string> = {
-  pdf: "application/pdf",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
 };
 
 @Injectable()
@@ -48,8 +40,7 @@ export class GetRevisionFileUseCase {
     if (!revision.files.includes(key)) throw new AppError("File not found", 404);
 
     const buffer = await this.s3Service.downloadObject(key);
-    const ext = key.split(".").pop()?.toLowerCase() ?? "";
-    const contentType = CONTENT_TYPES[ext] ?? "application/octet-stream";
+    const contentType = contentTypeForKey(key);
 
     this.logger.log({ revisionId: input.revisionId, key }, "GetRevisionFileUseCase.execute done");
     return { buffer, contentType };

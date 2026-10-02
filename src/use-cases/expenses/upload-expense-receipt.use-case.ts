@@ -42,7 +42,7 @@ export class UploadExpenseReceiptUseCase {
       }
     }
 
-    const signedUrl = await this.s3Service.getSignedUrl(s3Key);
+    const signedUrl = await this.s3Service.getFileUrl(s3Key);
     this.logger.log({ id: input.id }, "UploadExpenseReceiptUseCase.execute done");
     return { ...existing, receipt: signedUrl };
   }

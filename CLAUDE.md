@@ -50,7 +50,7 @@ Monorepo em `keep-a-budget-system/`:
 - Prisma 7 + PostgreSQL (`@prisma/adapter-pg`, `pg`)
 - Validação: `class-validator` + `class-transformer`
 - IA: `@anthropic-ai/sdk` (parsing de despesa/comprovante — ver `src/services/ai.service.ts`)
-- Storage: AWS S3 (`@aws-sdk/client-s3`, pre-signed URLs)
+- Storage: AWS S3 (`@aws-sdk/client-s3`) servido via proxy `GET /api/files/:token/:name` (token AES-GCM opaco, 1h) — link montado com `FRONTEND_URL`, Vercel encaminha `/api/files/*` pro backend; nunca expor URL do S3
 - Email: Resend
 - Jobs: `node-cron`
 - Logs: `pino`
@@ -282,5 +282,5 @@ pnpm run prisma:migrate   # prisma migrate dev
 - **Sem casts de conveniência (`as Type`)** — não usar `as` para calar o compilador. Tipar na origem: DTO, generic, retorno de service. `as` aceitável só em fronteiras reais: `JSON.parse`/SDK de terceiros sem tipo (cast estreito), narrowing de erro após checagem, e `as const`.
 - **Exceções de tipagem:** `src/generated/**` (Prisma gerado, não editar) e mappers de `$queryRaw` — tipo solto permitido, mas isolado num único mapper por tabela (ex: `mapExpense`, `mapUser`), nunca espalhado pelos services.
 - Upload: nunca confiar no mimetype do cliente — validar magic bytes via `src/utils/validate-upload.ts`.
-- Recibos/comprovantes: pre-signed URL curta, validar ownership (prevenir IDOR).
+- Recibos/comprovantes: link via `S3Service.getFileUrl` (token opaco curto), validar ownership (prevenir IDOR).
 - Após mudar `prisma/schema.prisma`: rodar `prisma:generate`.

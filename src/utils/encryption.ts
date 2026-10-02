@@ -37,7 +37,10 @@ const getBlindKey = (): Buffer => {
   return cachedBlindKey;
 };
 
-export const isEncrypted = (value: string): boolean =>
+export const deriveSubKey = (label: string): Buffer =>
+  createHash("sha256").update(getKey()).update(`:${label}`).digest();
+
+export const isEncrypted =(value: string): boolean =>
   value.startsWith(`${VERSION_PREFIX}:`);
 
 export const encryptField = (plaintext: string): string => {

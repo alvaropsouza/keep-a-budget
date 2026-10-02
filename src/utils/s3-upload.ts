@@ -1,6 +1,18 @@
 import crypto from "node:crypto";
 import logger from "../config/logger";
 import { getS3UrlConfig } from "./s3-url";
+import { readFileTokenFromUrl } from "./file-token";
+
+const CONTENT_TYPES: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
+
+export const contentTypeForKey = (key: string): string =>
+  CONTENT_TYPES[key.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
 
 /**
  * Generate a unique S3 key for a file
@@ -44,6 +56,8 @@ export const extractS3Key = (urlOrKey: string): string => {
 
   try {
     const url = new URL(urlOrKey);
+    const tokenKey = readFileTokenFromUrl(url);
+    if (tokenKey) return tokenKey;
     const pathname = url.pathname;
 
     // Remove leading slash and bucket name if present

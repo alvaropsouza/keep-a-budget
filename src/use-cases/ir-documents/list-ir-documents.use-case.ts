@@ -22,7 +22,7 @@ export class ListIrDocumentsUseCase {
     const result = await Promise.all(
       documents.map(async (doc) => {
         try {
-          const signedUrl = await this.s3Service.getSignedUrl(doc.receipt);
+          const signedUrl = await this.s3Service.getFileUrl(doc.receipt);
           return { ...doc, receipt: signedUrl };
         } catch (err) {
           this.logger.error({ err, irDocumentId: doc.id }, "Failed to sign IR document URL");

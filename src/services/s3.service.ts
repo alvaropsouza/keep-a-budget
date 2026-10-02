@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { Upload } from "@aws-sdk/lib-storage";
-import { GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { GetObjectCommand, DeleteObjectCommand, NoSuchKey } from "@aws-sdk/client-s3";
+import { Readable } from "node:stream";
 import type { ObjectCannedACL } from "@aws-sdk/client-s3";
 import s3Client from "../config/s3";
 import { getS3UrlConfig } from "../utils/s3-url";
 import { generateS3Key, extractS3Key } from "../utils/s3-upload";
+import { buildFileUrl } from "../utils/file-token";
 import logger from "../config/logger";
 
 @Injectable()
@@ -37,15 +38,19 @@ export class S3Service {
     return fileKey;
   }
 
-  async getSignedUrl(keyOrUrl: string, expiresIn: number = 3600): Promise<string> {
+  async getFileUrl(keyOrUrl: string, expiresIn: number = 3600): Promise<string> {
+    return buildFileUrl(extractS3Key(keyOrUrl), expiresIn);
+  }
+
+  async openObjectStream(key: string): Promise<Readable | null> {
     const config = getS3UrlConfig();
-    const key = extractS3Key(keyOrUrl);
-
-    const command = new GetObjectCommand({ Bucket: config.bucket, Key: key });
-    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn });
-
-    logger.debug({ key, expiresIn, bucket: config.bucket }, "Generated pre-signed URL");
-    return signedUrl;
+    try {
+      const response = await s3Client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
+      return response.Body instanceof Readable ? response.Body : null;
+    } catch (error) {
+      if (error instanceof NoSuchKey) return null;
+      throw error;
+    }
   }
 
   async downloadObject(key: string): Promise<Buffer> {
@@ -53,7 +58,6 @@ export class S3Service {
     const command = new GetObjectCommand({ Bucket: config.bucket, Key: key });
     const response = await s3Client.send(command);
 
-    const { Readable } = await import("node:stream");
     const chunks: Uint8Array[] = [];
     for await (const chunk of response.Body as InstanceType<typeof Readable>) {
       chunks.push(chunk as Uint8Array);

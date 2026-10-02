@@ -39,7 +39,7 @@ export class ListExpensesUseCase {
       expenses.map(async (expense) => {
         if (!expense.receipt) return expense;
         try {
-          const signedUrl = await this.s3Service.getSignedUrl(expense.receipt);
+          const signedUrl = await this.s3Service.getFileUrl(expense.receipt);
           return { ...expense, receipt: signedUrl };
         } catch (err) {
           this.logger.error({ err, expenseId: expense.id }, "Failed to sign receipt URL");

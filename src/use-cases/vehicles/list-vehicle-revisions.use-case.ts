@@ -30,7 +30,7 @@ export class ListVehicleRevisionsUseCase {
 
     const withSignedUrls = await Promise.all(
       revisions.map(async (rev) => {
-        const files = await Promise.all(rev.files.map((key) => this.s3Service.getSignedUrl(key)));
+        const files = await Promise.all(rev.files.map((key) => this.s3Service.getFileUrl(key)));
         return { ...rev, files };
       }),
     );

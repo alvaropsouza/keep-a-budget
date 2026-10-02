@@ -15,6 +15,7 @@ import { CategoriesModule } from "./modules/categories.module";
 import { VehiclesModule } from "./modules/vehicles.module";
 import { VehicleRevisionsModule } from "./modules/vehicle-revisions.module";
 import { IrStocksModule } from "./modules/ir-stocks.module";
+import { FilesModule } from "./modules/files.module";
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { IrStocksModule } from "./modules/ir-stocks.module";
     CategoriesModule,
     VehiclesModule,
     VehicleRevisionsModule,
+    FilesModule,
   ],
   controllers: [HealthController],
 })

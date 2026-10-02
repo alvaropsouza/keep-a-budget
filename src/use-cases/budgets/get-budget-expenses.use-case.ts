@@ -46,7 +46,7 @@ export class GetBudgetExpensesUseCase {
         let receipt = row.receipt ?? undefined;
         if (receipt) {
           try {
-            receipt = await this.s3Service.getSignedUrl(receipt);
+            receipt = await this.s3Service.getFileUrl(receipt);
           } catch {
             /* keep original key on sign failure */
           }

@@ -1,3 +1,5 @@
+import { resolveFileBaseUrl } from "../utils/file-token";
+
 const validateEnv = (): void => {
   const required = [
     "DATABASE_URL",
@@ -15,6 +17,12 @@ const validateEnv = (): void => {
     throw new Error(
       `Missing required environment variables: ${missing.join(", ")}\n` +
         "Please check your .env file and ensure all required variables are set.",
+    );
+  }
+
+  if (!resolveFileBaseUrl()) {
+    throw new Error(
+      "Cannot resolve the base URL for file links. Set FRONTEND_URL.",
     );
   }
 

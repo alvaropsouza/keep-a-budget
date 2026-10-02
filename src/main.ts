@@ -26,7 +26,7 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: fastifyLoggerConfig, trustProxy: process.env.TRUST_PROXY === "true" }),
+    new FastifyAdapter({ logger: fastifyLoggerConfig, trustProxy: process.env.TRUST_PROXY === "true", maxParamLength: 1024 }),
   );
 
   app.setGlobalPrefix("api", { exclude: ["health", "health/*path"] });

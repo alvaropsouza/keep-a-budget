@@ -85,7 +85,7 @@ test("rejects when invoice period does not match budget month/year", async () =>
   const useCase = new UpsertBudgetUseCase(makeRepo({ findInvoices: async () => invoices }));
   await assert.rejects(
     () => useCase.execute({ ...baseInput, month: 7, year: 2026 }),
-    /não pertencem ao período do orçamento/,
+    /não pertencem ao período do budget/,
   );
 });
 

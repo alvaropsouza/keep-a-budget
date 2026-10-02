@@ -48,7 +48,7 @@ export class UpsertBudgetUseCase {
     );
     if (mismatched.length > 0) {
       throw new AppError(
-        "As faturas selecionadas não pertencem ao período do orçamento (mês/ano). O orçamento deve rastrear faturas que fecham no mesmo mês.",
+        "As faturas selecionadas não pertencem ao período do budget (mês/ano). O budget deve rastrear faturas que fecham no mesmo mês.",
         400,
       );
     }

@@ -1,27 +1,17 @@
 import {
-  IsDate,
   IsEnum,
   IsInt,
-  IsNumber,
   IsOptional,
   IsString,
   Max,
   MaxLength,
   Min,
 } from "class-validator";
-import { Transform } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { FuelType } from "../generated/prisma/client/client";
-import { MAX_DECIMAL_12_2 } from "../utils/validation";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-const toDate = (value: unknown): Date | undefined => {
-  if (!value) return undefined;
-  if (value instanceof Date) return isNaN(value.getTime()) ? undefined : value;
-  const date = new Date(value as string);
-  return isNaN(date.getTime()) ? undefined : date;
-};
 
 export class CreateVehicleDto {
   @ApiProperty({ example: "ABC-1234" })
@@ -75,30 +65,9 @@ export class CreateVehicleDto {
   @IsOptional()
   fuel?: FuelType;
 
-  @ApiPropertyOptional({ format: "date", example: "2025-12-31" })
-  @IsDate()
-  @IsOptional()
-  @Transform(({ value }) => toDate(value))
-  ipvaExpiry?: Date;
 
-  @ApiPropertyOptional({ minimum: 0 })
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  @Max(MAX_DECIMAL_12_2)
-  ipvaValue?: number;
 
-  @ApiPropertyOptional({ format: "date", example: "2025-12-31" })
-  @IsDate()
-  @IsOptional()
-  @Transform(({ value }) => toDate(value))
-  insuranceExpiry?: Date;
 
-  @ApiPropertyOptional({ format: "date", example: "2025-12-31" })
-  @IsDate()
-  @IsOptional()
-  @Transform(({ value }) => toDate(value))
-  licensingExpiry?: Date;
 
   @ApiPropertyOptional({ minimum: 0 })
   @IsInt()
@@ -106,17 +75,7 @@ export class CreateVehicleDto {
   @Min(0)
   currentKm?: number;
 
-  @ApiPropertyOptional({ format: "date", example: "2025-06-01" })
-  @IsDate()
-  @IsOptional()
-  @Transform(({ value }) => toDate(value))
-  lastServiceDate?: Date;
 
-  @ApiPropertyOptional({ minimum: 0 })
-  @IsInt()
-  @IsOptional()
-  @Min(0)
-  nextOilChangeKm?: number;
 
   @ApiPropertyOptional()
   @IsString()
@@ -186,30 +145,9 @@ export class UpdateVehicleDto {
   @IsOptional()
   fuel?: FuelType;
 
-  @ApiPropertyOptional({ format: "date", example: "2025-12-31" })
-  @IsDate()
-  @IsOptional()
-  @Transform(({ value }) => toDate(value))
-  ipvaExpiry?: Date;
 
-  @ApiPropertyOptional({ minimum: 0 })
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  @Max(MAX_DECIMAL_12_2)
-  ipvaValue?: number;
 
-  @ApiPropertyOptional({ format: "date", example: "2025-12-31" })
-  @IsDate()
-  @IsOptional()
-  @Transform(({ value }) => toDate(value))
-  insuranceExpiry?: Date;
 
-  @ApiPropertyOptional({ format: "date", example: "2025-12-31" })
-  @IsDate()
-  @IsOptional()
-  @Transform(({ value }) => toDate(value))
-  licensingExpiry?: Date;
 
   @ApiPropertyOptional({ minimum: 0 })
   @IsInt()
@@ -217,17 +155,7 @@ export class UpdateVehicleDto {
   @Min(0)
   currentKm?: number;
 
-  @ApiPropertyOptional({ format: "date", example: "2025-06-01" })
-  @IsDate()
-  @IsOptional()
-  @Transform(({ value }) => toDate(value))
-  lastServiceDate?: Date;
 
-  @ApiPropertyOptional({ minimum: 0 })
-  @IsInt()
-  @IsOptional()
-  @Min(0)
-  nextOilChangeKm?: number;
 
   @ApiPropertyOptional()
   @IsString()

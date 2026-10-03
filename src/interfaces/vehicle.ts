@@ -12,13 +12,7 @@ export interface IVehicle {
   yearModel: number | null;
   color: string | null;
   fuel: FuelType | null;
-  ipvaExpiry: Date | null;
-  ipvaValue: number | null;
-  insuranceExpiry: Date | null;
-  licensingExpiry: Date | null;
   currentKm: number | null;
-  lastServiceDate: Date | null;
-  nextOilChangeKm: number | null;
   notes: string | null;
   photoUrl: string | null;
   createdAt: Date;

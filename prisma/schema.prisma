@@ -308,13 +308,7 @@ model Vehicle {
     yearModel       Int?      @map("year_model")
     color           String?
     fuel            FuelType?
-    ipvaExpiry      DateTime? @map("ipva_expiry") @db.Date
-    ipvaValue       Decimal?  @map("ipva_value") @db.Decimal(12, 2)
-    insuranceExpiry DateTime? @map("insurance_expiry") @db.Date
-    licensingExpiry DateTime? @map("licensing_expiry") @db.Date
     currentKm       Int?      @map("current_km")
-    lastServiceDate DateTime? @map("last_service_date") @db.Date
-    nextOilChangeKm Int?      @map("next_oil_change_km")
     notes           String?
     photoUrl        String?   @map("photo_url")
     createdAt       DateTime          @default(now()) @map("created_at")
